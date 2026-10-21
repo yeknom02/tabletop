@@ -68,6 +68,10 @@
     "packageId": "reef-encounter"
   },
   {
+    "gameId": "arcs",
+    "packageId": "arcs"
+  },
+  {
     "gameId": "railheads",
     "packageId": "railheads"
   },
