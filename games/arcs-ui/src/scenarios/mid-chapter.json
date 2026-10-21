@@ -1,0 +1,494 @@
+{
+    "game": {
+        "id": "scenario-mid-chapter",
+        "isPublic": false,
+        "status": "started",
+        "typeId": "arcs",
+        "deleted": false,
+        "name": "Mid-chapter",
+        "ownerId": "owner",
+        "players": [
+            {
+                "id": "p0",
+                "name": "Amira",
+                "isHuman": true,
+                "status": "joined"
+            },
+            {
+                "id": "p1",
+                "name": "Bashir",
+                "isHuman": true,
+                "status": "joined"
+            },
+            {
+                "id": "p2",
+                "name": "Chen",
+                "isHuman": true,
+                "status": "joined"
+            }
+        ],
+        "config": {
+            "leadersAndLore": "none",
+            "splitDiscards": false
+        },
+        "hotseat": false,
+        "winningPlayerIds": [],
+        "seed": 3367980177,
+        "activePlayerIds": ["p0"],
+        "createdAt": "2026-10-21T18:41:25.389Z",
+        "storage": "remote",
+        "category": "standard",
+        "startedAt": "2026-10-21T18:41:25.390Z",
+        "protectedInformation": true
+    },
+    "state": {
+        "systemVersion": 3,
+        "id": "8ppr_4458itNc9W6IxMwW",
+        "gameId": "scenario-mid-chapter",
+        "seed": 3367980177,
+        "prng": {
+            "seed": 3367980177,
+            "invocations": 6
+        },
+        "protectedPrng": {
+            "algorithm": "chacha20-v1",
+            "seed": "033aacbe6212a2c9bee0cb5c71682e564dd13d1188be676e6f5a533a83f821c3",
+            "invocations": 49
+        },
+        "masterSeed": "0123456789abcdef0123456789abcdef",
+        "activePlayerIds": ["p0"],
+        "winningPlayerIds": [],
+        "actionCount": 0,
+        "actionChecksum": 0,
+        "players": [
+            {
+                "playerId": "p0",
+                "color": "yellow",
+                "hand": [
+                    "administration-2",
+                    "mobilization-3",
+                    "mobilization-5",
+                    "construction-2",
+                    "aggression-4"
+                ],
+                "handCount": 5,
+                "power": 0,
+                "citiesOnBoard": 4,
+                "starports": 5,
+                "ships": 8,
+                "agents": 8,
+                "resources": ["material", "fuel", "weapon", null, null, null],
+                "outrage": [],
+                "trophies": [
+                    {
+                        "owner": "p1",
+                        "kind": "ship"
+                    }
+                ],
+                "captives": {},
+                "guildCards": [],
+                "lore": []
+            },
+            {
+                "playerId": "p2",
+                "color": "white",
+                "hand": [
+                    "mobilization-2",
+                    "aggression-6",
+                    "administration-5",
+                    "aggression-3",
+                    "aggression-5",
+                    "construction-3"
+                ],
+                "handCount": 6,
+                "power": 0,
+                "citiesOnBoard": 4,
+                "starports": 4,
+                "ships": 9,
+                "agents": 8,
+                "resources": ["relic", "psionic", null, null, null, null],
+                "outrage": [],
+                "trophies": [],
+                "captives": {
+                    "p0": 1
+                },
+                "guildCards": [],
+                "lore": []
+            },
+            {
+                "playerId": "p1",
+                "color": "red",
+                "hand": [
+                    "construction-4",
+                    "aggression-2",
+                    "mobilization-6",
+                    "administration-3",
+                    "construction-6",
+                    "construction-5"
+                ],
+                "handCount": 6,
+                "power": 0,
+                "citiesOnBoard": 4,
+                "starports": 4,
+                "ships": 8,
+                "agents": 8,
+                "resources": ["fuel", "fuel", null, null, null, null],
+                "outrage": [],
+                "trophies": [],
+                "captives": {},
+                "guildCards": [],
+                "lore": []
+            }
+        ],
+        "machineState": "TakingActions",
+        "turnManager": {
+            "series": [],
+            "turnOrder": ["p0", "p2", "p1"],
+            "turnCounts": {
+                "p0": 0,
+                "p1": 0,
+                "p2": 0
+            }
+        },
+        "leadersAndLore": "none",
+        "splitDiscards": false,
+        "setupCard": "3-homelands",
+        "outOfPlay": [5, 6],
+        "systems": [
+            {
+                "id": "1G",
+                "ships": {
+                    "p0": {
+                        "fresh": 2,
+                        "damaged": 1
+                    }
+                },
+                "slots": [],
+                "extraBuildings": []
+            },
+            {
+                "id": "1A",
+                "ships": {
+                    "p0": {
+                        "fresh": 3,
+                        "damaged": 0
+                    }
+                },
+                "slots": [
+                    {
+                        "owner": "p0",
+                        "kind": "city",
+                        "damaged": false
+                    },
+                    null
+                ],
+                "extraBuildings": []
+            },
+            {
+                "id": "1C",
+                "ships": {},
+                "slots": [null],
+                "extraBuildings": []
+            },
+            {
+                "id": "1H",
+                "ships": {
+                    "p2": {
+                        "fresh": 2,
+                        "damaged": 0
+                    }
+                },
+                "slots": [
+                    {
+                        "owner": "p2",
+                        "kind": "starport",
+                        "damaged": true
+                    },
+                    null
+                ],
+                "extraBuildings": []
+            },
+            {
+                "id": "2G",
+                "ships": {
+                    "p1": {
+                        "fresh": 3,
+                        "damaged": 0
+                    },
+                    "p0": {
+                        "fresh": 1,
+                        "damaged": 0
+                    }
+                },
+                "slots": [],
+                "extraBuildings": []
+            },
+            {
+                "id": "2A",
+                "ships": {},
+                "slots": [null],
+                "extraBuildings": []
+            },
+            {
+                "id": "2C",
+                "ships": {
+                    "p2": {
+                        "fresh": 4,
+                        "damaged": 0
+                    }
+                },
+                "slots": [
+                    {
+                        "owner": "p2",
+                        "kind": "city",
+                        "damaged": false
+                    }
+                ],
+                "extraBuildings": []
+            },
+            {
+                "id": "2H",
+                "ships": {},
+                "slots": [null, null],
+                "extraBuildings": []
+            },
+            {
+                "id": "3G",
+                "ships": {},
+                "slots": [],
+                "extraBuildings": []
+            },
+            {
+                "id": "3A",
+                "ships": {
+                    "p1": {
+                        "fresh": 2,
+                        "damaged": 2
+                    }
+                },
+                "slots": [
+                    {
+                        "owner": "p1",
+                        "kind": "city",
+                        "damaged": false
+                    }
+                ],
+                "extraBuildings": []
+            },
+            {
+                "id": "3C",
+                "ships": {},
+                "slots": [null],
+                "extraBuildings": []
+            },
+            {
+                "id": "3H",
+                "ships": {},
+                "slots": [
+                    {
+                        "owner": "p1",
+                        "kind": "starport",
+                        "damaged": false
+                    },
+                    null
+                ],
+                "extraBuildings": []
+            },
+            {
+                "id": "4G",
+                "ships": {},
+                "slots": [],
+                "extraBuildings": []
+            },
+            {
+                "id": "4A",
+                "ships": {},
+                "slots": [null, null],
+                "extraBuildings": []
+            },
+            {
+                "id": "4C",
+                "ships": {},
+                "slots": [null, null],
+                "extraBuildings": []
+            },
+            {
+                "id": "4H",
+                "ships": {},
+                "slots": [null],
+                "extraBuildings": []
+            },
+            {
+                "id": "5G",
+                "ships": {},
+                "slots": [],
+                "extraBuildings": []
+            },
+            {
+                "id": "5A",
+                "ships": {},
+                "slots": [null],
+                "extraBuildings": []
+            },
+            {
+                "id": "5C",
+                "ships": {},
+                "slots": [null],
+                "extraBuildings": []
+            },
+            {
+                "id": "5H",
+                "ships": {},
+                "slots": [null, null],
+                "extraBuildings": []
+            },
+            {
+                "id": "6G",
+                "ships": {},
+                "slots": [],
+                "extraBuildings": []
+            },
+            {
+                "id": "6A",
+                "ships": {},
+                "slots": [null],
+                "extraBuildings": []
+            },
+            {
+                "id": "6C",
+                "ships": {},
+                "slots": [null, null],
+                "extraBuildings": []
+            },
+            {
+                "id": "6H",
+                "ships": {},
+                "slots": [null],
+                "extraBuildings": []
+            }
+        ],
+        "supply": {
+            "material": 3,
+            "fuel": 4,
+            "weapon": 4,
+            "relic": 4,
+            "psionic": 4
+        },
+        "court": [
+            {
+                "cardId": "BC05",
+                "agents": {
+                    "p0": 1
+                }
+            },
+            {
+                "cardId": "BC01",
+                "agents": {
+                    "p2": 2,
+                    "p1": 1
+                }
+            },
+            {
+                "cardId": "BC10",
+                "agents": {
+                    "p1": 1
+                }
+            },
+            {
+                "cardId": "BC04",
+                "agents": {}
+            }
+        ],
+        "courtDeck": {
+            "items": [
+                "BC08",
+                "BC18",
+                "BC11",
+                "BC28",
+                "BC06",
+                "BC15",
+                "BC13",
+                "BC07",
+                "BC16",
+                "BC09",
+                "BC26",
+                "BC24",
+                "BC23",
+                "BC25",
+                "BC19",
+                "BC03",
+                "BC14",
+                "BC30",
+                "BC27",
+                "BC12",
+                "BC22",
+                "BC17",
+                "BC20",
+                "BC31",
+                "BC21",
+                "BC29",
+                "BC02"
+            ],
+            "remaining": 27
+        },
+        "courtDiscard": [],
+        "actionDiscard": {
+            "items": ["administration-4", "administration-6"],
+            "remaining": 2
+        },
+        "faceUpDiscard": [],
+        "ambitionMarkers": [
+            {
+                "flipped": false,
+                "ambition": "tycoon"
+            },
+            {
+                "flipped": false
+            },
+            {
+                "flipped": false
+            }
+        ],
+        "ambitionResources": [],
+        "planetTypes": {},
+        "chapter": 1,
+        "initiative": "p0",
+        "round": {
+            "leader": "p0",
+            "plays": [
+                {
+                    "playerId": "p0",
+                    "kind": "lead",
+                    "cardId": "construction-4",
+                    "faceDown": [],
+                    "faceDownCount": 0,
+                    "zeroed": false
+                }
+            ],
+            "passes": 0,
+            "declared": false,
+            "unions": []
+        },
+        "turn": {
+            "playerId": "p0",
+            "pips": 3,
+            "prelude": true,
+            "spent": {
+                "material": 0,
+                "fuel": 0,
+                "weapon": 0,
+                "relic": 0,
+                "psionic": 0
+            },
+            "weaponSpent": false,
+            "taxed": [],
+            "starportsBuilt": [],
+            "securedInPrelude": [],
+            "acted": false,
+            "usedCards": [],
+            "pipActionsTaken": [],
+            "bonusesUsed": []
+        }
+    },
+    "actions": []
+}

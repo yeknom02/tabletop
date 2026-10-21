@@ -9,17 +9,27 @@
     const colorOf = (playerId: string) => state.getPlayerState(playerId).color
 
     const targeted = (cardId: string) =>
-        gameSession.influenceTargets.includes(cardId) || gameSession.secureTargets.includes(cardId)
+        gameSession.influenceTargets.includes(cardId) ||
+        gameSession.secureTargets.includes(cardId) ||
+        gameSession.ransackTargets.includes(cardId) ||
+        gameSession.belovedTargets.includes(cardId)
 
     function chooseCard(cardId: string) {
         if (gameSession.influenceTargets.includes(cardId)) {
             void gameSession.influence(cardId)
+        } else if (gameSession.belovedTargets.includes(cardId)) {
+            void gameSession.belovedInfluence(cardId)
+        } else if (gameSession.ransackTargets.includes(cardId)) {
+            if (gameSession.canRansackWith(cardId)) void gameSession.ransack(cardId)
+            else gameSession.chooseCourtCard(cardId)
         } else if (gameSession.canSecureWith(cardId)) {
             void gameSession.secure(cardId)
         } else {
             gameSession.chooseCourtCard(cardId)
         }
     }
+
+    const securing = $derived(gameSession.ransackTargets.length === 0)
 </script>
 
 <section class="court">
@@ -62,7 +72,15 @@
         offset={16}
         onClose={() => gameSession.undo()}
     >
-        <VoxPicker cardId={gameSession.chosenCourtCard} />
+        <VoxPicker
+            cardId={gameSession.chosenCourtCard}
+            canChoose={(cardId, vox) =>
+                securing
+                    ? gameSession.canSecureWith(cardId, vox)
+                    : gameSession.canRansackWith(cardId, vox)}
+            choose={(cardId, vox) =>
+                securing ? gameSession.secure(cardId, vox) : gameSession.ransack(cardId, vox)}
+        />
     </Floater>
 {/if}
 

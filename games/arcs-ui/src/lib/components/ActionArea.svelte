@@ -5,6 +5,7 @@
     import MulliganPanel from './action/MulliganPanel.svelte'
     import PlayCardPanel from './action/PlayCardPanel.svelte'
     import TurnPanel from './action/TurnPanel.svelte'
+    import BattlePanel from './action/BattlePanel.svelte'
     import WaitingPanel from './action/WaitingPanel.svelte'
 
     const gameSession = getGameSession()
@@ -28,6 +29,8 @@
         <PlayCardPanel />
     {:else if gameSession.isTakingActions}
         <TurnPanel />
+    {:else if gameSession.isBattling}
+        <BattlePanel />
     {:else}
         <WaitingPanel />
     {/if}

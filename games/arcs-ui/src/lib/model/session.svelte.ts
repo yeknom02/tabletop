@@ -3,6 +3,19 @@ import { assertExists, type GameAction } from '@tabletop/common'
 import {
     actionCard,
     ActionType,
+    AssignHits,
+    BattleStep,
+    BelovedInfluence,
+    EndBattle,
+    MoveInBySensors,
+    Raid,
+    Ransack,
+    Reroll,
+    RollDice,
+    type BuildingHits,
+    type RaidTarget,
+    type SensorsMove,
+    type ShipHits,
     Ambition,
     ArcsRuntime,
     Battle,
@@ -68,6 +81,8 @@ export type ActionOffer = { action: StandardAction; payments: PaymentOption[] }
 export type SlotTarget = { system: SystemId; slot: number; discards: Resource[][] }
 
 export type BattleDice = Record<Die, number>
+
+export type RaidOption = { target: RaidTarget; cost: number; discards: (Resource | undefined)[] }
 
 const OfferedActions: readonly StandardAction[] = [
     StandardAction.Tax,
@@ -453,6 +468,104 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
     async battle(system: SystemId, defender: string, dice: BattleDice, railgun?: RailgunHit) {
         const intent = this.requireIntent(StandardAction.Battle)
         await this.applyAction(this.battleAction(intent, system, defender, dice, railgun))
+    }
+
+    // ----- Battle -----
+
+    readonly battleState = $derived(this.gameState.battle)
+    readonly isBattling = $derived(this.canAct && this.machineState === MachineState.Battling)
+    readonly battleStep = $derived(this.isBattling ? this.battleState?.step : undefined)
+
+    canAssignHits(attacking: ShipHits, defending: ShipHits, buildings: BuildingHits[]): boolean {
+        return this.gameState.canAssignHits(this.myPlayerId(), attacking, defending, buildings)
+    }
+
+    async assignHits(attacking: ShipHits, defending: ShipHits, buildings: BuildingHits[]) {
+        await this.applyAction(
+            this.createPlayerAction(AssignHits, { attacking, defending, buildings })
+        )
+    }
+
+    canReroll(dice: number[]): boolean {
+        return this.gameState.canReroll(this.myPlayerId(), dice)
+    }
+
+    async reroll(dice: number[]) {
+        await this.applyAction(this.createPlayerAction(Reroll, { dice, revealsInfo: true }))
+    }
+
+    canRollDice(dice: BattleDice): boolean {
+        return this.gameState.canRollBattleDice(this.myPlayerId(), dice)
+    }
+
+    async rollDice(dice: BattleDice) {
+        await this.applyAction(this.createPlayerAction(RollDice, { dice, revealsInfo: true }))
+    }
+
+    canMoveInBySensors(moves: SensorsMove[]): boolean {
+        return this.gameState.canMoveInBySensors(this.myPlayerId(), moves)
+    }
+
+    async moveInBySensors(moves: SensorsMove[]) {
+        await this.applyAction(this.createPlayerAction(MoveInBySensors, { moves }))
+    }
+
+    readonly ransackTargets: string[] = $derived.by(() => {
+        if (this.battleStep !== BattleStep.Ransack) return []
+        const me = this.myPlayerId()
+        return this.courtCards().filter(
+            (cardId) =>
+                this.gameState.canRansack(me, cardId) || this.gameState.canRansack(me, cardId, {})
+        )
+    })
+
+    canRansackWith(cardId: string, vox?: VoxChoice): boolean {
+        return this.gameState.canRansack(this.myPlayerId(), cardId, vox)
+    }
+
+    async ransack(cardId: string, vox?: VoxChoice) {
+        await this.applyAction(this.createPlayerAction(Ransack, { cardId, vox }))
+    }
+
+    // What the keys can steal: each resource slot or Guild card, its cost, and what the attacker
+    // would discard to hold a stolen resource (nothing, if a slot is free).
+    readonly raidTargets: RaidOption[] = $derived.by(() => {
+        const battle = this.battleState
+        if (this.battleStep !== BattleStep.Raid || !battle) return []
+        const me = this.myPlayerId()
+        const defender = this.gameState.getPlayerState(battle.defender)
+        const targets: RaidTarget[] = [
+            ...defender.resources.map((_, slot) => ({ slot })),
+            ...defender.guildCards.map((cardId) => ({ cardId }))
+        ]
+        return targets.flatMap((target) => {
+            const cost = this.gameState.raidCost(target)
+            if (cost === undefined) return []
+            const discards = [undefined, ...Resources].filter((discard) =>
+                this.gameState.canRaid(me, target, discard)
+            )
+            return discards.length > 0 ? [{ target, cost, discards }] : []
+        })
+    })
+
+    async raid(target: RaidTarget, discard?: Resource) {
+        await this.applyAction(this.createPlayerAction(Raid, { ...target, discard }))
+    }
+
+    readonly canEndBattle = $derived(this.canTake(ActionType.EndBattle))
+
+    async endBattle() {
+        await this.applyAction(this.createPlayerAction(EndBattle, {}))
+    }
+
+    readonly belovedTargets: string[] = $derived.by(() => {
+        if (this.battleStep !== BattleStep.Beloved) return []
+        const me = this.myPlayerId()
+        return this.courtCards().filter((cardId) => this.gameState.canBelovedInfluence(me, cardId))
+    })
+
+    async belovedInfluence(cardId?: string) {
+        await this.applyAction(this.createPlayerAction(BelovedInfluence, { cardId }))
     }
 
     // ----- Helpers -----

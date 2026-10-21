@@ -2,7 +2,15 @@
     import { Ambition, Court, Resources, type VoxChoice } from '@tabletop/arcs'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
 
-    let { cardId }: { cardId: string } = $props()
+    let {
+        cardId,
+        canChoose,
+        choose
+    }: {
+        cardId: string
+        canChoose: (cardId: string, vox: VoxChoice) => boolean
+        choose: (cardId: string, vox: VoxChoice) => Promise<void>
+    } = $props()
     const gameSession = getGameSession()
     const state = $derived(gameSession.gameState)
     const me = gameSession.myPlayerId()
@@ -62,14 +70,12 @@
                 return [{ label: 'Secure', vox: {} }]
         }
     })
-    const valid = $derived(
-        options.filter((option) => gameSession.canSecureWith(cardId, option.vox))
-    )
+    const valid = $derived(options.filter((option) => canChoose(cardId, option.vox)))
 </script>
 
 <div class="picker">
     {#each valid as option (option.label)}
-        <button type="button" class="choice" onclick={() => gameSession.secure(cardId, option.vox)}>
+        <button type="button" class="choice" onclick={() => choose(cardId, option.vox)}>
             {option.label}
         </button>
     {/each}
