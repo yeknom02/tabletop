@@ -31,6 +31,8 @@ import { Court } from '../components/courtCards.js'
 import { Leader } from '../components/personas.js'
 import { HydratedRuthless, isRuthless } from '../actions/ruthless.js'
 import { HydratedMythic, isMythic } from '../actions/mythic.js'
+import { HydratedUseLore, isUseLore } from '../actions/useLore.js'
+import { canUseLore } from '../model/loreEffects.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
 import { endChapter } from './playingCard.js'
 import { afterDeclaring } from './declaring.js'
@@ -47,6 +49,7 @@ type TakingActionsAction =
     | HydratedSpendWeapon
     | HydratedUseCard
     | HydratedUseFarseers
+    | HydratedUseLore
     | HydratedTakeNewAction
     | HydratedRuthless
     | HydratedMythic
@@ -105,6 +108,9 @@ export class TakingActionsStateHandler implements MachineStateHandler<
                     action.token
                 ) && canTakeNewAction(gameState, playerId, action)
             )
+        }
+        if (isUseLore(action)) {
+            return canUseLore(gameState, playerId, action)
         }
         if (isUseCard(action)) {
             return canUseCard(gameState, playerId, action)
@@ -226,6 +232,9 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         ) {
             actions.push(ActionType.UseCard)
         }
+        if (turn.prelude && gameState.getPlayerState(playerId).lore.length > 0) {
+            actions.push(ActionType.UseLore)
+        }
         if (gameState.canUseFarseers(playerId, [])) {
             actions.push(ActionType.UseFarseers)
         }
@@ -258,7 +267,12 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         if (isBattle(action)) {
             return afterDeclaring(context.gameState)
         }
-        if (isSecure(action) && action.cardId === Court.CallToAction) {
+        const secured = isSecure(action)
+            ? action.cardId
+            : isUseLore(action)
+              ? action.secure
+              : undefined
+        if (secured === Court.CallToAction && action.playerId !== undefined) {
             context.addSystemAction(DrawActionCard, {
                 drawer: action.playerId,
                 revealsInfo: true

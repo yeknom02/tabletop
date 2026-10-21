@@ -11,6 +11,7 @@ import { UseFarseers } from '../actions/useFarseers.js'
 import { TakeNewAction } from '../actions/takeNewAction.js'
 import { Ruthless } from '../actions/ruthless.js'
 import { Mythic } from '../actions/mythic.js'
+import { UseLore } from '../actions/useLore.js'
 import { Tax } from '../actions/tax.js'
 import { BuildBuilding } from '../actions/buildBuilding.js'
 import { BuildShip } from '../actions/buildShip.js'
@@ -48,6 +49,7 @@ export const ArcsApiActions = {
     [ActionType.TakeNewAction]: TakeNewAction,
     [ActionType.Ruthless]: Ruthless,
     [ActionType.Mythic]: Mythic,
+    [ActionType.UseLore]: UseLore,
     [ActionType.Tax]: Tax,
     [ActionType.BuildBuilding]: BuildBuilding,
     [ActionType.BuildShip]: BuildShip,

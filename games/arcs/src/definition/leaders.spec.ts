@@ -5,7 +5,7 @@ import { Court } from '../components/courtCards.js'
 import { Die } from '../components/dice.js'
 import { Leader } from '../components/personas.js'
 import { Resource } from '../components/resources.js'
-import { BattleStep, noRerolls } from '../model/battle.js'
+import { BattleStep } from '../model/battle.js'
 import { ArcsGameStateValidator, DraftKind, type ArcsProjectedState } from '../model/gameState.js'
 import { BuildingKind } from '../model/pieces.js'
 import { PlayKind } from '../model/round.js'
@@ -13,6 +13,7 @@ import { ActionType } from './actions.js'
 import { LeadersAndLore } from './config.js'
 import { MachineState } from './states.js'
 import {
+    battleFixture,
     leadingOnEmptyBoard,
     playerIn,
     setBuilding,
@@ -181,20 +182,7 @@ describe('after battle', () => {
         const [a, b] = result.players
         result.session.edit((state) => {
             state.machineState = MachineState.Battling
-            state.battle = {
-                attacker: a,
-                defender: b,
-                system: '1H',
-                rolled: [],
-                attackerHits: 0,
-                hits: 2,
-                buildingHits: 0,
-                keys: 0,
-                step: BattleStep.Hits,
-                rerolls: noRerolls(),
-                trophiesTaken: false,
-                ransacks: 0
-            }
+            state.battle = battleFixture(a, b, { hits: 2 })
         })
         return result
     }
@@ -258,20 +246,7 @@ describe('after battle', () => {
         const [a, b] = players
         session.edit((state) => {
             state.machineState = MachineState.Battling
-            state.battle = {
-                attacker: a,
-                defender: b,
-                system: '1H',
-                rolled: [{ die: Die.Raid, face: 2 }],
-                attackerHits: 0,
-                hits: 0,
-                buildingHits: 0,
-                keys: 0,
-                step: BattleStep.Hits,
-                rerolls: noRerolls(),
-                trophiesTaken: false,
-                ransacks: 0
-            }
+            state.battle = battleFixture(a, b, { rolled: [{ die: Die.Raid, face: 2 }] })
         })
         const state = session.hydrated()
         state.tallyRoll()

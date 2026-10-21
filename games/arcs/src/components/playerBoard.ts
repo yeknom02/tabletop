@@ -11,6 +11,14 @@ export const StartingHandSize = 6
 // Raid cost, in keys, of each resource slot from left to right.
 export const ResourceSlotRaidCosts: readonly number[] = [3, 1, 1, 2, 1, 3]
 
+// Ancient Holdings' slot follows the six on the board, with a raid cost of 4.
+export const HoldingsSlot = 6
+const HoldingsRaidCost = 4
+
+export function slotRaidCost(slot: number): number | undefined {
+    return slot === HoldingsSlot ? HoldingsRaidCost : ResourceSlotRaidCosts[slot]
+}
+
 // Resource slots open with every city still on the board.
 const AlwaysOpenSlots = 2
 

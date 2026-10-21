@@ -13,6 +13,7 @@ import {
     playerIn as player,
     setBuilding as building,
     setShips as ships,
+    battleFixture,
     type BoardSetup,
     type TestSession
 } from '../util/testHelper.js'
@@ -30,21 +31,7 @@ function battling(
     const [a, b] = result.players
     result.session.edit((state) => {
         state.machineState = MachineState.Battling
-        state.battle = {
-            attacker: a,
-            defender: b,
-            system: '1H',
-            rolled: [],
-            attackerHits: 0,
-            hits: 0,
-            buildingHits: 0,
-            keys: 0,
-            step: BattleStep.Hits,
-            rerolls: noRerolls(),
-            trophiesTaken: false,
-            ransacks: 0,
-            ...battle
-        }
+        state.battle = battleFixture(a, b, battle)
     })
     return result
 }

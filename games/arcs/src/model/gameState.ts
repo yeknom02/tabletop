@@ -48,7 +48,8 @@ import { Cartels, Court, LoyalCards } from '../components/courtCards.js'
 import { Leader, Lore } from '../components/personas.js'
 import { DiceOfEachKind, Die, DieSymbol } from '../components/dice.js'
 import {
-    ResourceSlotRaidCosts,
+    HoldingsSlot,
+    slotRaidCost,
     StartingHandSize,
     wonAmbitionBonus
 } from '../components/playerBoard.js'
@@ -468,7 +469,7 @@ export class HydratedArcsGameState
             player.leader = cardId
         } else {
             draft.lore.splice(draft.lore.indexOf(cardId), 1)
-            player.lore.push(cardId)
+            this.gainLore(playerId, [cardId])
         }
         const order = this.draftOrder()
         const start = order.indexOf(playerId)
@@ -517,6 +518,15 @@ export class HydratedArcsGameState
         this.draft = undefined
     }
 
+    // Ancient Holdings brings its own resource slot.
+    gainLore(playerId: string, cardIds: readonly string[]) {
+        const player = this.getPlayerState(playerId)
+        player.lore.push(...cardIds)
+        if (cardIds.includes(Lore.AncientHoldings) && player.resources.length === HoldingsSlot) {
+            player.resources.push(null)
+        }
+    }
+
     // ----- Archivist, Learned -----
 
     archivist(): string | undefined {
@@ -546,7 +556,7 @@ export class HydratedArcsGameState
     // The rest are scrapped.
     keepLore(playerId: string, cardIds: readonly string[]) {
         assert(this.canKeepLore(playerId, cardIds), `${playerId} cannot keep those`)
-        this.getPlayerState(playerId).lore.push(...cardIds)
+        this.gainLore(playerId, cardIds)
         this.archive = undefined
     }
 
@@ -1024,7 +1034,10 @@ export class HydratedArcsGameState
     // Whether the player may tax this slot: a Loyal city, or a Rival city they control (rule 7.1),
     // as their leader allows. Once per city per turn.
     canTaxSlot(playerId: string, id: SystemId, slot: number): boolean {
-        if (!planetOf(id) || this.currentTurn().taxed.includes(`${id}:${slot}`)) {
+        // Warlord's Cruelty: while Warlord is declared, a city can be taxed again.
+        const again =
+            this.hasLore(playerId, Lore.WarlordsCruelty) && this.isDeclared(Ambition.Warlord)
+        if (!planetOf(id) || (!again && this.currentTurn().taxed.includes(`${id}:${slot}`))) {
             return false
         }
         const building = this.system(id).slots[slot]
@@ -1244,9 +1257,14 @@ export class HydratedArcsGameState
         const turn = this.currentTurn()
         turn.starportsBuilt.push(`${id}:${slot}`)
         turn.lastBuildingAction = { kind: 'buildShip', system: id, slot, copyOrPivotPip: false }
-        const damaged = this.controlledByOther(id, playerId)
+        const damaged = this.buildsShipDamaged(playerId, id)
         this.placeShipFromSupply(id, playerId, damaged)
         return damaged
+    }
+
+    // Ships built where someone else has control are damaged, except with Hidden Harbors.
+    buildsShipDamaged(playerId: string, id: SystemId): boolean {
+        return !this.hasLore(playerId, Lore.HiddenHarbors) && this.controlledByOther(id, playerId)
     }
 
     // ----- Overseer, Ruthless, and Shaper, Mythic -----
@@ -1334,7 +1352,7 @@ export class HydratedArcsGameState
             }
         } else {
             assert((choice.discard ?? []).length === 0, 'Building a ship gains nothing')
-            this.placeShipFromSupply(id, playerId, this.controlledByOther(id, playerId))
+            this.placeShipFromSupply(id, playerId, this.buildsShipDamaged(playerId, id))
         }
         return result
     }
@@ -1571,10 +1589,27 @@ export class HydratedArcsGameState
     }
 
     // Raid dice need defending buildings, or a defender with no buildings anywhere (rule 7.7.1.3.1).
-    canCollectRaidDice(id: SystemId, defender: string): boolean {
+    // Raid dice need defending buildings, or a defender with no buildings anywhere (rule
+    // 7.7.1.3.1); Raider Exosuits allow 1 without defending buildings; a defender with Hidden
+    // Harbors and a fresh starport there allows none.
+    raidDiceLimit(attacker: string, id: SystemId, defender: string): number {
         const owns = (system: SystemState) =>
             buildingsIn(system).some((building) => building.owner === defender)
-        return owns(this.system(id)) || !this.systems.some(owns)
+        const defending = buildingsIn(this.system(id)).filter(
+            (building) => building.owner === defender
+        )
+        if (
+            this.hasLore(defender, Lore.HiddenHarbors) &&
+            defending.some(
+                (building) => building.kind === BuildingKind.Starport && !building.damaged
+            )
+        ) {
+            return 0
+        }
+        if (defending.length > 0 || !this.systems.some(owns)) {
+            return DiceOfEachKind
+        }
+        return this.hasLore(attacker, Lore.RaiderExosuits) ? 1 : 0
     }
 
     canBattle(
@@ -1600,7 +1635,7 @@ export class HydratedArcsGameState
             wary &&
             total >= Math.max(1, committed) &&
             total <= ships.fresh + ships.damaged + gatekeepers + committed &&
-            (dice[Die.Raid] === 0 || this.canCollectRaidDice(id, defender))
+            dice[Die.Raid] <= this.raidDiceLimit(playerId, id, defender)
         )
     }
 
@@ -1628,6 +1663,7 @@ export class HydratedArcsGameState
             keys: 0,
             step: BattleStep.Hits,
             trophiesTaken: false,
+            allFresh: shipsOf(this.system(id), playerId).damaged === 0,
             rerolls: this.rerollAllowance(playerId, id, dice),
             ransacks: 0
         }
@@ -1641,13 +1677,19 @@ export class HydratedArcsGameState
     tallyRoll() {
         const battle = this.currentBattle()
         const { rolled } = battle
-        const intercepts =
-            symbolsRolled(rolled, DieSymbol.Intercept) === 0
-                ? 0
-                : // Agitator, Irregular: one hit per Weapon icon instead.
-                  this.isLeader(battle.defender, Leader.Agitator)
-                  ? this.weaponIcons(battle.defender)
-                  : shipsOf(this.system(battle.system), battle.defender).fresh
+        // Signal Breaker ignores one rolled intercept if every attacking ship began fresh; Mirror
+        // Plating adds one, not rolled, against any assault dice.
+        const ignored = battle.allFresh && this.hasLore(battle.attacker, Lore.SignalBreaker) ? 1 : 0
+        const mirrored =
+            this.hasLore(battle.defender, Lore.MirrorPlating) &&
+            rolled.some((rolledDie) => rolledDie.die === Die.Assault)
+        const intercepted = symbolsRolled(rolled, DieSymbol.Intercept) - ignored > 0 || mirrored
+        const intercepts = !intercepted
+            ? 0
+            : // Agitator, Irregular: one hit per Weapon icon instead.
+              this.isLeader(battle.defender, Leader.Agitator)
+              ? this.weaponIcons(battle.defender)
+              : shipsOf(this.system(battle.system), battle.defender).fresh
         battle.attackerHits = symbolsRolled(rolled, DieSymbol.SelfHit) + intercepts
         battle.hits = symbolsRolled(rolled, DieSymbol.Hit)
         battle.buildingHits = symbolsRolled(rolled, DieSymbol.BuildingHit)
@@ -1950,7 +1992,7 @@ export class HydratedArcsGameState
             return undefined
         }
         if (target.slot !== undefined) {
-            return ResourceSlotRaidCosts[target.slot]
+            return slotRaidCost(target.slot)
         }
         return CourtCards.find((card) => card.id === target.cardId)?.raidCost
     }
@@ -2149,10 +2191,37 @@ export class HydratedArcsGameState
         ) {
             return false
         }
+        const keeper = this.isDeclared(Ambition.Keeper)
         if (target.slot !== undefined) {
-            return (victim.resources[target.slot] ?? null) !== null
+            const resource = victim.resources[target.slot] ?? null
+            // Keeper's Trust: not a resource the thief already has.
+            return (
+                resource !== null &&
+                !(
+                    keeper &&
+                    this.hasLore(target.playerId, Lore.KeepersTrust) &&
+                    this.resourcesHeld(thief, resource) > 0
+                )
+            )
         }
-        return target.cardId !== undefined && victim.guildCards.includes(target.cardId)
+        const cardId = target.cardId
+        if (cardId === undefined || !victim.guildCards.includes(cardId)) {
+            return false
+        }
+        // Keeper's Solidarity: not a Guild card while its holder has resources of its suit.
+        const suit = CourtCards.find((card) => card.id === cardId)?.suit
+        return !(
+            keeper &&
+            suit !== undefined &&
+            this.hasLore(target.playerId, Lore.KeepersSolidarity) &&
+            this.resourcesHeld(target.playerId, suit) > 0
+        )
+    }
+
+    // Resources a player has: in their slots, and a Cartel's supply.
+    resourcesHeld(playerId: string, resource: Resource): number {
+        const cartel = this.cartelHolder(resource) === playerId ? this.supply[resource] : 0
+        return this.getPlayerState(playerId).resourceCount(resource) + cartel
     }
 
     // Takes it from the Rival. A stolen Guild card joins the thief's, except that stolen Sworn

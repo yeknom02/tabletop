@@ -38,6 +38,8 @@ export const BattleState = Type.Object({
         [Die.Skirmish]: Type.Integer({ minimum: 0 }),
         [Die.Raid]: Type.Integer({ minimum: 0 })
     }),
+    // Signal Breaker: every attacking ship was fresh as the battle began.
+    allFresh: Type.Boolean(),
     // Whether the attacker took any Trophies.
     trophiesTaken: Type.Boolean(),
     // Cities destroyed whose Ransack is still to choose.

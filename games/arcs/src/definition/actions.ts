@@ -8,6 +8,7 @@ export enum ActionType {
     SpendWeapon = 'spendWeapon',
     UseCard = 'useCard',
     UseFarseers = 'useFarseers',
+    UseLore = 'useLore',
     TakeNewAction = 'takeNewAction',
     Ruthless = 'ruthless',
     Mythic = 'mythic',

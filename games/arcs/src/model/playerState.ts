@@ -5,6 +5,7 @@ import { ActionCardIdSchema } from '../components/actionCards.js'
 import {
     AgentsPerPlayer,
     CitiesPerPlayer,
+    HoldingsSlot,
     openResourceSlots,
     ResourceSlotRaidCosts,
     ShipsPerPlayer,
@@ -112,6 +113,15 @@ export class HydratedArcsPlayerState
         return openResourceSlots(this.citiesOnBoard)
     }
 
+    // Open board slots, and Ancient Holdings' slot if the player has it.
+    isSlotOpen(slot: number): boolean {
+        return slot < this.openSlots() || (slot === HoldingsSlot && slot < this.resources.length)
+    }
+
+    slotCapacity(): number {
+        return this.resources.filter((_, slot) => this.isSlotOpen(slot)).length
+    }
+
     resourceCount(resource: Resource): number {
         return this.resources.filter((held) => held === resource).length
     }
@@ -120,7 +130,7 @@ export class HydratedArcsPlayerState
     // and nothing is gained.
     gainResource(resource: Resource): boolean {
         const slot = this.resources.findIndex(
-            (held, index) => held === null && index < this.openSlots()
+            (held, index) => held === null && this.isSlotOpen(index)
         )
         if (slot < 0) {
             return false
@@ -130,7 +140,7 @@ export class HydratedArcsPlayerState
     }
 
     emptySlots(): number {
-        return this.resources.filter((held, index) => held === null && index < this.openSlots())
+        return this.resources.filter((held, index) => held === null && this.isSlotOpen(index))
             .length
     }
 
@@ -147,10 +157,10 @@ export class HydratedArcsPlayerState
     // Gaining several at once discards exactly what can't be held, from what is held and gained.
     canGainAll(gains: readonly Resource[], discards: readonly Resource[]): boolean {
         const held = this.resources.filter(
-            (resource, index): resource is Resource => resource !== null && index < this.openSlots()
+            (resource, index): resource is Resource => resource !== null && this.isSlotOpen(index)
         )
         const pool = [...held, ...gains]
-        if (discards.length !== Math.max(0, pool.length - this.openSlots())) {
+        if (discards.length !== Math.max(0, pool.length - this.slotCapacity())) {
             return false
         }
         for (const discard of discards) {
@@ -189,10 +199,15 @@ export class HydratedArcsPlayerState
 
     // Resources left in slots a returning city covers are discarded, after sliding the rest left.
     // Returns the resources discarded.
+    // Ancient Holdings' slot is never covered.
     compactResources(): Resource[] {
-        const held = this.resources.filter((resource): resource is Resource => resource !== null)
+        const board = this.resources.slice(0, HoldingsSlot)
+        const held = board.filter((resource): resource is Resource => resource !== null)
         const kept = held.slice(0, this.openSlots())
-        this.resources = ResourceSlotRaidCosts.map((_, index) => kept[index] ?? null)
+        this.resources = [
+            ...ResourceSlotRaidCosts.map((_, index) => kept[index] ?? null),
+            ...this.resources.slice(HoldingsSlot)
+        ]
         return held.slice(this.openSlots())
     }
 

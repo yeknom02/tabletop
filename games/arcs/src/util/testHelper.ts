@@ -13,6 +13,7 @@ import { ArcsInfo } from '../definition/info.js'
 import { ArcsRuntime } from '../definition/runtime.js'
 import type { SystemId } from '../components/map.js'
 import type { ArcsProjectedState } from '../model/gameState.js'
+import { BattleStep, noRerolls, type BattleState } from '../model/battle.js'
 import type { BuildingKind } from '../model/pieces.js'
 
 export const TestMasterSeed = '0123456789abcdef0123456789abcdef'
@@ -161,4 +162,28 @@ export function playerIn(state: ArcsProjectedState, playerId: string) {
         throw new Error(`No player ${playerId}`)
     }
     return found
+}
+
+// A battle in 1H waiting for the attacker to assign hits, with nothing rolled unless overridden.
+export function battleFixture(
+    attacker: string,
+    defender: string,
+    overrides: Partial<BattleState> = {}
+): BattleState {
+    return {
+        attacker,
+        defender,
+        system: '1H',
+        rolled: [],
+        attackerHits: 0,
+        hits: 0,
+        buildingHits: 0,
+        keys: 0,
+        step: BattleStep.Hits,
+        rerolls: noRerolls(),
+        allFresh: false,
+        trophiesTaken: false,
+        ransacks: 0,
+        ...overrides
+    }
 }

@@ -14,6 +14,7 @@ import { HydratedUseFarseers, isUseFarseers } from '../actions/useFarseers.js'
 import { HydratedTakeNewAction, isTakeNewAction } from '../actions/takeNewAction.js'
 import { HydratedRuthless, isRuthless } from '../actions/ruthless.js'
 import { HydratedMythic, isMythic } from '../actions/mythic.js'
+import { HydratedUseLore, isUseLore } from '../actions/useLore.js'
 import { HydratedTax, isTax } from '../actions/tax.js'
 import { HydratedBuildBuilding, isBuildBuilding } from '../actions/buildBuilding.js'
 import { HydratedBuildShip, isBuildShip } from '../actions/buildShip.js'
@@ -84,6 +85,9 @@ export class ArcsHydrator implements GameHydrator<ArcsProjectedState, HydratedAr
             }
             case isMythic(data): {
                 return new HydratedMythic(data)
+            }
+            case isUseLore(data): {
+                return new HydratedUseLore(data)
             }
             case isTax(data): {
                 return new HydratedTax(data)
