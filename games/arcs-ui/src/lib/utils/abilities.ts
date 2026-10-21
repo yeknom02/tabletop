@@ -1,9 +1,6 @@
 import {
     Ambition,
     BuildingKind,
-    CourtCards,
-    LeaderCards,
-    LoreCards,
     NewActionName,
     hasNewAction,
     Resources,
@@ -16,6 +13,7 @@ import {
     type StealTarget,
     type SystemId
 } from '@tabletop/arcs'
+import { cardName } from './cards.js'
 
 // A choice a card ability could be used with; the session keeps those the rules allow.
 export type AbilityOption =
@@ -25,13 +23,6 @@ export type AbilityOption =
     | { kind: 'rifles'; label: string; system: SystemId; target: SystemId; defender: string }
     | { kind: 'ruthless'; label: string; ransack?: string; discard: Resource[] }
     | { kind: 'mythic'; label: string; resource: Resource }
-
-export function cardName(cardId: string): string {
-    return (
-        [...CourtCards, ...LoreCards, ...LeaderCards].find((card) => card.id === cardId)?.name ??
-        cardId
-    )
-}
 
 type Context = {
     state: HydratedArcsGameState

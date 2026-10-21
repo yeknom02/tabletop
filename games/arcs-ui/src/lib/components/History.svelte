@@ -1,17 +1,20 @@
 <script lang="ts">
-    import { PlayerName } from '@tabletop/frontend-components'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
+    import { describeAction } from '$lib/utils/actionDescription.js'
 
     const gameSession = getGameSession()
-    const entries = $derived([...gameSession.actions].reverse())
+    const names = { name: (playerId: string) => gameSession.getPlayerName(playerId) }
+    const entries = $derived(
+        [...gameSession.actions].reverse().map((action) => ({
+            id: action.id,
+            text: describeAction(action, names)
+        }))
+    )
 </script>
 
 <ol class="history">
-    {#each entries as action (action.id)}
-        <li>
-            {#if action.playerId}<PlayerName playerId={action.playerId} />{/if}
-            <span class="type">{action.type}</span>
-        </li>
+    {#each entries as entry (entry.id)}
+        <li>{entry.text}.</li>
     {/each}
 </ol>
 
@@ -20,10 +23,12 @@
         display: flex;
         flex-direction: column;
         gap: 4px;
+        padding: 4px 8px;
         font-size: 0.85rem;
     }
 
-    .type {
-        color: var(--arcs-muted);
+    li {
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgb(255 255 255 / 0.08);
     }
 </style>
