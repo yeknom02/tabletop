@@ -1,0 +1,39 @@
+import type * as Type from 'typebox'
+import { DraftCard } from '../actions/draftCard.js'
+import { KeepHand } from '../actions/keepHand.js'
+import { RedrawHand } from '../actions/redrawHand.js'
+import { LeadCard } from '../actions/leadCard.js'
+import { PassInitiative } from '../actions/passInitiative.js'
+import { FollowCard } from '../actions/followCard.js'
+import { SpendWeapon } from '../actions/spendWeapon.js'
+import { Tax } from '../actions/tax.js'
+import { BuildBuilding } from '../actions/buildBuilding.js'
+import { BuildShip } from '../actions/buildShip.js'
+import { MoveShips } from '../actions/moveShips.js'
+import { Repair } from '../actions/repair.js'
+import { Influence } from '../actions/influence.js'
+import { Secure } from '../actions/secure.js'
+import { EndTurn } from '../actions/endTurn.js'
+import { DealHands } from '../actions/dealHands.js'
+import { EndChapter } from '../actions/endChapter.js'
+import { ActionType } from './actions.js'
+
+export const ArcsActionSchemas = {
+    [ActionType.DraftCard]: DraftCard,
+    [ActionType.KeepHand]: KeepHand,
+    [ActionType.RedrawHand]: RedrawHand,
+    [ActionType.LeadCard]: LeadCard,
+    [ActionType.PassInitiative]: PassInitiative,
+    [ActionType.FollowCard]: FollowCard,
+    [ActionType.SpendWeapon]: SpendWeapon,
+    [ActionType.Tax]: Tax,
+    [ActionType.BuildBuilding]: BuildBuilding,
+    [ActionType.BuildShip]: BuildShip,
+    [ActionType.MoveShips]: MoveShips,
+    [ActionType.Repair]: Repair,
+    [ActionType.Influence]: Influence,
+    [ActionType.Secure]: Secure,
+    [ActionType.EndTurn]: EndTurn,
+    [ActionType.DealHands]: DealHands,
+    [ActionType.EndChapter]: EndChapter
+} satisfies Record<ActionType, Type.TSchema>

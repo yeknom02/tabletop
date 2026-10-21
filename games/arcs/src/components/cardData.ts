@@ -1,7 +1,7 @@
 import { Resource } from './resources.js'
 
 // The base game's Court (BC01–31), lore (L01–28) and leaders (LEAD01–16), from the Buried Giant card
-// database, current printing, with its errata applied. L15–28 and LEAD09–16 are the Leaders & Lore pack.
+// database, current printing, with its errata applied.  L15–28 and LEAD09–16 are the Leaders & Lore pack.
 
 export type CourtCardKind = 'guild' | 'vox'
 
@@ -19,6 +19,20 @@ export type PersonaCardData = {
     name: string
     pack: boolean
     text: string
+}
+
+export type StartingBuilding = 'city' | 'starport'
+
+// The pieces a leader card places in one of its setup card's systems.
+export type LeaderStart = { building?: StartingBuilding; ships: number }
+
+export type LeaderSetup = {
+    // Placed in the two leftmost resource slots, in this order.
+    resources: readonly [Resource, Resource]
+    A: LeaderStart
+    B: LeaderStart
+    // Ships in each C system.
+    C: LeaderStart
 }
 
 export const CourtCards: readonly CourtCardData[] = [
@@ -529,3 +543,103 @@ export const LeaderCards: readonly PersonaCardData[] = [
         text: '*Resilient*. After any **battle** with you, repair 1 Loyal ship in the battle system per starport on the map you control. *(Even Rival ones!)*\n*Greedy*. In **setup**, place an agent on your Material Outrage slot.'
     }
 ]
+
+// Each leader's starting resources and pieces, from its card's setup boxes.
+export const LeaderSetups: Readonly<Record<string, LeaderSetup>> = {
+    LEAD01: {
+        resources: [Resource.Relic, Resource.Material],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'starport', ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD02: {
+        resources: [Resource.Psionic, Resource.Relic],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'starport', ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD03: {
+        resources: [Resource.Fuel, Resource.Fuel],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'starport', ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD04: {
+        resources: [Resource.Psionic, Resource.Material],
+        A: { building: 'city', ships: 4 },
+        B: { building: 'starport', ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD05: {
+        resources: [Resource.Material, Resource.Weapon],
+        A: { building: 'starport', ships: 4 },
+        B: { ships: 4 },
+        C: { ships: 2 }
+    },
+    LEAD06: {
+        resources: [Resource.Weapon, Resource.Material],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'starport', ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD07: {
+        resources: [Resource.Relic, Resource.Material],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'city', ships: 3 },
+        C: { ships: 3 }
+    },
+    LEAD08: {
+        resources: [Resource.Psionic, Resource.Weapon],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'starport', ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD09: {
+        resources: [Resource.Relic, Resource.Relic],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'city', ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD10: {
+        resources: [Resource.Fuel, Resource.Material],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'starport', ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD11: {
+        resources: [Resource.Fuel, Resource.Weapon],
+        A: { building: 'starport', ships: 4 },
+        B: { ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD12: {
+        resources: [Resource.Psionic, Resource.Psionic],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'starport', ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD13: {
+        resources: [Resource.Relic, Resource.Weapon],
+        A: { ships: 4 },
+        B: { ships: 3 },
+        C: { ships: 2 }
+    },
+    LEAD14: {
+        resources: [Resource.Relic, Resource.Material],
+        A: { building: 'city', ships: 3 },
+        B: { ships: 3 },
+        C: { ships: 3 }
+    },
+    LEAD15: {
+        resources: [Resource.Fuel, Resource.Material],
+        A: { building: 'city', ships: 3 },
+        B: { building: 'starport', ships: 4 },
+        C: { ships: 2 }
+    },
+    LEAD16: {
+        resources: [Resource.Fuel, Resource.Weapon],
+        A: { building: 'starport', ships: 4 },
+        B: { ships: 3 },
+        C: { ships: 2 }
+    }
+}

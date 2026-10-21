@@ -1,0 +1,104 @@
+import { assert, assertExists, type Visibility } from '@tabletop/common'
+import { describe, expect, it } from 'vitest'
+import { PlayKind } from '../model/round.js'
+import { ArcsGameStateValidator, type ArcsProjectedState } from '../model/gameState.js'
+import { ActionType } from './actions.js'
+import { LeadersAndLore } from './config.js'
+import { ArcsRuntime } from './runtime.js'
+import { MachineState } from './states.js'
+import { startTestGame, type TestSession } from '../util/testHelper.js'
+
+function perspectives(state: ArcsProjectedState): Visibility.Perspective[] {
+    return [
+        { kind: 'spectator' },
+        ...state.turnManager.turnOrder.map((playerId) => ({ kind: 'player', playerId }) as const)
+    ]
+}
+
+function project(session: TestSession, perspective: Visibility.Perspective) {
+    const state = session.state
+    assert(ArcsGameStateValidator.Check(state), 'The test game is canonical')
+    return ArcsRuntime.visibility.state.project(state, perspective, {
+        config: session.game.config
+    })
+}
+
+// The second player Copies with one card and seizes with another, both face down.
+function copyAndSeize(session: TestSession) {
+    const [a, b] = session.state.turnManager.turnOrder
+    session.edit((state) => {
+        for (const player of state.players) {
+            if (player.playerId === a) player.hand = ['construction-4', 'construction-2']
+            if (player.playerId === b)
+                player.hand = ['mobilization-3', 'aggression-5', 'construction-6']
+            player.handCount = player.hand?.length ?? 0
+        }
+    })
+    session.act(a, ActionType.LeadCard, { cardId: 'construction-4' })
+    session.act(a, ActionType.EndTurn)
+    return session.act(b, ActionType.FollowCard, {
+        cardId: 'mobilization-3',
+        playKind: PlayKind.Copy,
+        seizeWith: 'aggression-5'
+    })[0]
+}
+
+describe.each([2, 3, 4])('what each Perspective sees with %i players', (count) => {
+    it('shows each player only their own hand, and nobody the decks', () => {
+        const session = startTestGame(count)
+        for (const perspective of perspectives(session.state)) {
+            const view = project(session, perspective)
+            for (const player of view.players) {
+                const own =
+                    perspective.kind === 'player' && perspective.playerId === player.playerId
+                expect(player.hand !== undefined).toBe(own)
+                expect(player.handCount).toBe(6)
+            }
+            expect(view.actionDiscard.items).toEqual([])
+            expect(view.courtDeck.items).toEqual([])
+            expect(view.courtDeck.remaining).toBe(session.state.courtDeck.remaining)
+            expect(() => ArcsRuntime.hydrator.hydrateState(view)).not.toThrow()
+        }
+    })
+})
+
+describe('face-down plays', () => {
+    it('show their cards only to the player who played them, in state and in the Action', () => {
+        const session = startTestGame(3)
+        const action = copyAndSeize(session)
+        const [, b] = session.state.turnManager.turnOrder
+        for (const perspective of perspectives(session.state)) {
+            const own = perspective.kind === 'player' && perspective.playerId === b
+            const view = project(session, perspective)
+            const play = view.round.plays.find((candidate) => candidate.playerId === b)
+            assertExists(play, 'The second player has played')
+            expect(play.faceDownCount).toBe(2)
+            expect(play.faceDown !== undefined).toBe(own)
+            const seen = ArcsRuntime.visibility.actions.project(action, perspective, {
+                config: session.game.config
+            })
+            expect('cardId' in seen && seen.cardId !== undefined).toBe(own)
+            expect('seizeWith' in seen && seen.seizeWith !== undefined).toBe(own)
+            expect(JSON.stringify(seen).includes('mobilization-3')).toBe(own)
+        }
+    })
+
+    it('are never revealed, not even at the end of the game', () => {
+        const session = startTestGame(3)
+        copyAndSeize(session)
+        session.edit((state) => {
+            state.machineState = MachineState.EndOfGame
+        })
+        const [a, b] = session.state.turnManager.turnOrder
+        const view = project(session, { kind: 'player', playerId: a })
+        expect(view.round.plays.find((play) => play.playerId === b)?.faceDown).toBeUndefined()
+    })
+})
+
+describe('the draft', () => {
+    it('is public', () => {
+        const session = startTestGame(3, { leadersAndLore: LeadersAndLore.OneLore })
+        const view = project(session, { kind: 'spectator' })
+        expect(view.draft).toEqual(session.state.draft)
+    })
+})

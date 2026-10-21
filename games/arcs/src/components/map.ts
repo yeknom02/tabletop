@@ -22,7 +22,7 @@ export type SystemId = `${Cluster}${SystemKind}`
 export const SystemIds: readonly SystemId[] = Clusters.flatMap((cluster) =>
     [SystemKind.Gate, ...PlanetKinds].map((kind): SystemId => `${cluster}${kind}`)
 )
-export const SystemIdSchema = Type.Union(SystemIds.map((id) => Type.Literal(id)))
+export const SystemIdSchema = Type.Unsafe<SystemId>(Type.String({ pattern: '^[1-6][GACH]$' }))
 
 export type Planet = {
     resource: Resource
