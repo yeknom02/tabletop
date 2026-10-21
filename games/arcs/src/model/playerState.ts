@@ -129,6 +129,32 @@ export class HydratedArcsPlayerState
         return true
     }
 
+    hasEmptySlot(): boolean {
+        return this.resources.some((held, index) => held === null && index < this.openSlots())
+    }
+
+    // Gaining into full slots means discarding a resource: one held, or the one gained (rule 9.2.1).
+    canGain(resource: Resource, discard?: Resource): boolean {
+        if (this.hasEmptySlot()) {
+            return discard === undefined
+        }
+        return discard !== undefined && (discard === resource || this.resourceCount(discard) > 0)
+    }
+
+    // Returns the resource discarded to make room, if any.
+    gain(resource: Resource, discard?: Resource): Resource | undefined {
+        assert(this.canGain(resource, discard), `Player ${this.playerId} cannot gain ${resource}`)
+        if (discard === undefined) {
+            this.gainResource(resource)
+            return undefined
+        }
+        if (discard !== resource) {
+            this.removeResource(discard)
+            this.gainResource(resource)
+        }
+        return discard
+    }
+
     removeResource(resource: Resource) {
         const slot = this.resources.lastIndexOf(resource)
         assert(slot >= 0, `Player ${this.playerId} has no ${resource}`)

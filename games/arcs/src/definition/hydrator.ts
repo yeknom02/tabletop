@@ -14,6 +14,11 @@ import { HydratedMoveShips, isMoveShips } from '../actions/moveShips.js'
 import { HydratedRepair, isRepair } from '../actions/repair.js'
 import { HydratedInfluence, isInfluence } from '../actions/influence.js'
 import { HydratedSecure, isSecure } from '../actions/secure.js'
+import { HydratedBattle, isBattle } from '../actions/battle.js'
+import { HydratedAssignHits, isAssignHits } from '../actions/assignHits.js'
+import { HydratedRansack, isRansack } from '../actions/ransack.js'
+import { HydratedRaid, isRaid } from '../actions/raid.js'
+import { HydratedEndBattle, isEndBattle } from '../actions/endBattle.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
 import { HydratedDealHands, isDealHands } from '../actions/dealHands.js'
 import { HydratedEndChapter, isEndChapter } from '../actions/endChapter.js'
@@ -62,6 +67,21 @@ export class ArcsHydrator implements GameHydrator<ArcsProjectedState, HydratedAr
             }
             case isSecure(data): {
                 return new HydratedSecure(data)
+            }
+            case isBattle(data): {
+                return new HydratedBattle(data)
+            }
+            case isAssignHits(data): {
+                return new HydratedAssignHits(data)
+            }
+            case isRansack(data): {
+                return new HydratedRansack(data)
+            }
+            case isRaid(data): {
+                return new HydratedRaid(data)
+            }
+            case isEndBattle(data): {
+                return new HydratedEndBattle(data)
             }
             case isEndTurn(data): {
                 return new HydratedEndTurn(data)

@@ -9,6 +9,8 @@ export enum MachineState {
     PlayingCard = 'PlayingCard',
     // The active player spends their Prelude and pips.
     TakingActions = 'TakingActions',
+    // The active player resolves a battle they started: hits, Ransacks, then raiding.
+    Battling = 'Battling',
     // The chapter is over: scoring, clean-up and a new deal, all in one System Action.
     EndingChapter = 'EndingChapter',
     EndOfGame = 'EndOfGame'

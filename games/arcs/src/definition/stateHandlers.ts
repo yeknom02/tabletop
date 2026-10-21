@@ -6,6 +6,7 @@ import { DealingStateHandler } from '../stateHandlers/dealing.js'
 import { MulliganStateHandler } from '../stateHandlers/mulligan.js'
 import { PlayingCardStateHandler } from '../stateHandlers/playingCard.js'
 import { TakingActionsStateHandler } from '../stateHandlers/takingActions.js'
+import { BattlingStateHandler } from '../stateHandlers/battling.js'
 import { EndingChapterStateHandler } from '../stateHandlers/endingChapter.js'
 import { EndOfGameStateHandler } from '../stateHandlers/endOfGame.js'
 
@@ -18,6 +19,7 @@ export const ArcsStateHandlers: Record<
     [MachineState.Mulligan]: new MulliganStateHandler(),
     [MachineState.PlayingCard]: new PlayingCardStateHandler(),
     [MachineState.TakingActions]: new TakingActionsStateHandler(),
+    [MachineState.Battling]: new BattlingStateHandler(),
     [MachineState.EndingChapter]: new EndingChapterStateHandler(),
     [MachineState.EndOfGame]: new EndOfGameStateHandler()
 }

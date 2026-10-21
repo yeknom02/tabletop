@@ -13,6 +13,11 @@ export enum ActionType {
     Repair = 'repair',
     Influence = 'influence',
     Secure = 'secure',
+    Battle = 'battle',
+    AssignHits = 'assignHits',
+    Ransack = 'ransack',
+    Raid = 'raid',
+    EndBattle = 'endBattle',
     EndTurn = 'endTurn',
     DealHands = 'dealHands',
     EndChapter = 'endChapter'

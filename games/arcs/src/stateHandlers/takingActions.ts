@@ -12,6 +12,7 @@ import { HydratedRepair, isRepair } from '../actions/repair.js'
 import { HydratedInfluence, isInfluence } from '../actions/influence.js'
 import { HydratedSecure, isSecure } from '../actions/secure.js'
 import { HydratedSpendWeapon, isSpendWeapon } from '../actions/spendWeapon.js'
+import { HydratedBattle, isBattle } from '../actions/battle.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
 import { endChapter } from './playingCard.js'
 
@@ -23,6 +24,7 @@ type TakingActionsAction =
     | HydratedRepair
     | HydratedInfluence
     | HydratedSecure
+    | HydratedBattle
     | HydratedSpendWeapon
     | HydratedEndTurn
 
@@ -32,7 +34,8 @@ const ActionsByStandard: ReadonlyArray<[StandardAction, ActionType[]]> = [
     [StandardAction.Move, [ActionType.MoveShips]],
     [StandardAction.Repair, [ActionType.Repair]],
     [StandardAction.Influence, [ActionType.Influence]],
-    [StandardAction.Secure, [ActionType.Secure]]
+    [StandardAction.Secure, [ActionType.Secure]],
+    [StandardAction.Battle, [ActionType.Battle]]
 ]
 
 export class TakingActionsStateHandler implements MachineStateHandler<
@@ -49,7 +52,15 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             return false
         }
         if (isEndTurn(action)) {
-            return true
+            return action.returnTo === undefined
+                ? !gameState.isEliminated(playerId)
+                : gameState.canReturnFleet(playerId, action.returnTo)
+        }
+        if (isBattle(action)) {
+            return (
+                gameState.canPay(playerId, StandardAction.Battle, action.via) &&
+                gameState.canBattle(playerId, action.system, action.defender, action.dice)
+            )
         }
         if (isSpendWeapon(action)) {
             return gameState.canSpendResource(playerId, Resource.Weapon)
@@ -139,6 +150,9 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         action: TakingActionsAction,
         context: MachineContext<HydratedArcsGameState>
     ): MachineState {
+        if (isBattle(action)) {
+            return context.gameState.battle ? MachineState.Battling : MachineState.TakingActions
+        }
         if (!isEndTurn(action)) {
             return MachineState.TakingActions
         }

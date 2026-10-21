@@ -12,6 +12,11 @@ import { MoveShips } from '../actions/moveShips.js'
 import { Repair } from '../actions/repair.js'
 import { Influence } from '../actions/influence.js'
 import { Secure } from '../actions/secure.js'
+import { Battle } from '../actions/battle.js'
+import { AssignHits } from '../actions/assignHits.js'
+import { Ransack } from '../actions/ransack.js'
+import { Raid } from '../actions/raid.js'
+import { EndBattle } from '../actions/endBattle.js'
 import { EndTurn } from '../actions/endTurn.js'
 import { ActionType } from './actions.js'
 
@@ -30,5 +35,10 @@ export const ArcsApiActions = {
     [ActionType.Repair]: Repair,
     [ActionType.Influence]: Influence,
     [ActionType.Secure]: Secure,
+    [ActionType.Battle]: Battle,
+    [ActionType.AssignHits]: AssignHits,
+    [ActionType.Ransack]: Ransack,
+    [ActionType.Raid]: Raid,
+    [ActionType.EndBattle]: EndBattle,
     [ActionType.EndTurn]: EndTurn
 }

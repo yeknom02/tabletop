@@ -98,4 +98,3 @@ export function createTestSession(game: TestGame, initialState: ArcsProjectedSta
 }
 
 export type TestSession = ReturnType<typeof createTestSession>
-

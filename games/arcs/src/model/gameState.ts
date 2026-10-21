@@ -43,7 +43,12 @@ import {
     type Cluster,
     type SystemId
 } from '../components/map.js'
-import { StartingHandSize, wonAmbitionBonus } from '../components/playerBoard.js'
+import { DiceOfEachKind, Die, DieSymbol } from '../components/dice.js'
+import {
+    ResourceSlotRaidCosts,
+    StartingHandSize,
+    wonAmbitionBonus
+} from '../components/playerBoard.js'
 import { Resource, ResourceCounts, ResourceSchema } from '../components/resources.js'
 import { SetupCardId, SetupCardIdSchema, SetupCards } from '../components/setupCards.js'
 import { LeadersAndLore } from '../definition/config.js'
@@ -53,8 +58,19 @@ import {
     shipsOf,
     SystemState,
     TrophyKind,
-    type Building
+    type Building,
+    type ShipCount
 } from './pieces.js'
+import {
+    BattleState,
+    BattleStep,
+    hitShips,
+    rollDie,
+    shipHitCapacity,
+    symbolsRolled,
+    type BuildingHits,
+    type ShipHits
+} from './battle.js'
 import { CardPile, HydratedCardPile } from './piles.js'
 import { ArcsPlayerState, HydratedArcsPlayerState } from './playerState.js'
 import {
@@ -121,7 +137,8 @@ export const ArcsGameState = Type.Object({
     initiative: Type.String(),
     round: RoundState,
     turn: Type.Optional(TurnRecord),
-    draft: Type.Optional(DraftState)
+    draft: Type.Optional(DraftState),
+    battle: Type.Optional(BattleState)
 })
 
 export const ArcsGameStateValidator = Compile(ArcsGameState)
@@ -154,6 +171,9 @@ export const ChapterEnd = Type.Object({
 
 // A Rival of the two-player dummy, which counts for places but gains nothing.
 const AmbitionDummy = '#ambition-boxes'
+
+// Ships an eliminated player places (rule 22.2.1).
+const EliminatedFleet = 3
 
 export class HydratedArcsGameState
     extends HydratableGameState<typeof ArcsProjectedState, HydratedArcsPlayerState>
@@ -188,6 +208,7 @@ export class HydratedArcsGameState
     declare round: RoundState
     declare turn?: TurnRecord
     declare draft?: DraftState
+    declare battle?: BattleState
 
     constructor(data: ArcsProjectedState) {
         super(data, ArcsProjectedStateValidator)
@@ -1017,6 +1038,393 @@ export class HydratedArcsGameState
         return taken
     }
 
+    // ----- Battle -----
+
+    // The Rivals with pieces in a system, who can be chosen as defender (rule 7.7.1.2).
+    defendersIn(playerId: string, id: SystemId): string[] {
+        return this.turnManager.turnOrder.filter(
+            (owner) => owner !== playerId && this.hasLoyalPiece(id, owner)
+        )
+    }
+
+    // Raid dice need defending buildings, or a defender with no buildings anywhere (rule 7.7.1.3.1).
+    canCollectRaidDice(id: SystemId, defender: string): boolean {
+        const owns = (system: SystemState) =>
+            buildingsIn(system).some((building) => building.owner === defender)
+        return owns(this.system(id)) || !this.systems.some(owns)
+    }
+
+    canBattle(
+        playerId: string,
+        id: SystemId,
+        defender: string,
+        dice: Readonly<Record<Die, number>>
+    ): boolean {
+        if (!this.inPlay(id) || !this.defendersIn(playerId, id).includes(defender)) {
+            return false
+        }
+        const ships = shipsOf(this.system(id), playerId)
+        const counts = Object.values(Die).map((die) => dice[die])
+        const total = counts.reduce((sum, count) => sum + count, 0)
+        return (
+            counts.every((count) => count >= 0 && count <= DiceOfEachKind) &&
+            total > 0 &&
+            total <= ships.fresh + ships.damaged &&
+            (dice[Die.Raid] === 0 || this.canCollectRaidDice(id, defender))
+        )
+    }
+
+    // Rolls the dice and counts what the attacker must resolve. Intercepts hit once per fresh
+    // defending ship, however many dice show it (rule 7.7.1.4).
+    startBattle(
+        playerId: string,
+        id: SystemId,
+        defender: string,
+        dice: Readonly<Record<Die, number>>
+    ): BattleState {
+        assert(this.canBattle(playerId, id, defender, dice), `${playerId} cannot battle so`)
+        const random = this.getProtectedPrng().random
+        const rolled = Object.values(Die).flatMap((die) =>
+            Array.from({ length: dice[die] }, () => rollDie(die, random))
+        )
+        const intercepts =
+            symbolsRolled(rolled, DieSymbol.Intercept) > 0
+                ? shipsOf(this.system(id), defender).fresh
+                : 0
+        this.battle = {
+            attacker: playerId,
+            defender,
+            system: id,
+            rolled,
+            attackerHits: symbolsRolled(rolled, DieSymbol.SelfHit) + intercepts,
+            hits: symbolsRolled(rolled, DieSymbol.Hit),
+            buildingHits: symbolsRolled(rolled, DieSymbol.BuildingHit),
+            keys: symbolsRolled(rolled, DieSymbol.Key),
+            step: BattleStep.Hits,
+            ransacks: 0
+        }
+        const battle = this.battle
+        if (battle.attackerHits + battle.hits + battle.buildingHits === 0) {
+            this.advanceBattle()
+        }
+        return battle
+    }
+
+    currentBattle(): BattleState {
+        assertExists(this.battle, 'No battle is in progress')
+        return this.battle
+    }
+
+    // The defender's buildings in the battle system, by slot.
+    defendingBuildings(): { slot: number; building: Building }[] {
+        const battle = this.currentBattle()
+        return this.system(battle.system).slots.flatMap((building, slot) =>
+            building?.owner === battle.defender ? [{ slot, building }] : []
+        )
+    }
+
+    // Hits the defending ships can't take go to their buildings, with the building hits.
+    buildingHitsToAssign(): number {
+        const battle = this.currentBattle()
+        const capacity = shipHitCapacity(shipsOf(this.system(battle.system), battle.defender))
+        return battle.buildingHits + Math.max(0, battle.hits - capacity)
+    }
+
+    // Every hit must be taken while there are pieces left to take it (rule 7.7.1.4).
+    canAssignHits(
+        playerId: string,
+        attacking: ShipHits,
+        defending: ShipHits,
+        buildings: readonly BuildingHits[]
+    ): boolean {
+        const battle = this.battle
+        if (battle?.step !== BattleStep.Hits || battle.attacker !== playerId) {
+            return false
+        }
+        const system = this.system(battle.system)
+        const takes = (ships: ShipCount, hits: ShipHits, owed: number) =>
+            hitShips(ships, hits)?.used === Math.min(owed, shipHitCapacity(ships))
+        if (
+            !takes(shipsOf(system, playerId), attacking, battle.attackerHits) ||
+            !takes(shipsOf(system, battle.defender), defending, battle.hits)
+        ) {
+            return false
+        }
+        const targets = this.defendingBuildings()
+        const capacity = (building: Building) => (building.damaged ? 1 : 2)
+        const slots = buildings.map((hit) => hit.slot)
+        if (new Set(slots).size !== slots.length) {
+            return false
+        }
+        for (const hit of buildings) {
+            const target = targets.find((candidate) => candidate.slot === hit.slot)
+            if (!target || hit.hits > capacity(target.building)) {
+                return false
+            }
+        }
+        const total = buildings.reduce((sum, hit) => sum + hit.hits, 0)
+        const room = targets.reduce((sum, target) => sum + capacity(target.building), 0)
+        return total === Math.min(this.buildingHitsToAssign(), room)
+    }
+
+    // Damages and destroys the hit pieces. Destroyed pieces become the other side's Trophies, and
+    // each city destroyed Provokes Outrage and is owed a Ransack (rules 7.7.2–7.7.4).
+    assignHits(
+        playerId: string,
+        attacking: ShipHits,
+        defending: ShipHits,
+        buildings: readonly BuildingHits[]
+    ): BattleDamage {
+        assert(
+            this.canAssignHits(playerId, attacking, defending, buildings),
+            `${playerId} cannot assign hits so`
+        )
+        const battle = this.currentBattle()
+        const { attacker, defender } = battle
+        const id = battle.system
+        const attackerTrophies = this.getPlayerState(attacker).trophies
+        const defenderTrophies = this.getPlayerState(defender).trophies
+        this.hitShipsIn(id, attacker, attacking)
+        this.hitShipsIn(id, defender, defending)
+        for (let index = 0; index < attacking.destroy; index++) {
+            defenderTrophies.push({ owner: attacker, kind: TrophyKind.Ship })
+        }
+        for (let index = 0; index < defending.destroy; index++) {
+            attackerTrophies.push({ owner: defender, kind: TrophyKind.Ship })
+        }
+        const destroyedBuildings: BuildingKind[] = []
+        const outraged: Resource[] = []
+        for (const hit of buildings) {
+            const building = this.building(id, hit.slot)
+            if (building.damaged || hit.hits === 2) {
+                this.system(id).slots[hit.slot] = null
+                destroyedBuildings.push(building.kind)
+                if (building.kind === BuildingKind.City) {
+                    attackerTrophies.push({ owner: defender, kind: TrophyKind.City })
+                    const resource = this.destroyCity(attacker, id)
+                    if (resource) {
+                        outraged.push(resource)
+                    }
+                    battle.ransacks += 1
+                } else {
+                    attackerTrophies.push({ owner: defender, kind: TrophyKind.Starport })
+                }
+            } else {
+                building.damaged = true
+            }
+        }
+        battle.attackerHits = 0
+        battle.hits = 0
+        battle.buildingHits = 0
+        this.advanceBattle()
+        return {
+            attackerShipsDestroyed: attacking.destroy,
+            defenderShipsDestroyed: defending.destroy,
+            buildingsDestroyed: destroyedBuildings,
+            outraged
+        }
+    }
+
+    private hitShipsIn(id: SystemId, owner: string, hits: ShipHits) {
+        const system = this.system(id)
+        const result = hitShips(shipsOf(system, owner), hits)
+        assertExists(result, `${owner}'s ships in ${id} cannot take those hits`)
+        if (result.left.fresh + result.left.damaged === 0) {
+            delete system.ships[owner]
+        } else {
+            system.ships[owner] = result.left
+        }
+    }
+
+    // Rule 7.7.4.1: whoever destroys a city discards their resources and Guild cards of its planet
+    // type and is Outraged by it. Returns the resource, if the planet has one.
+    destroyCity(destroyer: string, id: SystemId): Resource | undefined {
+        const planet = planetOf(id)
+        if (!planet) {
+            return undefined
+        }
+        this.provokeOutrage(destroyer, planet.resource)
+        return planet.resource
+    }
+
+    provokeOutrage(playerId: string, resource: Resource) {
+        const player = this.getPlayerState(playerId)
+        for (const [slot, held] of player.resources.entries()) {
+            if (held === resource) {
+                player.resources[slot] = null
+                this.supply[resource] += 1
+            }
+        }
+        const discarded = player.guildCards.filter(
+            (cardId) => CourtCards.find((card) => card.id === cardId)?.suit === resource
+        )
+        player.guildCards = player.guildCards.filter((cardId) => !discarded.includes(cardId))
+        this.courtDiscard.push(...discarded)
+        if (!player.outrage.includes(resource)) {
+            player.outrage.push(resource)
+            // With no agent in supply a placeholder covers the slot (rule 22.3.1).
+            if (player.agents > 0) {
+                player.agents -= 1
+            }
+        }
+    }
+
+    // Court cards with any of the defender's agents, which a Ransack can secure (rule 7.7.4.2).
+    ransackableCards(): string[] {
+        const defender = this.currentBattle().defender
+        return this.court
+            .filter((slot) => (slot.agents[defender] ?? 0) > 0)
+            .map((slot) => slot.cardId)
+    }
+
+    canRansack(playerId: string, cardId: string): boolean {
+        const battle = this.battle
+        return (
+            battle?.step === BattleStep.Ransack &&
+            battle.attacker === playerId &&
+            this.ransackableCards().includes(cardId)
+        )
+    }
+
+    // Secures the card; every Rival agent on it becomes the attacker's Trophy.
+    ransack(playerId: string, cardId: string): Record<string, number> {
+        assert(this.canRansack(playerId, cardId), `${playerId} cannot ransack ${cardId}`)
+        const taken = this.takeCourtCard(playerId, cardId, 'trophies')
+        this.currentBattle().ransacks -= 1
+        this.advanceBattle()
+        return taken
+    }
+
+    // The keys a raid on this target costs, if the defender has it: a resource slot or a Guild
+    // card (rule 7.7.5).
+    raidCost(target: RaidTarget): number | undefined {
+        const defender = this.getPlayerState(this.currentBattle().defender)
+        if (target.slot !== undefined) {
+            return defender.resources[target.slot] ? ResourceSlotRaidCosts[target.slot] : undefined
+        }
+        if (target.cardId !== undefined && defender.guildCards.includes(target.cardId)) {
+            return CourtCards.find((card) => card.id === target.cardId)?.raidCost
+        }
+        return undefined
+    }
+
+    // Raiding needs an attacking ship left and enough keys for something.
+    canRaidAnything(): boolean {
+        const battle = this.currentBattle()
+        const ships = shipsOf(this.system(battle.system), battle.attacker)
+        if (ships.fresh + ships.damaged === 0) {
+            return false
+        }
+        const defender = this.getPlayerState(battle.defender)
+        const targets: RaidTarget[] = [
+            ...defender.resources.map((_, slot) => ({ slot })),
+            ...defender.guildCards.map((cardId) => ({ cardId }))
+        ]
+        return targets.some((target) => {
+            const cost = this.raidCost(target)
+            return cost !== undefined && cost <= battle.keys
+        })
+    }
+
+    canRaid(playerId: string, target: RaidTarget, discard?: Resource): boolean {
+        const battle = this.battle
+        if (battle?.step !== BattleStep.Raid || battle.attacker !== playerId) {
+            return false
+        }
+        if ((target.slot === undefined) === (target.cardId === undefined)) {
+            return false
+        }
+        const cost = this.raidCost(target)
+        if (cost === undefined || cost > battle.keys) {
+            return false
+        }
+        if (target.slot === undefined) {
+            return discard === undefined
+        }
+        const stolen = this.getPlayerState(battle.defender).resources[target.slot]
+        return stolen !== null && this.getPlayerState(playerId).canGain(stolen, discard)
+    }
+
+    // Steals one resource or Guild card. A stolen resource goes into an empty slot; with none
+    // open, the attacker discards a resource, possibly the stolen one (rule 9.2.1).
+    raid(playerId: string, target: RaidTarget, discard?: Resource): RaidResult {
+        assert(this.canRaid(playerId, target, discard), `${playerId} cannot raid that`)
+        const battle = this.currentBattle()
+        const defender = this.getPlayerState(battle.defender)
+        const cost = this.raidCost(target) ?? 0
+        battle.keys -= cost
+        const result: RaidResult = {}
+        if (target.slot !== undefined) {
+            const stolen = defender.resources[target.slot]
+            assertExists(stolen, 'The raided slot holds a resource')
+            defender.resources[target.slot] = null
+            result.resource = stolen
+            const discarded = this.getPlayerState(playerId).gain(stolen, discard)
+            if (discarded) {
+                this.supply[discarded] += 1
+                result.discarded = discarded
+            }
+        } else if (target.cardId !== undefined) {
+            defender.guildCards = defender.guildCards.filter((cardId) => cardId !== target.cardId)
+            this.getPlayerState(playerId).guildCards.push(target.cardId)
+            result.cardId = target.cardId
+        }
+        this.advanceBattle()
+        return result
+    }
+
+    canEndBattle(playerId: string): boolean {
+        return this.battle?.step === BattleStep.Raid && this.battle.attacker === playerId
+    }
+
+    // Moves the battle to its next step that has a choice to make, or ends it.
+    advanceBattle() {
+        const battle = this.currentBattle()
+        if (battle.ransacks > 0 && this.ransackableCards().length > 0) {
+            battle.step = BattleStep.Ransack
+            return
+        }
+        battle.ransacks = 0
+        if (battle.keys > 0 && this.canRaidAnything()) {
+            battle.step = BattleStep.Raid
+            return
+        }
+        this.battle = undefined
+    }
+
+    endBattle(playerId: string) {
+        assert(this.canEndBattle(playerId), `${playerId} has no battle to end`)
+        this.battle = undefined
+    }
+
+    // ----- Elimination -----
+
+    // A player with no ships or starports on the map (rule 22.2.1).
+    isEliminated(playerId: string): boolean {
+        return this.systems.every(
+            (system) =>
+                shipsOf(system, playerId).fresh + shipsOf(system, playerId).damaged === 0 &&
+                !buildingsIn(system).some(
+                    (building) =>
+                        building.owner === playerId && building.kind === BuildingKind.Starport
+                )
+        )
+    }
+
+    canReturnFleet(playerId: string, gate: SystemId): boolean {
+        return this.isEliminated(playerId) && isGate(gate) && this.inPlay(gate)
+    }
+
+    // An eliminated player places 3 fresh ships at a gate at the end of their turn.
+    returnFleet(playerId: string, gate: SystemId): number {
+        assert(this.canReturnFleet(playerId, gate), `${playerId} cannot return to ${gate}`)
+        let placed = 0
+        while (placed < EliminatedFleet && this.placeShipFromSupply(gate, playerId)) {
+            placed += 1
+        }
+        return placed
+    }
+
     // ----- End of chapter -----
 
     // How much of an ambition's measure a player has (rule 6.2.1).
@@ -1262,3 +1670,15 @@ export class HydratedArcsGameState
 }
 
 export type ShipsMoving = { fresh: number; damaged: number }
+
+// A raid takes one resource slot's resource or one Guild card.
+export type RaidTarget = { slot?: number; cardId?: string }
+
+export type RaidResult = { resource?: Resource; discarded?: Resource; cardId?: string }
+
+export type BattleDamage = {
+    attackerShipsDestroyed: number
+    defenderShipsDestroyed: number
+    buildingsDestroyed: BuildingKind[]
+    outraged: Resource[]
+}
