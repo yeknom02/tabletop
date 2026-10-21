@@ -15,7 +15,6 @@ import { MachineState } from '../definition/states.js'
 import {
     actionCard,
     type ActionCard,
-    ActionCardIdSchema,
     Ambition,
     AmbitionSchema,
     declarableAmbitions,
@@ -77,6 +76,7 @@ import {
     type ShipHits
 } from './battle.js'
 import { canResolveVox, isVox, resolveVox, type VoxChoice, type VoxResult } from './courtEffects.js'
+import { canAffordDeclaration, Declaration, stepsOnDeclaring } from './declaration.js'
 import { CardPile, HydratedCardPile } from './piles.js'
 import { ArcsPlayerState, HydratedArcsPlayerState } from './playerState.js'
 import {
@@ -120,17 +120,6 @@ export const DraftState = Type.Object({
     drafter: Type.String()
 })
 
-// Farseers: once its holder declares an ambition, they pick a Rival and see that Rival's hand,
-// which nobody else does, then may swap a card with them.
-export type Farsight = Type.Static<typeof Farsight>
-export const Farsight = Type.Object({
-    playerId: Type.String(),
-    rival: Type.Optional(Type.String()),
-    rivalHand: Type.Optional(
-        Visibility.protect(Type.Array(ActionCardIdSchema), { policy: Visibility.Policy.Owner })
-    )
-})
-
 export type ArcsGameState = Type.Static<typeof ArcsGameState>
 export const ArcsGameState = Type.Object({
     ...Type.Omit(GameState, ['players', 'machineState']).properties,
@@ -156,7 +145,8 @@ export const ArcsGameState = Type.Object({
     turn: Type.Optional(TurnRecord),
     draft: Type.Optional(DraftState),
     battle: Type.Optional(BattleState),
-    farsight: Type.Optional(Farsight)
+    // Abilities set off by an ambition just declared, being resolved.
+    declaration: Type.Optional(Declaration)
 })
 
 export const ArcsGameStateValidator = Compile(ArcsGameState)
@@ -241,7 +231,7 @@ export class HydratedArcsGameState
     declare turn?: TurnRecord
     declare draft?: DraftState
     declare battle?: BattleState
-    declare farsight?: Farsight
+    declare declaration?: Declaration
 
     constructor(data: ArcsProjectedState) {
         super(data, ArcsProjectedStateValidator)
@@ -568,16 +558,16 @@ export class HydratedArcsGameState
         if (!player.hasInHand(cardId)) {
             return false
         }
-        return declare === undefined || this.canDeclare(actionCard(cardId), declare)
+        return (
+            declare === undefined ||
+            (this.canDeclare(actionCard(cardId), declare) && canAffordDeclaration(this, playerId))
+        )
     }
 
     lead(playerId: string, cardId: string, declare?: Ambition) {
         assert(this.canLead(playerId, cardId, declare), `${playerId} cannot lead ${cardId}`)
         const player = this.getPlayerState(playerId)
         player.removeFromHand(cardId)
-        if (declare !== undefined) {
-            this.declareAmbition(declare, playerId)
-        }
         // Secret Order declares Keeper and Empath without the zero marker.
         const secret =
             this.holds(playerId, Court.SecretOrder) &&
@@ -592,16 +582,26 @@ export class HydratedArcsGameState
         })
         this.round.passes = 0
         this.startTurn(playerId, actionCard(cardId).pips)
+        if (declare !== undefined) {
+            this.declareAmbition(declare, playerId)
+        }
     }
 
-    // A player holding Farseers then looks at a Rival's hand.
+    // Queues whatever the declaration sets off for the declarer to resolve.
     declareAmbition(ambition: Ambition, playerId: string) {
         const marker = this.availableMarker()
         assertExists(marker, 'Every ambition marker is placed')
+        const wasDeclared = this.ambitionMarkers.some((placed) => placed.ambition === ambition)
         this.ambitionMarkers[marker].ambition = ambition
         this.round.declared = true
-        if (this.holds(playerId, Court.Farseers) && this.players.length > 1) {
-            this.farsight = { playerId }
+        const steps = stepsOnDeclaring(this, playerId, wasDeclared)
+        if (steps.length === 0) {
+            return
+        }
+        if (this.declaration) {
+            this.declaration.steps.push(...steps)
+        } else {
+            this.declaration = { playerId, ambition, steps }
         }
     }
 
@@ -639,7 +639,8 @@ export class HydratedArcsGameState
             (kind === PlayKind.Copy ||
                 !this.holds(playerId, Court.GalacticBards) ||
                 this.round.declared ||
-                !this.canDeclare(card, declare))
+                !this.canDeclare(card, declare) ||
+                !canAffordDeclaration(this, playerId))
         ) {
             return false
         }
@@ -664,9 +665,6 @@ export class HydratedArcsGameState
             this.canFollow(playerId, cardId, kind, seizeWith, declare),
             `${playerId} cannot play ${cardId}`
         )
-        if (declare !== undefined) {
-            this.declareAmbition(declare, playerId)
-        }
         const player = this.getPlayerState(playerId)
         player.removeFromHand(cardId)
         const faceDown: string[] = kind === PlayKind.Copy ? [cardId] : []
@@ -691,6 +689,9 @@ export class HydratedArcsGameState
         })
         const pips = kind === PlayKind.Surpass ? card.pips : 1
         this.startTurn(playerId, pips)
+        if (declare !== undefined) {
+            this.declareAmbition(declare, playerId)
+        }
     }
 
     // The initiative holder skips their turn: the next player clockwise with cards takes the
@@ -1788,56 +1789,6 @@ export class HydratedArcsGameState
             this.influence(playerId, cardId)
         }
         this.battle = undefined
-    }
-
-    // ----- Farseers -----
-
-    canFarsee(playerId: string, rival: string): boolean {
-        const farsight = this.farsight
-        return (
-            farsight?.playerId === playerId &&
-            farsight.rival === undefined &&
-            rival !== playerId &&
-            this.turnManager.turnOrder.includes(rival)
-        )
-    }
-
-    farsee(playerId: string, rival: string) {
-        assert(this.canFarsee(playerId, rival), `${playerId} cannot look at ${rival}'s hand`)
-        this.farsight = {
-            playerId,
-            rival,
-            rivalHand: [...this.getPlayerState(rival).knownHand()]
-        }
-    }
-
-    // Both cards or neither.
-    canSwapWithRival(playerId: string, give?: string, take?: string): boolean {
-        const farsight = this.farsight
-        if (farsight?.playerId !== playerId || farsight.rival === undefined) {
-            return false
-        }
-        if (give === undefined || take === undefined) {
-            return give === take
-        }
-        return (
-            this.getPlayerState(playerId).hasInHand(give) &&
-            this.getPlayerState(farsight.rival).hasInHand(take)
-        )
-    }
-
-    swapWithRival(playerId: string, give?: string, take?: string) {
-        assert(this.canSwapWithRival(playerId, give, take), `${playerId} cannot swap those`)
-        const rival = this.farsight?.rival
-        if (give !== undefined && take !== undefined && rival !== undefined) {
-            const player = this.getPlayerState(playerId)
-            const other = this.getPlayerState(rival)
-            player.removeFromHand(give)
-            other.removeFromHand(take)
-            player.takeIntoHand([take])
-            other.takeIntoHand([give])
-        }
-        this.farsight = undefined
     }
 
     // ----- Court card Prelude actions that draw -----

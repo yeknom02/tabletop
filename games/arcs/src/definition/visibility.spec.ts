@@ -120,20 +120,20 @@ describe('Farseers', () => {
             }
         })
         session.act(a, ActionType.LeadCard, { cardId: 'construction-5', declare: Ambition.Keeper })
-        expect(session.state.machineState).toBe(MachineState.Farseeing)
+        expect(session.state.machineState).toBe(MachineState.Declaring)
         session.act(a, ActionType.Farsee, { rival: b, revealsInfo: true })
-        expect(project(session, { kind: 'player', playerId: a }).farsight?.rivalHand).toEqual([
+        expect(project(session, { kind: 'player', playerId: a }).declaration?.rivalHand).toEqual([
             'mobilization-6',
             'administration-1'
         ])
         for (const viewer of [b, c]) {
             const view = project(session, { kind: 'player', playerId: viewer })
-            expect(view.farsight?.rivalHand).toBeUndefined()
+            expect(view.declaration?.rivalHand).toBeUndefined()
         }
         session.act(a, ActionType.SwapWithRival, { give: 'aggression-2', take: 'mobilization-6' })
         expect(session.hand(a)).toEqual(['mobilization-6'])
         expect(session.hand(b)).toEqual(['administration-1', 'aggression-2'])
-        expect(session.state.farsight).toBeUndefined()
+        expect(session.state.declaration).toBeUndefined()
         expect(session.state.machineState).toBe(MachineState.TakingActions)
     })
 })

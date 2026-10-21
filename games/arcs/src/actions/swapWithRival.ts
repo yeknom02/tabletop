@@ -3,6 +3,7 @@ import { Compile } from 'typebox/compile'
 import { GameAction, HydratableAction, Visibility } from '@tabletop/common'
 import { ActionCardIdSchema } from '../components/actionCards.js'
 import { ActionType } from '../definition/actions.js'
+import { swapWithRival } from '../model/declaration.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
 
 // Farseers: swap one card with the Rival whose hand was seen, or neither. Which cards is hidden
@@ -44,6 +45,6 @@ export class HydratedSwapWithRival
     }
 
     apply(state: HydratedArcsGameState) {
-        state.swapWithRival(this.playerId, this.give, this.take)
+        swapWithRival(state, this.playerId, this.give, this.take)
     }
 }

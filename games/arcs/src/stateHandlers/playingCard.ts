@@ -7,7 +7,7 @@ import { HydratedLeadCard, isLeadCard } from '../actions/leadCard.js'
 import { HydratedFollowCard, isFollowCard } from '../actions/followCard.js'
 import { HydratedPassInitiative, isPassInitiative } from '../actions/passInitiative.js'
 import { EndChapter } from '../actions/endChapter.js'
-import { afterDeclaring } from './farseeing.js'
+import { afterDeclaring } from './declaring.js'
 
 type PlayingCardAction = HydratedLeadCard | HydratedFollowCard | HydratedPassInitiative
 

@@ -1,3 +1,4 @@
+import { assert } from '@tabletop/common'
 import { describe, expect, it } from 'vitest'
 import { Ambition } from '../components/actionCards.js'
 import { Court } from '../components/courtCards.js'
@@ -5,6 +6,7 @@ import { Die } from '../components/dice.js'
 import { Leader } from '../components/personas.js'
 import { Resource } from '../components/resources.js'
 import { BattleStep } from '../model/battle.js'
+import { ArcsGameStateValidator, type ArcsProjectedState } from '../model/gameState.js'
 import { BuildingKind } from '../model/pieces.js'
 import { PlayKind } from '../model/round.js'
 import { ActionType } from './actions.js'
@@ -273,5 +275,95 @@ describe('after battle', () => {
         const state = session.hydrated()
         state.tallyRoll()
         expect(state.battle?.attackerHits).toBe(2)
+    })
+})
+
+describe('declaring an ambition', () => {
+    function declaring(
+        leader: Leader,
+        setup: (state: ArcsProjectedState, players: string[]) => void = () => {}
+    ) {
+        const session = startTestGame(3)
+        const players = [...session.state.turnManager.turnOrder]
+        const [a] = players
+        session.edit((state) => {
+            playerIn(state, a).leader = leader
+            playerIn(state, a).hand = ['construction-5']
+            playerIn(state, a).handCount = 1
+            setup(state, players)
+        })
+        const declare = () =>
+            session.act(a, ActionType.LeadCard, {
+                cardId: 'construction-5',
+                declare: Ambition.Keeper
+            })
+        return { session, players, declare }
+    }
+
+    it('Feastbringer must give a Guild card to the Rival with the least Power', () => {
+        const without = declaring(Leader.Feastbringer)
+        expect(() => without.declare()).toThrow()
+        const { session, players, declare } = declaring(Leader.Feastbringer, (state, [a, b, c]) => {
+            playerIn(state, a).guildCards = [Court.RelicFence]
+            playerIn(state, b).power = 3
+            playerIn(state, c).power = 1
+        })
+        const [a, b, c] = players
+        declare()
+        expect(session.state.machineState).toBe(MachineState.Declaring)
+        expect(() =>
+            session.act(a, ActionType.GiveGuildCard, { cardId: Court.RelicFence, to: b })
+        ).toThrow()
+        session.act(a, ActionType.GiveGuildCard, { cardId: Court.RelicFence, to: c })
+        expect(session.hydrated().getPlayerState(c).guildCards).toEqual([Court.RelicFence])
+        expect(session.state.machineState).toBe(MachineState.TakingActions)
+    })
+
+    it('Noble secures the top Court card for an undeclared ambition', () => {
+        const { session, players, declare } = declaring(Leader.Noble, (state) => {
+            assert(ArcsGameStateValidator.Check(state), 'The test game is canonical')
+            state.courtDeck.items.push(Court.RelicFence)
+            state.courtDeck.remaining += 1
+        })
+        const [a] = players
+        const processed = declare()
+        expect(processed.map((action) => action.type)).toEqual([
+            ActionType.LeadCard,
+            ActionType.DrawCourtCard
+        ])
+        expect(session.hydrated().getPlayerState(a).guildCards).toEqual([Court.RelicFence])
+        expect(session.state.turn?.securedInPrelude).toEqual([Court.RelicFence])
+        expect(session.state.machineState).toBe(MachineState.TakingActions)
+    })
+
+    it('Noble resolves a drawn Vox card’s choices', () => {
+        const { session, players, declare } = declaring(Leader.Noble, (state) => {
+            assert(ArcsGameStateValidator.Check(state), 'The test game is canonical')
+            state.courtDeck.items.push(Court.MassUprising)
+            state.courtDeck.remaining += 1
+        })
+        const [a] = players
+        declare()
+        expect(session.state.declaration?.drawn).toBe(Court.MassUprising)
+        const before = session.hydrated().getPlayerState(a).ships
+        session.act(a, ActionType.ResolveConnected, { vox: { cluster: 3 } })
+        // A ship in each of cluster 3's four systems.
+        expect(session.hydrated().getPlayerState(a).ships).toBe(before - 4)
+        expect(session.state.machineState).toBe(MachineState.TakingActions)
+    })
+
+    it('Upstart gains any resource, and the Demagogue influences Court cards', () => {
+        const upstart = declaring(Leader.Upstart)
+        const [a] = upstart.players
+        upstart.declare()
+        upstart.session.act(a, ActionType.GainOnDeclaring, { resource: Resource.Relic })
+        expect(upstart.session.hydrated().getPlayerState(a).resourceCount(Resource.Relic)).toBe(2)
+        const demagogue = declaring(Leader.Demagogue)
+        demagogue.declare()
+        const court = demagogue.session.state.court.map((slot) => slot.cardId)
+        demagogue.session.act(a, ActionType.BoldInfluence, { cardIds: court.slice(0, 2) })
+        expect(demagogue.session.state.court[0].agents).toEqual({ [a]: 1 })
+        expect(demagogue.session.state.court[1].agents).toEqual({ [a]: 1 })
+        expect(demagogue.session.state.machineState).toBe(MachineState.TakingActions)
     })
 })

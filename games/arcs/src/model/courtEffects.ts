@@ -11,6 +11,7 @@ import { Court } from '../components/courtCards.js'
 import { clusterOf, isGate, planetOf, SystemIdSchema, type SystemId } from '../components/map.js'
 import { Resource, ResourceSchema } from '../components/resources.js'
 import { MachineState } from '../definition/states.js'
+import { canAffordDeclaration } from './declaration.js'
 import type { HydratedArcsGameState } from './gameState.js'
 import { BuildingKind, StealTarget, TrophyKind } from './pieces.js'
 
@@ -538,7 +539,9 @@ export function canResolveVox(
         case Court.PopulistDemands:
             return (
                 only('ambition') &&
-                (choice.ambition === undefined || state.availableMarker() !== undefined)
+                (choice.ambition === undefined ||
+                    (state.availableMarker() !== undefined &&
+                        canAffordDeclaration(state, playerId)))
             )
         case Court.OutrageSpreads:
             return only('outrage')

@@ -20,7 +20,7 @@ import {
     isDrawActionCard
 } from '../actions/drawActionCard.js'
 import { Court } from '../components/courtCards.js'
-import { afterDeclaring } from './farseeing.js'
+import { afterDeclaring } from './declaring.js'
 
 type BattlingAction =
     | HydratedReroll

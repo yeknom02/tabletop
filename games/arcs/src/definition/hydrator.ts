@@ -24,6 +24,11 @@ import { HydratedRansack, isRansack } from '../actions/ransack.js'
 import { HydratedRaid, isRaid } from '../actions/raid.js'
 import { HydratedEndBattle, isEndBattle } from '../actions/endBattle.js'
 import { HydratedBelovedInfluence, isBelovedInfluence } from '../actions/belovedInfluence.js'
+import { HydratedGiveGuildCard, isGiveGuildCard } from '../actions/giveGuildCard.js'
+import { HydratedResolveConnected, isResolveConnected } from '../actions/resolveConnected.js'
+import { HydratedGainOnDeclaring, isGainOnDeclaring } from '../actions/gainOnDeclaring.js'
+import { HydratedBoldInfluence, isBoldInfluence } from '../actions/boldInfluence.js'
+import { HydratedDrawCourtCard, isDrawCourtCard } from '../actions/drawCourtCard.js'
 import { HydratedFarsee, isFarsee } from '../actions/farsee.js'
 import { HydratedSwapWithRival, isSwapWithRival } from '../actions/swapWithRival.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
@@ -105,6 +110,21 @@ export class ArcsHydrator implements GameHydrator<ArcsProjectedState, HydratedAr
             }
             case isBelovedInfluence(data): {
                 return new HydratedBelovedInfluence(data)
+            }
+            case isGiveGuildCard(data): {
+                return new HydratedGiveGuildCard(data)
+            }
+            case isResolveConnected(data): {
+                return new HydratedResolveConnected(data)
+            }
+            case isGainOnDeclaring(data): {
+                return new HydratedGainOnDeclaring(data)
+            }
+            case isBoldInfluence(data): {
+                return new HydratedBoldInfluence(data)
+            }
+            case isDrawCourtCard(data): {
+                return new HydratedDrawCourtCard(data)
             }
             case isFarsee(data): {
                 return new HydratedFarsee(data)

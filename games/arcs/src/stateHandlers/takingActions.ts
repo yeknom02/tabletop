@@ -30,7 +30,7 @@ import {
 import { Court } from '../components/courtCards.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
 import { endChapter } from './playingCard.js'
-import { afterDeclaring } from './farseeing.js'
+import { afterDeclaring } from './declaring.js'
 
 type TakingActionsAction =
     | HydratedTax

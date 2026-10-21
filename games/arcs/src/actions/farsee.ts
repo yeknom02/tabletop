@@ -2,6 +2,7 @@ import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { GameAction, HydratableAction } from '@tabletop/common'
 import { ActionType } from '../definition/actions.js'
+import { farsee } from '../model/declaration.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
 
 // Farseers: look at a Rival's hand. Only the looker sees it, so this is a reveal.
@@ -35,6 +36,6 @@ export class HydratedFarsee extends HydratableAction<typeof Farsee> implements F
     }
 
     apply(state: HydratedArcsGameState) {
-        state.farsee(this.playerId, this.rival)
+        farsee(state, this.playerId, this.rival)
     }
 }
