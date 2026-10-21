@@ -29,6 +29,8 @@ export const Tax = Type.Evaluate(
             token: Type.Optional(ResourceSchema),
             // With every open slot full: the resource to discard, possibly the one gained (rule 9.2.1).
             discard: Type.Optional(Type.Array(ResourceSchema)),
+            // For a Gate Station city of several types: the one to gain.
+            cityType: Type.Optional(ResourceSchema),
             metadata: Type.Optional(TaxResult)
         })
     ])
@@ -48,6 +50,7 @@ export class HydratedTax extends HydratableAction<typeof Tax> implements Tax {
     declare via?: Resource
     declare token?: Resource
     declare discard?: Resource[]
+    declare cityType?: Resource
     declare metadata?: TaxResult
 
     constructor(data: Tax) {
@@ -62,7 +65,8 @@ export class HydratedTax extends HydratableAction<typeof Tax> implements Tax {
             this.system,
             this.slot,
             this.discard,
-            copyOrPivotPip
+            copyOrPivotPip,
+            this.cityType
         )
     }
 }

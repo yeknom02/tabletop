@@ -10,6 +10,8 @@ import { HydratedArcsGameState } from '../model/gameState.js'
 import { anyRerolls, BattleStep } from '../model/battle.js'
 import { HydratedAssignHits, isAssignHits } from '../actions/assignHits.js'
 import { HydratedReroll, isReroll } from '../actions/reroll.js'
+import { HydratedRollDice, isRollDice } from '../actions/rollDice.js'
+import { HydratedMoveInBySensors, isMoveInBySensors } from '../actions/moveInBySensors.js'
 import { HydratedRansack, isRansack } from '../actions/ransack.js'
 import { HydratedRaid, isRaid } from '../actions/raid.js'
 import { HydratedEndBattle, isEndBattle } from '../actions/endBattle.js'
@@ -23,6 +25,8 @@ import { Court } from '../components/courtCards.js'
 import { afterDeclaring } from './declaring.js'
 
 type BattlingAction =
+    | HydratedMoveInBySensors
+    | HydratedRollDice
     | HydratedReroll
     | HydratedAssignHits
     | HydratedRansack
@@ -53,6 +57,12 @@ export class BattlingStateHandler implements MachineStateHandler<
                 action.buildings
             )
         }
+        if (isMoveInBySensors(action)) {
+            return gameState.canMoveInBySensors(playerId, action.moves)
+        }
+        if (isRollDice(action)) {
+            return gameState.canRollBattleDice(playerId, action.dice)
+        }
         if (isReroll(action)) {
             return gameState.canReroll(playerId, action.dice)
         }
@@ -81,6 +91,10 @@ export class BattlingStateHandler implements MachineStateHandler<
             return []
         }
         switch (battle.step) {
+            case BattleStep.Sensors:
+                return [ActionType.MoveInBySensors]
+            case BattleStep.Dice:
+                return [ActionType.RollDice]
             case BattleStep.Beloved:
                 return [ActionType.BelovedInfluence]
             case BattleStep.Hits:

@@ -22,6 +22,9 @@ import { Repair } from '../actions/repair.js'
 import { Influence } from '../actions/influence.js'
 import { Secure } from '../actions/secure.js'
 import { Battle } from '../actions/battle.js'
+import { RollDice } from '../actions/rollDice.js'
+import { MoveInBySensors } from '../actions/moveInBySensors.js'
+import { FireRifles } from '../actions/fireRifles.js'
 import { Reroll } from '../actions/reroll.js'
 import { AssignHits } from '../actions/assignHits.js'
 import { Ransack } from '../actions/ransack.js'
@@ -65,6 +68,9 @@ export const ArcsActionSchemas = {
     [ActionType.Influence]: Influence,
     [ActionType.Secure]: Secure,
     [ActionType.Battle]: Battle,
+    [ActionType.RollDice]: RollDice,
+    [ActionType.MoveInBySensors]: MoveInBySensors,
+    [ActionType.FireRifles]: FireRifles,
     [ActionType.Reroll]: Reroll,
     [ActionType.AssignHits]: AssignHits,
     [ActionType.Ransack]: Ransack,

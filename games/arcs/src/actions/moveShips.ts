@@ -8,6 +8,19 @@ import type { ShipsMoving } from '../model/gameState.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
 
+const ShipsMovingSchema = Type.Object({
+    fresh: Type.Integer({ minimum: 0 }),
+    damaged: Type.Integer({ minimum: 0 })
+})
+
+export type Sprint = Type.Static<typeof Sprint>
+export const Sprint = Type.Object({
+    from: SystemIdSchema,
+    path: Type.Array(SystemIdSchema, { minItems: 1 }),
+    fresh: Type.Integer({ minimum: 1 }),
+    dropOffs: Type.Array(ShipsMovingSchema)
+})
+
 // Move ships from one system, Catapulting on from a Loyal starport, dropping ships off along the way (rule 7.3). `dropOffs` has one entry per system passed through, before the last.
 export type MoveShips = Type.Static<typeof MoveShips>
 export const MoveShips = Type.Evaluate(
@@ -20,17 +33,17 @@ export const MoveShips = Type.Evaluate(
             path: Type.Array(SystemIdSchema, { minItems: 1 }),
             fresh: Type.Integer({ minimum: 0 }),
             damaged: Type.Integer({ minimum: 0 }),
-            dropOffs: Type.Array(
-                Type.Object({
-                    fresh: Type.Integer({ minimum: 0 }),
-                    damaged: Type.Integer({ minimum: 0 })
-                })
-            ),
+            dropOffs: Type.Array(ShipsMovingSchema),
             via: Type.Optional(ResourceSchema),
             // The token spent, when a card lets another resource stand in for `via`.
             token: Type.Optional(ResourceSchema),
             // A leader's extra action, taken without a pip or resource.
-            bonus: Type.Optional(Type.Boolean())
+            bonus: Type.Optional(Type.Boolean()),
+            // Sprinter Drives: fresh ships that just moved, moving once more.
+            sprint: Type.Optional(Sprint),
+            metadata: Type.Optional(
+                Type.Object({ captured: Type.Record(Type.String(), Type.Integer({ minimum: 0 })) })
+            )
         })
     ])
 )
@@ -52,6 +65,8 @@ export class HydratedMoveShips extends HydratableAction<typeof MoveShips> implem
     declare via?: Resource
     declare token?: Resource
     declare bonus?: boolean
+    declare sprint?: Sprint
+    declare metadata?: { captured: Record<string, number> }
 
     constructor(data: MoveShips) {
         super(data, MoveShipsValidator)
@@ -59,12 +74,6 @@ export class HydratedMoveShips extends HydratableAction<typeof MoveShips> implem
 
     apply(state: HydratedArcsGameState) {
         state.pay(this.playerId, StandardAction.Move, this.via, this.token, this.bonus)
-        state.move(
-            this.playerId,
-            this.from,
-            this.path,
-            { fresh: this.fresh, damaged: this.damaged },
-            this.dropOffs
-        )
+        this.metadata = { captured: state.moveWithSprint(this.playerId, this, this.sprint) }
     }
 }

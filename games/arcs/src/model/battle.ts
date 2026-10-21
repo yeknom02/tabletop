@@ -6,6 +6,10 @@ import type { ShipCount } from './pieces.js'
 // Where a battle is: the attacker assigns hits, then Ransacks the Court once per city destroyed,
 // then raids with the keys rolled (rule 7.7.1.4).
 export enum BattleStep {
+    // Predictive Sensors: the defender may move fresh ships in from adjacent systems.
+    Sensors = 'sensors',
+    // The attacker collects and rolls dice.
+    Dice = 'dice',
     Hits = 'hits',
     Ransack = 'ransack',
     Raid = 'raid',
@@ -38,6 +42,9 @@ export const BattleState = Type.Object({
         [Die.Skirmish]: Type.Integer({ minimum: 0 }),
         [Die.Raid]: Type.Integer({ minimum: 0 })
     }),
+    // Galactic Rifles' Fire Rifles: skirmish dice from an adjacent system, which is not a battle,
+    // so nothing that modifies battle applies.
+    rifles: Type.Boolean(),
     // Signal Breaker: every attacking ship was fresh as the battle began.
     allFresh: Type.Boolean(),
     // Whether the attacker took any Trophies.
@@ -100,3 +107,16 @@ export function noRerolls(): Record<Die, number> {
 export function anyRerolls(rerolls: Readonly<Record<Die, number>>): boolean {
     return Object.values(rerolls).some((count) => count > 0)
 }
+
+// Railgun Arrays: which attacking ship takes its hit, a fresh one (damaging it) or a damaged one
+// (destroying it).
+export enum RailgunHit {
+    Fresh = 'fresh',
+    Damaged = 'damaged'
+}
+
+export type SensorsMove = Type.Static<typeof SensorsMove>
+export const SensorsMove = Type.Object({
+    from: SystemIdSchema,
+    fresh: Type.Integer({ minimum: 1 })
+})

@@ -72,6 +72,8 @@ import {
     hitShips,
     anyRerolls,
     noRerolls,
+    RailgunHit,
+    type SensorsMove,
     rollDie,
     shipHitCapacity,
     type RolledDie,
@@ -370,11 +372,39 @@ export class HydratedArcsGameState
         return this.system(id).slots.findIndex((slot) => slot === null)
     }
 
-    // Puts a building from the player's supply into the first empty slot. Cities come off the
-    // player board from the left.
-    placeBuilding(id: SystemId, playerId: string, kind: BuildingKind, damaged: boolean = false) {
+    // A system's building slots, then its buildings outside slots; buildings are addressed by
+    // their index here.
+    buildingSlots(id: SystemId): (Building | null)[] {
+        const system = this.system(id)
+        return [...system.slots, ...system.extraBuildings]
+    }
+
+    buildingAt(id: SystemId, slot: number): Building | null {
+        return this.buildingSlots(id)[slot] ?? null
+    }
+
+    setBuildingAt(id: SystemId, slot: number, building: Building | null) {
+        const system = this.system(id)
+        if (slot < system.slots.length) {
+            system.slots[slot] = building
+            return
+        }
+        const outside = slot - system.slots.length
+        assert(outside < system.extraBuildings.length, `${id} has no building ${slot}`)
+        system.extraBuildings[outside] = building
+    }
+
+    // Puts a building from the player's supply into the first empty slot, or outside the slots.
+    // Cities come off the player board from the left.
+    placeBuilding(
+        id: SystemId,
+        playerId: string,
+        kind: BuildingKind,
+        damaged: boolean = false,
+        outside: boolean = false
+    ) {
         const slot = this.emptySlot(id)
-        assert(slot >= 0, `${id} has no empty building slot`)
+        assert(outside || slot >= 0, `${id} has no empty building slot`)
         const player = this.getPlayerState(playerId)
         if (kind === BuildingKind.City) {
             assert(player.citiesOnBoard > 0, `${playerId} has no city to build`)
@@ -383,11 +413,16 @@ export class HydratedArcsGameState
             assert(player.starports > 0, `${playerId} has no starport to build`)
             player.starports -= 1
         }
-        this.system(id).slots[slot] = { owner: playerId, kind, damaged }
+        const building = { owner: playerId, kind, damaged }
+        if (outside) {
+            this.system(id).extraBuildings.push(building)
+        } else {
+            this.system(id).slots[slot] = building
+        }
     }
 
     building(id: SystemId, slot: number): Building {
-        const building = this.system(id).slots[slot]
+        const building = this.buildingAt(id, slot)
         assertExists(building, `No building in ${id} slot ${slot}`)
         return building
     }
@@ -1037,10 +1072,10 @@ export class HydratedArcsGameState
         // Warlord's Cruelty: while Warlord is declared, a city can be taxed again.
         const again =
             this.hasLore(playerId, Lore.WarlordsCruelty) && this.isDeclared(Ambition.Warlord)
-        if (!planetOf(id) || (!again && this.currentTurn().taxed.includes(`${id}:${slot}`))) {
+        if (!again && this.currentTurn().taxed.includes(`${id}:${slot}`)) {
             return false
         }
-        const building = this.system(id).slots[slot]
+        const building = this.buildingAt(id, slot)
         const controls = this.controller(id) === playerId
         // Anarchist, Inspiring: with Loyal ships there, Rival cities ignoring control, and empty
         // slots like Loyal cities. Principled: never Loyal cities.
@@ -1048,7 +1083,7 @@ export class HydratedArcsGameState
             const ships = shipsOf(this.system(id), playerId)
             const present = ships.fresh + ships.damaged > 0
             if (building === null) {
-                return present
+                return present && slot < this.system(id).slots.length
             }
             return (
                 building?.kind === BuildingKind.City &&
@@ -1063,15 +1098,43 @@ export class HydratedArcsGameState
         if (this.isLeader(playerId, Leader.Upstart) && !controls) {
             return false
         }
-        return building.owner === playerId || controls
+        return building.owner === playerId || controls || this.empathsBond(playerId)
+    }
+
+    // Empath's Bond, while Empath is declared: any city taxed, any starport used, as if Loyal.
+    empathsBond(playerId: string): boolean {
+        return this.hasLore(playerId, Lore.EmpathsBond) && this.isDeclared(Ambition.Empath)
+    }
+
+    // The resources taxing a city can give: its planet's type, or for a Gate Station city, any
+    // type of the cities in its cluster.
+    cityTypes(id: SystemId): Resource[] {
+        if (!isGate(id)) {
+            const planetType = this.planetType(id)
+            return planetType === undefined ? [] : [planetType]
+        }
+        const types = this.systems
+            .filter(
+                (system) =>
+                    clusterOf(system.id) === clusterOf(id) &&
+                    !isGate(system.id) &&
+                    buildingsIn(system).some((building) => building.kind === BuildingKind.City)
+            )
+            .flatMap((system) => this.cityTypes(system.id))
+        return [...new Set(types)]
     }
 
     // What taxing gains: the planet's resource, plus the leader's extra one for a tax made with the
     // pip of a Copy or Pivot (Mystic, Fuel-Drinker, Agitator).
-    taxGains(playerId: string, id: SystemId, copyOrPivotPip: boolean): Resource[] {
-        const planetType = this.planetType(id)
-        assertExists(planetType, `${id} is not a planet`)
-        const gains = [planetType]
+    taxGains(
+        playerId: string,
+        id: SystemId,
+        copyOrPivotPip: boolean,
+        cityType?: Resource
+    ): Resource[] {
+        const types = this.cityTypes(id)
+        const chosen = cityType ?? (types.length === 1 ? types[0] : undefined)
+        const gains = chosen !== undefined && types.includes(chosen) ? [chosen] : []
         const leader = this.getPlayerState(playerId).leader
         const extra = leader === undefined ? undefined : CopyOrPivotTaxBonus[leader]
         if (copyOrPivotPip && extra !== undefined) {
@@ -1091,13 +1154,21 @@ export class HydratedArcsGameState
         id: SystemId,
         slot: number,
         discard: readonly Resource[] = [],
-        copyOrPivotPip: boolean = false
+        copyOrPivotPip: boolean = false,
+        cityType?: Resource
     ): boolean {
+        // A Gate Station city of several types needs one chosen.
+        const types = this.cityTypes(id)
+        const typeChosen =
+            cityType === undefined
+                ? types.length <= 1
+                : types.length > 1 && types.includes(cityType)
         return (
             this.canTaxSlot(playerId, id, slot) &&
+            typeChosen &&
             this.canGainAllFromSupply(
                 playerId,
-                this.taxGains(playerId, id, copyOrPivotPip),
+                this.taxGains(playerId, id, copyOrPivotPip, cityType),
                 discard
             )
         )
@@ -1108,19 +1179,27 @@ export class HydratedArcsGameState
         id: SystemId,
         slot: number,
         discard: readonly Resource[] = [],
-        copyOrPivotPip: boolean = false
+        copyOrPivotPip: boolean = false,
+        cityType?: Resource
     ): { gained: Resource[]; discarded: Resource[]; captured?: string } {
         assert(
-            this.canTax(playerId, id, slot, discard, copyOrPivotPip),
+            this.canTax(playerId, id, slot, discard, copyOrPivotPip, cityType),
             `${playerId} cannot tax ${id} slot ${slot}`
         )
         const turn = this.currentTurn()
         turn.taxed.push(`${id}:${slot}`)
         turn.lastBuildingAction = { kind: 'tax', system: id, slot, copyOrPivotPip }
         const result: { gained: Resource[]; discarded: Resource[]; captured?: string } =
-            this.gainAllFromSupply(playerId, this.taxGains(playerId, id, copyOrPivotPip), discard)
-        const owner = this.system(id).slots[slot]?.owner
-        if (owner !== undefined && owner !== playerId) {
+            this.gainAllFromSupply(
+                playerId,
+                this.taxGains(playerId, id, copyOrPivotPip, cityType),
+                discard
+            )
+        const owner = this.buildingAt(id, slot)?.owner
+        // A Rival city taxed only through Empath's Bond gives no Captive.
+        const bondOnly =
+            this.controller(id) !== playerId && !this.isLeader(playerId, Leader.Anarchist)
+        if (owner !== undefined && owner !== playerId && !bondOnly) {
             const rival = this.getPlayerState(owner)
             if (rival.agents > 0) {
                 rival.agents -= 1
@@ -1227,7 +1306,7 @@ export class HydratedArcsGameState
     // Build a city or starport in an empty slot of a system with a Loyal piece, or a ship at a
     // Loyal starport, once per starport per turn (rule 7.2).
     canBuildBuilding(playerId: string, id: SystemId, kind: BuildingKind): boolean {
-        if (!this.inPlay(id) || isGate(id) || this.emptySlot(id) < 0) {
+        if (!this.inPlay(id) || this.buildPlace(playerId, id, kind) === undefined) {
             return false
         }
         const player = this.getPlayerState(playerId)
@@ -1235,18 +1314,48 @@ export class HydratedArcsGameState
         return inSupply > 0 && this.hasLoyalPiece(id, playerId)
     }
 
+    // Where a new building goes: an empty slot of a planet, else outside the slots as lore allows
+    // (Gate Ports: a starport per gate; Gate Stations: a city per gate; Cloud Cities: a city per
+    // planet, for a resource of its type).
+    buildPlace(playerId: string, id: SystemId, kind: BuildingKind): 'slot' | 'outside' | undefined {
+        if (!isGate(id) && this.emptySlot(id) >= 0) {
+            return 'slot'
+        }
+        const taken = this.system(id).extraBuildings.some((building) => building?.kind === kind)
+        if (taken) {
+            return undefined
+        }
+        if (isGate(id)) {
+            const lore = kind === BuildingKind.Starport ? Lore.GatePorts : Lore.GateStations
+            return this.hasLore(playerId, lore) ? 'outside' : undefined
+        }
+        const planetType = this.planetType(id)
+        return kind === BuildingKind.City &&
+            this.hasLore(playerId, Lore.CloudCities) &&
+            planetType !== undefined &&
+            this.getPlayerState(playerId).resourceCount(planetType) > 0
+            ? 'outside'
+            : undefined
+    }
+
     buildBuilding(playerId: string, id: SystemId, kind: BuildingKind): boolean {
         assert(this.canBuildBuilding(playerId, id, kind), `${playerId} cannot build in ${id}`)
+        const outside = this.buildPlace(playerId, id, kind) === 'outside'
+        const planetType = this.planetType(id)
+        if (outside && !isGate(id) && planetType !== undefined) {
+            this.getPlayerState(playerId).removeResource(planetType)
+            this.supply[planetType] += 1
+        }
         const damaged = this.controlledByOther(id, playerId)
-        this.placeBuilding(id, playerId, kind, damaged)
+        this.placeBuilding(id, playerId, kind, damaged, outside)
         return damaged
     }
 
     canBuildShip(playerId: string, id: SystemId, slot: number): boolean {
-        const building = this.system(id).slots[slot]
+        const building = this.buildingAt(id, slot)
         return (
             building?.kind === BuildingKind.Starport &&
-            building.owner === playerId &&
+            (building.owner === playerId || this.empathsBond(playerId)) &&
             this.getPlayerState(playerId).ships > 0 &&
             !this.currentTurn().starportsBuilt.includes(`${id}:${slot}`)
         )
@@ -1313,7 +1422,7 @@ export class HydratedArcsGameState
         if (!building.damaged) {
             building.damaged = true
         } else {
-            this.system(id).slots[slot] = null
+            this.setBuildingAt(id, slot, null)
             const kind = building.kind === BuildingKind.City ? TrophyKind.City : TrophyKind.Starport
             if (owner === playerId) {
                 this.returnPiece(owner, kind)
@@ -1408,9 +1517,10 @@ export class HydratedArcsGameState
         // Shaper, Ancient: Catapult from gates, never from starports.
         const catapult = this.isLeader(playerId, Leader.Shaper)
             ? isGate(from)
-            : this.system(from).slots.some(
+            : buildingsIn(this.system(from)).some(
                   (building) =>
-                      building?.kind === BuildingKind.Starport && building.owner === playerId
+                      building.kind === BuildingKind.Starport &&
+                      (building.owner === playerId || this.empathsBond(playerId))
               )
         if (path.length > 1 && !catapult) {
             return false
@@ -1440,14 +1550,16 @@ export class HydratedArcsGameState
         return true
     }
 
+    // Returns the agents Gate Ports captured from the mover, by capturer.
     move(
         playerId: string,
         from: SystemId,
         path: readonly SystemId[],
         moving: ShipsMoving,
         dropOffs: readonly ShipsMoving[]
-    ) {
+    ): Record<string, number> {
         assert(this.canMove(playerId, from, path, moving, dropOffs), `${playerId} cannot move so`)
+        const capturers = path.flatMap((id) => this.gatePortsGuarding(id, playerId))
         this.removeShips(from, playerId, moving.fresh, moving.damaged)
         let left = { ...moving }
         for (const [step, drop] of dropOffs.entries()) {
@@ -1457,6 +1569,114 @@ export class HydratedArcsGameState
             left = { fresh: left.fresh - drop.fresh, damaged: left.damaged - drop.damaged }
         }
         this.addShips(path[path.length - 1], playerId, left.fresh, left.damaged)
+        const captured: Record<string, number> = {}
+        const mover = this.getPlayerState(playerId)
+        for (const capturer of capturers) {
+            if (mover.agents > 0) {
+                mover.agents -= 1
+                this.getPlayerState(capturer).capture(playerId)
+                captured[capturer] = (captured[capturer] ?? 0) + 1
+            }
+        }
+        return captured
+    }
+
+    // Gate Ports: Rivals who control this gate with a fresh Loyal starport there, and so capture
+    // an agent of a player moving in.
+    gatePortsGuarding(id: SystemId, mover: string): string[] {
+        if (!isGate(id)) {
+            return []
+        }
+        const controller = this.controller(id)
+        if (
+            controller === undefined ||
+            controller === mover ||
+            !this.hasLore(controller, Lore.GatePorts)
+        ) {
+            return []
+        }
+        const port = buildingsIn(this.system(id)).some(
+            (building) =>
+                building.owner === controller &&
+                building.kind === BuildingKind.Starport &&
+                !building.damaged
+        )
+        return port ? [controller] : []
+    }
+
+    // Sprinter Drives: some fresh ships that just moved move once more, from where they stopped.
+    canSprint(
+        playerId: string,
+        arrived: Readonly<Record<string, number>>,
+        sprint: ShipsSprinting
+    ): boolean {
+        return (
+            this.hasLore(playerId, Lore.SprinterDrives) &&
+            sprint.fresh <= (arrived[sprint.from] ?? 0) &&
+            this.canMove(
+                playerId,
+                sprint.from,
+                sprint.path,
+                { fresh: sprint.fresh, damaged: 0 },
+                sprint.dropOffs
+            )
+        )
+    }
+
+    // The fresh ships a move left in each system it passed through or ended in.
+    static freshArrivals(
+        path: readonly SystemId[],
+        moving: ShipsMoving,
+        dropOffs: readonly ShipsMoving[]
+    ): Record<string, number> {
+        const arrived: Record<string, number> = {}
+        let left = moving.fresh
+        for (const [step, drop] of dropOffs.entries()) {
+            arrived[path[step]] = (arrived[path[step]] ?? 0) + drop.fresh
+            left -= drop.fresh
+        }
+        const last = path[path.length - 1]
+        arrived[last] = (arrived[last] ?? 0) + left
+        return arrived
+    }
+
+    // A move, with Sprinter Drives' second move if any.
+    canMoveWithSprint(playerId: string, move: ShipsMove, sprint?: ShipsSprinting): boolean {
+        const moving = { fresh: move.fresh, damaged: move.damaged }
+        if (!this.canMove(playerId, move.from, move.path, moving, move.dropOffs)) {
+            return false
+        }
+        if (sprint === undefined) {
+            return true
+        }
+        const arrived = HydratedArcsGameState.freshArrivals(move.path, moving, move.dropOffs)
+        return this.wouldSucceed((copy) => {
+            copy.move(playerId, move.from, move.path, moving, move.dropOffs)
+            assert(copy.canSprint(playerId, arrived, sprint), 'Cannot sprint so')
+        })
+    }
+
+    moveWithSprint(
+        playerId: string,
+        move: ShipsMove,
+        sprint?: ShipsSprinting
+    ): Record<string, number> {
+        assert(this.canMoveWithSprint(playerId, move, sprint), `${playerId} cannot move so`)
+        const moving = { fresh: move.fresh, damaged: move.damaged }
+        const captured = this.move(playerId, move.from, move.path, moving, move.dropOffs)
+        if (sprint !== undefined) {
+            const more = this.move(
+                playerId,
+                sprint.from,
+                sprint.path,
+                { fresh: sprint.fresh, damaged: 0 },
+                sprint.dropOffs
+            )
+            for (const [capturer, count] of Object.entries(more)) {
+                captured[capturer] = (captured[capturer] ?? 0) + count
+            }
+        }
+        return captured
     }
 
     // Repair a damaged Loyal ship or building anywhere (rule 7.4).
@@ -1471,7 +1691,7 @@ export class HydratedArcsGameState
     }
 
     canRepairBuilding(playerId: string, id: SystemId, slot: number): boolean {
-        const building = this.system(id).slots[slot]
+        const building = this.buildingAt(id, slot)
         return building?.owner === playerId && building.damaged
     }
 
@@ -1612,16 +1832,64 @@ export class HydratedArcsGameState
         return this.hasLore(attacker, Lore.RaiderExosuits) ? 1 : 0
     }
 
+    // Choosing where and whom to battle (rule 7.7.1 steps 1–2). A defender with Railgun Arrays
+    // and a fresh ship there makes the attacker name the ship that takes its hit. The dice come
+    // with it, unless the defender may first move ships in with Predictive Sensors.
     canBattle(
         playerId: string,
         id: SystemId,
         defender: string,
-        dice: Readonly<Record<Die, number>>
+        dice?: Readonly<Record<Die, number>>,
+        railgun?: RailgunHit
     ): boolean {
         if (!this.inPlay(id) || !this.defendersIn(playerId, id).includes(defender)) {
             return false
         }
         const ships = shipsOf(this.system(id), playerId)
+        if (ships.fresh + ships.damaged === 0) {
+            return false
+        }
+        if (this.railgunApplies(id, defender)) {
+            const target = railgun === RailgunHit.Fresh ? ships.fresh : ships.damaged
+            if (railgun === undefined || target === 0) {
+                return false
+            }
+        } else if (railgun !== undefined) {
+            return false
+        }
+        if (this.sensorsApply(id, defender)) {
+            return dice === undefined
+        }
+        const left = ships.fresh + ships.damaged - (railgun === RailgunHit.Damaged ? 1 : 0)
+        return (
+            dice !== undefined &&
+            (left === 0 || this.canCollectDice(playerId, id, defender, dice, left))
+        )
+    }
+
+    railgunApplies(id: SystemId, defender: string): boolean {
+        return (
+            this.hasLore(defender, Lore.RailgunArrays) &&
+            shipsOf(this.system(id), defender).fresh > 0
+        )
+    }
+
+    sensorsApply(id: SystemId, defender: string): boolean {
+        return (
+            this.hasLore(defender, Lore.PredictiveSensors) &&
+            this.adjacent(id).some((adjacent) => shipsOf(this.system(adjacent), defender).fresh > 0)
+        )
+    }
+
+    // Up to one die per attacking ship (rule 7.7.1.3), as cards change it.
+    canCollectDice(
+        playerId: string,
+        id: SystemId,
+        defender: string,
+        dice: Readonly<Record<Die, number>>,
+        shipCount: number = shipsOf(this.system(id), playerId).fresh +
+            shipsOf(this.system(id), playerId).damaged
+    ): boolean {
         const counts = Object.values(Die).map((die) => dice[die])
         const total = counts.reduce((sum, count) => sum + count, 0)
         // Gatekeepers collect 2 more dice in a gate. The Rebel, Committed, must collect 2 more.
@@ -1634,42 +1902,156 @@ export class HydratedArcsGameState
             counts.every((count) => count >= 0 && count <= DiceOfEachKind) &&
             wary &&
             total >= Math.max(1, committed) &&
-            total <= ships.fresh + ships.damaged + gatekeepers + committed &&
+            total <= shipCount + gatekeepers + committed &&
             dice[Die.Raid] <= this.raidDiceLimit(playerId, id, defender)
         )
     }
 
     // Rolls the dice and counts what the attacker must resolve. Intercepts hit once per fresh
     // defending ship, however many dice show it (rule 7.7.1.4).
+    // Starts the battle: Railgun Arrays' hit, then Predictive Sensors' step or the roll.
     startBattle(
         playerId: string,
         id: SystemId,
         defender: string,
-        dice: Readonly<Record<Die, number>>
+        dice?: Readonly<Record<Die, number>>,
+        railgun?: RailgunHit
     ): BattleState {
-        assert(this.canBattle(playerId, id, defender, dice), `${playerId} cannot battle so`)
-        const random = this.getProtectedPrng().random
-        const rolled = Object.values(Die).flatMap((die) =>
-            Array.from({ length: dice[die] }, () => rollDie(die, random))
+        assert(
+            this.canBattle(playerId, id, defender, dice, railgun),
+            `${playerId} cannot battle so`
         )
         const battle: BattleState = {
             attacker: playerId,
             defender,
             system: id,
-            rolled,
+            rolled: [],
+            attackerHits: 0,
+            hits: 0,
+            buildingHits: 0,
+            keys: 0,
+            step: BattleStep.Dice,
+            rifles: false,
+            trophiesTaken: false,
+            allFresh: shipsOf(this.system(id), playerId).damaged === 0,
+            rerolls: noRerolls(),
+            ransacks: 0
+        }
+        this.battle = battle
+        if (railgun !== undefined) {
+            const fresh = railgun === RailgunHit.Fresh
+            this.hitShipsIn(id, playerId, { damage: fresh ? 1 : 0, destroy: fresh ? 0 : 1 })
+            if (!fresh) {
+                this.getPlayerState(defender).trophies.push({
+                    owner: playerId,
+                    kind: TrophyKind.Ship
+                })
+            }
+        }
+        const ships = shipsOf(this.system(id), playerId)
+        if (ships.fresh + ships.damaged === 0) {
+            this.finishBattle()
+        } else if (this.sensorsApply(id, defender)) {
+            battle.step = BattleStep.Sensors
+        } else if (dice !== undefined) {
+            this.rollBattleDice(playerId, dice)
+        }
+        return battle
+    }
+
+    canMoveInBySensors(playerId: string, moves: readonly SensorsMove[]): boolean {
+        const battle = this.battle
+        if (battle?.step !== BattleStep.Sensors || battle.defender !== playerId) {
+            return false
+        }
+        const froms = moves.map((move) => move.from)
+        return (
+            new Set(froms).size === froms.length &&
+            moves.every(
+                (move) =>
+                    this.adjacent(battle.system).includes(move.from) &&
+                    move.fresh <= shipsOf(this.system(move.from), playerId).fresh &&
+                    // Rebel, Disorganized: at most 2 ships from each system.
+                    (!this.isLeader(playerId, Leader.Rebel) || move.fresh <= 2)
+            )
+        )
+    }
+
+    // Predictive Sensors: fresh defending ships move in from adjacent systems.
+    moveInBySensors(playerId: string, moves: readonly SensorsMove[]) {
+        assert(this.canMoveInBySensors(playerId, moves), `${playerId} cannot move in so`)
+        const battle = this.currentBattle()
+        for (const move of moves) {
+            this.removeShips(move.from, playerId, move.fresh, 0)
+            this.addShips(battle.system, playerId, move.fresh)
+        }
+        battle.step = BattleStep.Dice
+    }
+
+    canRollBattleDice(playerId: string, dice: Readonly<Record<Die, number>>): boolean {
+        const battle = this.battle
+        return (
+            battle?.step === BattleStep.Dice &&
+            battle.attacker === playerId &&
+            this.canCollectDice(playerId, battle.system, battle.defender, dice)
+        )
+    }
+
+    // Rolls the dice and counts what the attacker must resolve. Intercepts hit once per fresh
+    // defending ship, however many dice show it (rule 7.7.1.4).
+    rollBattleDice(playerId: string, dice: Readonly<Record<Die, number>>): RolledDie[] {
+        assert(this.canRollBattleDice(playerId, dice), `${playerId} cannot roll those dice`)
+        const battle = this.currentBattle()
+        const random = this.getProtectedPrng().random
+        battle.rolled = Object.values(Die).flatMap((die) =>
+            Array.from({ length: dice[die] }, () => rollDie(die, random))
+        )
+        battle.rerolls = this.rerollAllowance(playerId, battle.system, dice)
+        battle.step = BattleStep.Hits
+        this.tallyRoll()
+        return battle.rolled
+    }
+
+    // Galactic Rifles: skirmish dice for the fresh Loyal ships in a system, rolled at a defender
+    // in an adjacent one.
+    canFireRifles(playerId: string, from: SystemId, target: SystemId, defender: string): boolean {
+        return (
+            this.hasLore(playerId, Lore.GalacticRifles) &&
+            this.inPlay(from) &&
+            shipsOf(this.system(from), playerId).fresh > 0 &&
+            this.adjacent(from).includes(target) &&
+            this.defendersIn(playerId, target).includes(defender)
+        )
+    }
+
+    fireRifles(playerId: string, from: SystemId, target: SystemId, defender: string): RolledDie[] {
+        assert(this.canFireRifles(playerId, from, target, defender), `${playerId} cannot fire so`)
+        const count = Math.min(DiceOfEachKind, shipsOf(this.system(from), playerId).fresh)
+        const random = this.getProtectedPrng().random
+        const dice = { ...noRerolls(), [Die.Skirmish]: count }
+        const battle: BattleState = {
+            attacker: playerId,
+            defender,
+            system: target,
+            rolled: Array.from({ length: count }, () => rollDie(Die.Skirmish, random)),
             attackerHits: 0,
             hits: 0,
             buildingHits: 0,
             keys: 0,
             step: BattleStep.Hits,
+            rifles: true,
             trophiesTaken: false,
-            allFresh: shipsOf(this.system(id), playerId).damaged === 0,
-            rerolls: this.rerollAllowance(playerId, id, dice),
+            allFresh: false,
+            // Only Empath's Vision rerolls, since it works on any roll.
+            rerolls:
+                this.hasLore(playerId, Lore.EmpathsVision) && this.isDeclared(Ambition.Empath)
+                    ? dice
+                    : noRerolls(),
             ransacks: 0
         }
         this.battle = battle
         this.tallyRoll()
-        return battle
+        return battle.rolled
     }
 
     // Counts what the roll makes the attacker resolve, skipping to raiding when nothing is hit
@@ -1787,7 +2169,7 @@ export class HydratedArcsGameState
     // The defender's buildings in the battle system, by slot.
     defendingBuildings(): { slot: number; building: Building }[] {
         const battle = this.currentBattle()
-        return this.system(battle.system).slots.flatMap((building, slot) =>
+        return this.buildingSlots(battle.system).flatMap((building, slot) =>
             building?.owner === battle.defender ? [{ slot, building }] : []
         )
     }
@@ -1866,16 +2248,13 @@ export class HydratedArcsGameState
         for (const hit of buildings) {
             const building = this.building(id, hit.slot)
             if (building.damaged || hit.hits === 2) {
-                this.system(id).slots[hit.slot] = null
+                this.setBuildingAt(id, hit.slot, null)
                 destroyedBuildings.push(building.kind)
                 if (building.kind === BuildingKind.City) {
                     attackerTrophies.push({ owner: defender, kind: TrophyKind.City })
-                    const resource = this.destroyCity(attacker, id)
-                    if (resource) {
-                        outraged.push(resource)
-                    }
+                    outraged.push(...this.destroyCity(attacker, id))
                     // Rivals cannot Ransack the Court when they battle the Elder, Beloved.
-                    if (!this.isLeader(defender, Leader.Elder)) {
+                    if (battle.rifles || !this.isLeader(defender, Leader.Elder)) {
                         battle.ransacks += 1
                     }
                 } else {
@@ -1897,6 +2276,9 @@ export class HydratedArcsGameState
             }
         }
         battle.trophiesTaken ||= defending.destroy > 0 || destroyedBuildings.length > 0
+        if (battle.rifles) {
+            battle.keys = 0
+        }
         battle.attackerHits = 0
         battle.hits = 0
         battle.buildingHits = 0
@@ -1922,14 +2304,13 @@ export class HydratedArcsGameState
     }
 
     // Rule 7.7.4.1: whoever destroys a city discards their resources and Guild cards of its planet
-    // type and is Outraged by it. Returns the resource, if the planet has one.
-    destroyCity(destroyer: string, id: SystemId): Resource | undefined {
-        const planetType = this.planetType(id)
-        if (planetType === undefined) {
-            return undefined
+    // type and is Outraged by it; a Gate Station city Outrages every type it has. Returns them.
+    destroyCity(destroyer: string, id: SystemId): Resource[] {
+        const types = this.cityTypes(id)
+        for (const resource of types) {
+            this.provokeOutrage(destroyer, resource)
         }
-        this.provokeOutrage(destroyer, planetType)
-        return planetType
+        return types
     }
 
     provokeOutrage(playerId: string, resource: Resource) {
@@ -2070,6 +2451,10 @@ export class HydratedArcsGameState
     // What happens after a battle: repairs, then the Elder's chance to influence.
     finishBattle() {
         const battle = this.currentBattle()
+        if (battle.rifles) {
+            this.battle = undefined
+            return
+        }
         const { attacker, defender, system } = battle
         // Repair Drones repair 1 attacking ship.
         if (this.hasLore(attacker, Lore.RepairDrones)) {
@@ -2112,7 +2497,9 @@ export class HydratedArcsGameState
     // The player whose choice the battle waits on.
     battleChooser(): string {
         const battle = this.currentBattle()
-        return battle.step === BattleStep.Beloved ? battle.defender : battle.attacker
+        return battle.step === BattleStep.Beloved || battle.step === BattleStep.Sensors
+            ? battle.defender
+            : battle.attacker
     }
 
     canBelovedInfluence(playerId: string, cardId?: string): boolean {
@@ -2573,6 +2960,21 @@ export class HydratedArcsGameState
 }
 
 export type ShipsMoving = { fresh: number; damaged: number }
+
+export type ShipsMove = {
+    from: SystemId
+    path: readonly SystemId[]
+    fresh: number
+    damaged: number
+    dropOffs: readonly ShipsMoving[]
+}
+
+export type ShipsSprinting = {
+    from: SystemId
+    path: readonly SystemId[]
+    fresh: number
+    dropOffs: readonly ShipsMoving[]
+}
 
 // A raid takes one resource slot's resource or one Guild card.
 export type RaidTarget = { slot?: number; cardId?: string }

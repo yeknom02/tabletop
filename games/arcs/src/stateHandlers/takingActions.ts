@@ -19,7 +19,9 @@ import { HydratedSecure, isSecure } from '../actions/secure.js'
 import { HydratedSpendWeapon, isSpendWeapon } from '../actions/spendWeapon.js'
 import { HydratedBattle, isBattle } from '../actions/battle.js'
 import { HydratedUseCard, isUseCard } from '../actions/useCard.js'
-import { canTakeNewAction, canUseCard, NewActions } from '../model/courtEffects.js'
+import { canUseCard } from '../model/courtEffects.js'
+import { canTakeNewAction, hasNewAction, NewActions } from '../model/newActions.js'
+import { NewActionName } from '../model/newActionTypes.js'
 import { HydratedUseFarseers, isUseFarseers } from '../actions/useFarseers.js'
 import { HydratedTakeNewAction, isTakeNewAction } from '../actions/takeNewAction.js'
 import {
@@ -33,6 +35,7 @@ import { HydratedRuthless, isRuthless } from '../actions/ruthless.js'
 import { HydratedMythic, isMythic } from '../actions/mythic.js'
 import { HydratedUseLore, isUseLore } from '../actions/useLore.js'
 import { canUseLore } from '../model/loreEffects.js'
+import { HydratedFireRifles, isFireRifles } from '../actions/fireRifles.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
 import { endChapter } from './playingCard.js'
 import { afterDeclaring } from './declaring.js'
@@ -46,6 +49,7 @@ type TakingActionsAction =
     | HydratedInfluence
     | HydratedSecure
     | HydratedBattle
+    | HydratedFireRifles
     | HydratedSpendWeapon
     | HydratedUseCard
     | HydratedUseFarseers
@@ -115,10 +119,23 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         if (isUseCard(action)) {
             return canUseCard(gameState, playerId, action)
         }
+        if (isFireRifles(action)) {
+            return (
+                gameState.canPay(playerId, StandardAction.Battle, action.via, action.token) &&
+                gameState.canFireRifles(playerId, action.system, action.target, action.defender)
+            )
+        }
         if (isBattle(action)) {
             return (
                 gameState.canPay(playerId, StandardAction.Battle, action.via, action.token) &&
-                gameState.canBattle(playerId, action.system, action.defender, action.dice)
+                gameState.canBattle(
+                    playerId,
+                    action.system,
+                    action.defender,
+                    action.dice,
+                    action.railgun
+                ) &&
+                (action.dice !== undefined) === (action.revealsInfo === true)
             )
         }
         if (isSpendWeapon(action)) {
@@ -132,7 +149,8 @@ export class TakingActionsStateHandler implements MachineStateHandler<
                     action.system,
                     action.slot,
                     action.discard,
-                    gameState.copyOrPivotPip(action.via)
+                    gameState.copyOrPivotPip(action.via),
+                    action.cityType
                 )
             )
         }
@@ -156,14 +174,7 @@ export class TakingActionsStateHandler implements MachineStateHandler<
                     action.via,
                     action.token,
                     action.bonus
-                ) &&
-                gameState.canMove(
-                    playerId,
-                    action.from,
-                    action.path,
-                    { fresh: action.fresh, damaged: action.damaged },
-                    action.dropOffs
-                )
+                ) && gameState.canMoveWithSprint(playerId, action, action.sprint)
             )
         }
         if (isRepair(action)) {
@@ -217,8 +228,9 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             actions.push(ActionType.SpendWeapon)
         }
         if (
-            Object.values(NewActions).some(
-                ({ cardId, replaces }) => gameState.holds(playerId, cardId) && payable(replaces)
+            Object.values(NewActionName).some(
+                (name) =>
+                    hasNewAction(gameState, playerId, name) && payable(NewActions[name].replaces)
             )
         ) {
             actions.push(ActionType.TakeNewAction)
@@ -264,7 +276,7 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         action: TakingActionsAction,
         context: MachineContext<HydratedArcsGameState>
     ): MachineState {
-        if (isBattle(action)) {
+        if (isBattle(action) || isFireRifles(action)) {
             return afterDeclaring(context.gameState)
         }
         const secured = isSecure(action)

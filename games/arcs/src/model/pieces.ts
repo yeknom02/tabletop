@@ -31,14 +31,15 @@ export const ShipCount = Type.Object({
 })
 
 // A system's pieces: ships by owner, and a building or nothing in each building slot. Gates have no
-// slots. `extraBuildings` holds buildings outside slots, which some lore allows (a city on a gate,
-// a city beside a planet's slots).
+// slots. `extraBuildings` holds buildings outside slots, which some lore allows (a starport or city
+// on a gate, a city beside a planet's slots); a destroyed one leaves null, so the indexes of the
+// others don't move.
 export type SystemState = Type.Static<typeof SystemState>
 export const SystemState = Type.Object({
     id: SystemIdSchema,
     ships: Type.Record(Type.String(), ShipCount),
     slots: Type.Array(Type.Union([Building, Type.Null()])),
-    extraBuildings: Type.Array(Building)
+    extraBuildings: Type.Array(Type.Union([Building, Type.Null()]))
 })
 
 export type Trophy = Type.Static<typeof Trophy>
@@ -52,10 +53,9 @@ export function shipsOf(system: SystemState, owner: string): ShipCount {
 }
 
 export function buildingsIn(system: SystemState): Building[] {
-    return [
-        ...system.slots.filter((building): building is Building => building !== null),
-        ...system.extraBuildings
-    ]
+    return [...system.slots, ...system.extraBuildings].filter(
+        (building): building is Building => building !== null
+    )
 }
 
 // Something to steal from a Rival: the resource in one of their slots, or one of their Guild cards.

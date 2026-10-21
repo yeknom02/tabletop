@@ -4,13 +4,9 @@ import { GameAction, HydratableAction } from '@tabletop/common'
 import type { SystemId } from '../components/map.js'
 import { Resource, ResourceSchema } from '../components/resources.js'
 import { ActionType } from '../definition/actions.js'
-import {
-    NewActionChoice,
-    NewActionName,
-    NewActionResult,
-    NewActions,
-    takeNewAction
-} from '../model/courtEffects.js'
+import { NewActions, takeNewAction } from '../model/newActions.js'
+import { NewActionChoice, NewActionName, NewActionResult } from '../model/newActionTypes.js'
+import type { ShipCount } from '../model/pieces.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
 
 // A card's new action, taken in place of the standard action it names, paid the same way (rule 8.2).
@@ -50,6 +46,11 @@ export class HydratedTakeNewAction
     declare system?: SystemId
     declare slot?: number
     declare give?: Resource
+    declare cityType?: Resource
+    declare to?: SystemId
+    declare ships?: Record<string, ShipCount>
+    declare target?: string
+    declare targetDamaged?: boolean
     declare via?: Resource
     declare token?: Resource
     declare metadata?: NewActionResult

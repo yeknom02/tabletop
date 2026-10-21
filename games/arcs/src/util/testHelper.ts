@@ -181,6 +181,7 @@ export function battleFixture(
         keys: 0,
         step: BattleStep.Hits,
         rerolls: noRerolls(),
+        rifles: false,
         allFresh: false,
         trophiesTaken: false,
         ransacks: 0,

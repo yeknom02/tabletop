@@ -1,16 +1,11 @@
 import { assert, assertExists } from '@tabletop/common'
 import * as Type from 'typebox'
-import {
-    actionCard,
-    ActionCardIdSchema,
-    AmbitionSchema,
-    StandardAction,
-    Suit
-} from '../components/actionCards.js'
+import { actionCard, ActionCardIdSchema, AmbitionSchema, Suit } from '../components/actionCards.js'
 import { Court } from '../components/courtCards.js'
 import { clusterOf, isGate, SystemIdSchema, type SystemId } from '../components/map.js'
 import { Resource, ResourceSchema } from '../components/resources.js'
 import { MachineState } from '../definition/states.js'
+import { NewActionName, type NewActionChoice, type NewActionResult } from './newActionTypes.js'
 import { canAffordDeclaration } from './declaration.js'
 import type { HydratedArcsGameState } from './gameState.js'
 import { BuildingKind, StealTarget, TrophyKind } from './pieces.js'
@@ -293,49 +288,6 @@ export function useCard(
     return result
 }
 
-// New actions that cards offer in place of a standard action (rule 8.2).
-export enum NewActionName {
-    Manufacture = 'manufacture',
-    Synthesize = 'synthesize',
-    Pressgang = 'pressgang',
-    Execute = 'execute',
-    Abduct = 'abduct',
-    Trade = 'trade'
-}
-
-export const NewActions: Readonly<
-    Record<NewActionName, { cardId: Court; replaces: StandardAction }>
-> = {
-    [NewActionName.Manufacture]: { cardId: Court.MiningInterest, replaces: StandardAction.Build },
-    [NewActionName.Synthesize]: { cardId: Court.ShippingInterest, replaces: StandardAction.Build },
-    [NewActionName.Pressgang]: { cardId: Court.PrisonWardens, replaces: StandardAction.Build },
-    [NewActionName.Execute]: { cardId: Court.PrisonWardens, replaces: StandardAction.Influence },
-    [NewActionName.Abduct]: { cardId: Court.CourtEnforcers, replaces: StandardAction.Battle },
-    [NewActionName.Trade]: { cardId: Court.ElderBroker, replaces: StandardAction.Tax }
-}
-
-// The choices a new action takes: `discard` for what can't be held, `captives` (by owner) for
-// Pressgang and Execute, `gains` for Pressgang, `courtCardId` for Abduct, and for Trade the Rival
-// city at `system` and `slot` and the resource to `give`.
-export type NewActionChoice = Type.Static<typeof NewActionChoice>
-export const NewActionChoice = Type.Object({
-    name: Type.Enum(NewActionName),
-    discard: Type.Optional(Type.Array(ResourceSchema)),
-    captives: Type.Optional(Type.Record(Type.String(), Type.Integer({ minimum: 1 }))),
-    gains: Type.Optional(Type.Array(ResourceSchema)),
-    courtCardId: Type.Optional(Type.String()),
-    system: Type.Optional(SystemIdSchema),
-    slot: Type.Optional(Type.Integer({ minimum: 0 })),
-    give: Type.Optional(ResourceSchema)
-})
-
-export type NewActionResult = Type.Static<typeof NewActionResult>
-export const NewActionResult = Type.Object({
-    gained: Type.Array(ResourceSchema),
-    discarded: Type.Array(ResourceSchema),
-    captured: Type.Record(Type.String(), Type.Integer({ minimum: 0 }))
-})
-
 const NewActionGains: Partial<Record<NewActionName, Resource>> = {
     [NewActionName.Manufacture]: Resource.Material,
     [NewActionName.Synthesize]: Resource.Fuel
@@ -350,15 +302,12 @@ function capturesHeld(
     return Object.entries(captives).every(([owner, count]) => count <= (held[owner] ?? 0))
 }
 
-// The action's own conditions; paying for it is checked separately.
-export function canTakeNewAction(
+// A Court card's new action: its own conditions; paying for it is checked separately.
+export function canTakeCourtAction(
     state: HydratedArcsGameState,
     playerId: string,
     choice: NewActionChoice
 ): boolean {
-    if (!state.holds(playerId, NewActions[choice.name].cardId)) {
-        return false
-    }
     const player = state.getPlayerState(playerId)
     const discard = choice.discard ?? []
     const captives = choice.captives ?? {}
@@ -393,7 +342,7 @@ export function canTakeNewAction(
             if (choice.system === undefined || choice.slot === undefined || !choice.give) {
                 return false
             }
-            const city = state.system(choice.system).slots[choice.slot]
+            const city = state.buildingAt(choice.system, choice.slot)
             const planetType = state.planetType(choice.system)
             if (
                 !city ||
@@ -416,12 +365,11 @@ export function canTakeNewAction(
     }
 }
 
-export function takeNewAction(
+export function takeCourtAction(
     state: HydratedArcsGameState,
     playerId: string,
     choice: NewActionChoice
 ): NewActionResult {
-    assert(canTakeNewAction(state, playerId, choice), `${playerId} cannot ${choice.name}`)
     const player = state.getPlayerState(playerId)
     const result: NewActionResult = { gained: [], discarded: [], captured: {} }
     const discard = choice.discard ?? []
@@ -549,7 +497,7 @@ export function canResolveVox(
             if (choice.city === undefined) {
                 return only()
             }
-            const city = state.system(choice.city.system).slots[choice.city.slot]
+            const city = state.buildingAt(choice.city.system, choice.city.slot)
             return (
                 only('city', 'seize') &&
                 city?.kind === BuildingKind.City &&
@@ -607,7 +555,7 @@ export function resolveVox(
             if (choice.city !== undefined) {
                 const { system, slot } = choice.city
                 const owner = state.building(system, slot).owner
-                state.system(system).slots[slot] = null
+                state.setBuildingAt(system, slot, null)
                 state.returnPiece(owner, TrophyKind.City)
                 result.cityReturned = owner
                 if (choice.seize) {

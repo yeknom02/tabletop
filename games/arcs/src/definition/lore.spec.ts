@@ -5,6 +5,7 @@ import { Die } from '../components/dice.js'
 import { Lore } from '../components/personas.js'
 import { Resource } from '../components/resources.js'
 import type { ArcsProjectedState } from '../model/gameState.js'
+import { NewActionName } from '../model/newActionTypes.js'
 import { BuildingKind, TrophyKind } from '../model/pieces.js'
 import { ActionType } from './actions.js'
 import { MachineState } from './states.js'
@@ -236,5 +237,281 @@ describe('lore Prelude abilities', () => {
         expect(state.isDeclared(Ambition.Empath)).toBe(true)
         expect(state.getPlayerState(a).resources.slice(0, 2)).toEqual([null, Resource.Relic])
         expect(state.machineState).toBe(MachineState.TakingActions)
+    })
+})
+
+describe('lore that builds outside slots', () => {
+    it('Gate Ports build a starport on a gate, which captures Rivals moving in', () => {
+        const { session, players } = withLore(Lore.GatePorts, 'construction-2', (state, [a]) => {
+            setShips(state, '2G', a, 2)
+        })
+        const [a, b] = players
+        session.act(a, ActionType.BuildBuilding, { system: '2G', building: BuildingKind.Starport })
+        expect(session.hydrated().system('2G').extraBuildings).toEqual([
+            { owner: a, kind: BuildingKind.Starport, damaged: false }
+        ])
+        session.edit((state) => {
+            setShips(state, '2A', b, 1)
+        })
+        const state = session.hydrated()
+        const agents = state.getPlayerState(b).agents
+        const captured = state.move(b, '2A', ['2G'], { fresh: 1, damaged: 0 }, [])
+        expect(captured).toEqual({ [a]: 1 })
+        expect(state.getPlayerState(b).agents).toBe(agents - 1)
+    })
+
+    it('Cloud Cities build a city beside full slots, for a resource of the planet type', () => {
+        const { session, players } = withLore(
+            Lore.CloudCities,
+            'construction-2',
+            (state, [a, b]) => {
+                setShips(state, '1H', a, 1)
+                setBuilding(state, '1H', 0, b, BuildingKind.City)
+                setBuilding(state, '1H', 1, b, BuildingKind.Starport)
+                playerIn(state, a).resources = [Resource.Material, null, null, null, null, null]
+            }
+        )
+        const [a] = players
+        session.act(a, ActionType.BuildBuilding, { system: '1H', building: BuildingKind.City })
+        const state = session.hydrated()
+        expect(state.system('1H').extraBuildings).toHaveLength(1)
+        expect(state.getPlayerState(a).resourceCount(Resource.Material)).toBe(0)
+    })
+
+    it('a Gate Station city taxes as any city type in its cluster', () => {
+        const { session, players } = withLore(
+            Lore.GateStations,
+            'administration-2',
+            (state, [a, b]) => {
+                const gate = state.systems.find((system) => system.id === '1G')
+                gate?.extraBuildings.push({ owner: a, kind: BuildingKind.City, damaged: false })
+                // 1H is Material, 1A Weapon.
+                setBuilding(state, '1H', 0, b, BuildingKind.City)
+                setBuilding(state, '1A', 0, b, BuildingKind.City)
+            }
+        )
+        const [a] = players
+        const state = session.hydrated()
+        expect(state.cityTypes('1G').toSorted()).toEqual([Resource.Material, Resource.Weapon])
+        expect(() => session.act(a, ActionType.Tax, { system: '1G', slot: 0 })).toThrow()
+        const [tax] = session.act(a, ActionType.Tax, {
+            system: '1G',
+            slot: 0,
+            cityType: Resource.Weapon
+        })
+        expect(tax).toMatchObject({ metadata: { gained: [Resource.Weapon] } })
+    })
+})
+
+describe('lore while Empath is declared', () => {
+    it('Empath’s Bond taxes any city without Captives, and builds at any starport', () => {
+        const { session, players } = withLore(
+            Lore.EmpathsBond,
+            'administration-2',
+            (state, [, b]) => {
+                declare(state, Ambition.Empath)
+                setBuilding(state, '1H', 0, b, BuildingKind.City)
+                setBuilding(state, '1H', 1, b, BuildingKind.Starport)
+            }
+        )
+        const [a] = players
+        const [tax] = session.act(a, ActionType.Tax, { system: '1H', slot: 0 })
+        expect(tax).not.toHaveProperty('metadata.captured')
+        expect(session.hydrated().canBuildShip(a, '1H', 1)).toBe(true)
+    })
+})
+
+describe('lore that moves', () => {
+    it('Sprinter Drives move fresh ships that just moved once more', () => {
+        const { session, players } = withLore(
+            Lore.SprinterDrives,
+            'mobilization-2',
+            (state, [a]) => {
+                setShips(state, '1H', a, 2, 1)
+            }
+        )
+        const [a] = players
+        session.act(a, ActionType.MoveShips, {
+            from: '1H',
+            path: ['1G'],
+            fresh: 2,
+            damaged: 1,
+            dropOffs: [],
+            sprint: { from: '1G', path: ['2G'], fresh: 2, dropOffs: [] }
+        })
+        const state = session.hydrated()
+        expect(state.system('1G').ships[a]).toEqual({ fresh: 0, damaged: 1 })
+        expect(state.system('2G').ships[a]).toEqual({ fresh: 2, damaged: 0 })
+    })
+
+    it('Force Beams guide any ships next to a fresh Loyal starport', () => {
+        const { session, players } = withLore(
+            Lore.ForceBeams,
+            'mobilization-2',
+            (state, [a, b]) => {
+                setBuilding(state, '1H', 0, a, BuildingKind.Starport)
+                setShips(state, '1H', b, 3)
+            }
+        )
+        const [a, b] = players
+        session.act(a, ActionType.TakeNewAction, {
+            name: NewActionName.Guide,
+            system: '1H',
+            to: '1G',
+            ships: { [b]: { fresh: 2, damaged: 0 } }
+        })
+        const state = session.hydrated()
+        expect(state.system('1G').ships[b]).toEqual({ fresh: 2, damaged: 0 })
+    })
+
+    it('Survival Overrides destroy a fresh Loyal ship to destroy a Rival one, as a Trophy', () => {
+        const { session, players } = withLore(
+            Lore.SurvivalOverrides,
+            'mobilization-2',
+            (state, [a, b]) => {
+                setShips(state, '1H', a, 1)
+                setShips(state, '1H', b, 1)
+            }
+        )
+        const [a, b] = players
+        session.act(a, ActionType.TakeNewAction, {
+            name: NewActionName.Martyr,
+            system: '1H',
+            target: b
+        })
+        const state = session.hydrated()
+        expect(state.system('1H').ships).toEqual({})
+        expect(state.getPlayerState(a).trophies).toEqual([{ owner: b, kind: TrophyKind.Ship }])
+    })
+})
+
+describe('lore that builds', () => {
+    it('Tool-Priests summon a ship at a city the player controls, once a turn', () => {
+        const { session, players } = withLore(
+            Lore.ToolPriests,
+            'construction-2',
+            (state, [a, b]) => {
+                setBuilding(state, '1H', 0, b, BuildingKind.City)
+                setShips(state, '1H', a, 1)
+            }
+        )
+        const [a] = players
+        const summon = { name: NewActionName.Summon, system: '1H', slot: 0 }
+        session.act(a, ActionType.TakeNewAction, summon)
+        expect(session.hydrated().system('1H').ships[a]).toEqual({ fresh: 2, damaged: 0 })
+        expect(() => session.act(a, ActionType.TakeNewAction, summon)).toThrow()
+    })
+
+    it('Living Structures prune a starport into a city', () => {
+        const { session, players } = withLore(
+            Lore.LivingStructures,
+            'administration-2',
+            (state, [a]) => {
+                setBuilding(state, '1H', 0, a, BuildingKind.Starport, true)
+            }
+        )
+        const [a] = players
+        const before = session.hydrated().getPlayerState(a)
+        session.act(a, ActionType.TakeNewAction, {
+            name: NewActionName.Prune,
+            system: '1H',
+            slot: 0
+        })
+        const state = session.hydrated()
+        expect(state.system('1H').slots[0]).toEqual({
+            owner: a,
+            kind: BuildingKind.City,
+            damaged: true
+        })
+        expect(state.getPlayerState(a).starports).toBe(before.starports + 1)
+        expect(state.getPlayerState(a).citiesOnBoard).toBe(before.citiesOnBoard - 1)
+    })
+
+    it('Tyrant’s Authority annexes a controlled Rival building while Tyrant is declared', () => {
+        const { session, players } = withLore(
+            Lore.TyrantsAuthority,
+            'construction-2',
+            (state, [a, b]) => {
+                declare(state, Ambition.Tyrant)
+                setShips(state, '1H', a, 1)
+                setBuilding(state, '1H', 0, b, BuildingKind.Starport)
+            }
+        )
+        const [a, b] = players
+        const rivalStarports = session.hydrated().getPlayerState(b).starports
+        session.act(a, ActionType.TakeNewAction, {
+            name: NewActionName.Annex,
+            system: '1H',
+            slot: 0
+        })
+        const state = session.hydrated()
+        expect(state.system('1H').slots[0]?.owner).toBe(a)
+        expect(state.getPlayerState(b).starports).toBe(rivalStarports + 1)
+    })
+})
+
+describe('lore before the dice', () => {
+    const one = { [Die.Assault]: 1, [Die.Skirmish]: 0, [Die.Raid]: 0 }
+
+    it('Railgun Arrays hit an attacking ship of the attacker’s choosing first', () => {
+        const { session, players } = leadingOnEmptyBoard('aggression-2', (state, [a, b]) => {
+            setShips(state, '1H', a, 1, 1)
+            setShips(state, '1H', b, 1)
+            playerIn(state, b).lore = [Lore.RailgunArrays]
+        })
+        const [a, b] = players
+        expect(session.hydrated().canBattle(a, '1H', b, one)).toBe(false)
+        session.act(a, ActionType.Battle, {
+            system: '1H',
+            defender: b,
+            dice: one,
+            railgun: 'damaged',
+            revealsInfo: true
+        })
+        expect(session.hydrated().getPlayerState(b).trophies).toEqual([
+            { owner: a, kind: TrophyKind.Ship }
+        ])
+    })
+
+    it('Predictive Sensors let the defender move ships in before the dice are collected', () => {
+        const { session, players } = leadingOnEmptyBoard('aggression-2', (state, [a, b]) => {
+            setShips(state, '1H', a, 2)
+            setShips(state, '1H', b, 1)
+            setShips(state, '1G', b, 2)
+            playerIn(state, b).lore = [Lore.PredictiveSensors]
+        })
+        const [a, b] = players
+        session.act(a, ActionType.Battle, { system: '1H', defender: b })
+        expect(session.state.activePlayerIds).toEqual([b])
+        session.act(b, ActionType.MoveInBySensors, { moves: [{ from: '1G', fresh: 2 }] })
+        expect(session.hydrated().system('1H').ships[b]).toEqual({ fresh: 3, damaged: 0 })
+        expect(session.state.activePlayerIds).toEqual([a])
+        const [roll] = session.act(a, ActionType.RollDice, { dice: one, revealsInfo: true })
+        expect(roll).toMatchObject({ metadata: { rolled: expect.any(Array) } })
+    })
+
+    it('Galactic Rifles roll skirmish dice at an adjacent system', () => {
+        const { session, players } = withLore(
+            Lore.GalacticRifles,
+            'aggression-2',
+            (state, [a, b]) => {
+                setShips(state, '1H', a, 3)
+                setShips(state, '1G', b, 2)
+            }
+        )
+        const [a, b] = players
+        const [fire] = session.act(a, ActionType.FireRifles, {
+            system: '1H',
+            target: '1G',
+            defender: b,
+            revealsInfo: true
+        })
+        expect(fire).toMatchObject({ metadata: { rolled: expect.any(Array) } })
+        const battle = session.state.battle
+        if (battle) {
+            expect(battle.rifles).toBe(true)
+            expect(battle.system).toBe('1G')
+            expect(battle.rolled.every((die) => die.die === Die.Skirmish)).toBe(true)
+        }
     })
 })
