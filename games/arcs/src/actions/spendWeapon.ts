@@ -1,6 +1,7 @@
 import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { GameAction, HydratableAction } from '@tabletop/common'
+import { Resource, ResourceSchema } from '../components/resources.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
 
@@ -11,7 +12,9 @@ export const SpendWeapon = Type.Evaluate(
         Type.Omit(GameAction, ['playerId']),
         Type.Object({
             type: Type.Literal(ActionType.SpendWeapon),
-            playerId: Type.String()
+            playerId: Type.String(),
+            // Another resource spent as a Weapon, with Loyal Marines.
+            token: Type.Optional(ResourceSchema)
         })
     ])
 )
@@ -28,12 +31,13 @@ export class HydratedSpendWeapon
 {
     declare type: ActionType.SpendWeapon
     declare playerId: string
+    declare token?: Resource
 
     constructor(data: SpendWeapon) {
         super(data, SpendWeaponValidator)
     }
 
     apply(state: HydratedArcsGameState) {
-        state.spendWeapon(this.playerId)
+        state.spendWeapon(this.playerId, this.token)
     }
 }

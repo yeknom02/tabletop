@@ -34,12 +34,14 @@ export const RoundState = Type.Object({
     plays: Type.Array(CardPlay),
     // Set when someone seizes the initiative; nobody else can this round (rule 5.2.3.1).
     seizedBy: Type.Optional(Type.String()),
+    // Whether an ambition was declared this round (Galactic Bards can declare only if not).
+    declared: Type.Boolean(),
     // Players who passed the initiative in a row without playing a card (rule 5.1.2.1).
     passes: Type.Integer({ minimum: 0 })
 })
 
 export function newRound(leader: string, passes: number = 0): RoundState {
-    return { leader, plays: [], passes }
+    return { leader, plays: [], passes, declared: false }
 }
 
 // What the player taking their turn has left to do (rules 8.1 and 9.1).

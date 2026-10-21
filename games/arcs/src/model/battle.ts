@@ -30,6 +30,8 @@ export const BattleState = Type.Object({
     buildingHits: Type.Integer({ minimum: 0 }),
     keys: Type.Integer({ minimum: 0 }),
     step: Type.Enum(BattleStep),
+    // Skirmish dice the attacker may still reroll, with Skirmishers, before assigning hits.
+    rerolls: Type.Integer({ minimum: 0 }),
     // Cities destroyed whose Ransack is still to choose.
     ransacks: Type.Integer({ minimum: 0 })
 })

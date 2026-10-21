@@ -15,6 +15,7 @@ import { HydratedRepair, isRepair } from '../actions/repair.js'
 import { HydratedInfluence, isInfluence } from '../actions/influence.js'
 import { HydratedSecure, isSecure } from '../actions/secure.js'
 import { HydratedBattle, isBattle } from '../actions/battle.js'
+import { HydratedReroll, isReroll } from '../actions/reroll.js'
 import { HydratedAssignHits, isAssignHits } from '../actions/assignHits.js'
 import { HydratedRansack, isRansack } from '../actions/ransack.js'
 import { HydratedRaid, isRaid } from '../actions/raid.js'
@@ -70,6 +71,9 @@ export class ArcsHydrator implements GameHydrator<ArcsProjectedState, HydratedAr
             }
             case isBattle(data): {
                 return new HydratedBattle(data)
+            }
+            case isReroll(data): {
+                return new HydratedReroll(data)
             }
             case isAssignHits(data): {
                 return new HydratedAssignHits(data)

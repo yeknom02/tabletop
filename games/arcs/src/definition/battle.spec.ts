@@ -1,43 +1,30 @@
 import { assert } from '@tabletop/common'
 import { describe, expect, it } from 'vitest'
 import { isBattle } from '../actions/battle.js'
-import type { SystemId } from '../components/map.js'
+import { Court } from '../components/courtCards.js'
 import { Die, DieSymbol } from '../components/dice.js'
 import { Resource } from '../components/resources.js'
 import { BattleStep, symbolsRolled, type BattleState } from '../model/battle.js'
-import type { ArcsProjectedState } from '../model/gameState.js'
 import { BuildingKind, TrophyKind } from '../model/pieces.js'
 import { ActionType } from './actions.js'
 import { MachineState } from './states.js'
-import { startTestGame, type TestSession } from '../util/testHelper.js'
+import {
+    leadingOnEmptyBoard,
+    playerIn as player,
+    setBuilding as building,
+    setShips as ships,
+    type BoardSetup,
+    type TestSession
+} from '../util/testHelper.js'
 
-type Setup = (state: ArcsProjectedState, players: string[]) => void
-
-// A 3-player game with an empty map and no resources: the first player leads an Aggression card.
-function leading(setup: Setup = () => {}): { session: TestSession; players: string[] } {
-    const session = startTestGame(3)
-    const players = [...session.state.turnManager.turnOrder]
-    session.edit((state) => {
-        for (const system of state.systems) {
-            system.ships = {}
-            system.slots = system.slots.map(() => null)
-        }
-        for (const player of state.players) {
-            player.hand = player.playerId === players[0] ? ['aggression-2'] : ['mobilization-2']
-            player.handCount = player.hand.length
-            player.resources = player.resources.map(() => null)
-        }
-        state.outOfPlay = []
-        setup(state, players)
-    })
-    session.act(players[0], ActionType.LeadCard, { cardId: 'aggression-2' })
-    return { session, players }
+function leading(setup: BoardSetup = () => {}) {
+    return leadingOnEmptyBoard('aggression-2', setup)
 }
 
 // The same, part way through a battle in 1H against the second player.
 function battling(
     battle: Partial<BattleState>,
-    setup: Setup = () => {}
+    setup: BoardSetup = () => {}
 ): { session: TestSession; players: string[] } {
     const result = leading(setup)
     const [a, b] = result.players
@@ -53,40 +40,12 @@ function battling(
             buildingHits: 0,
             keys: 0,
             step: BattleStep.Hits,
+            rerolls: 0,
             ransacks: 0,
             ...battle
         }
     })
     return result
-}
-
-function ships(state: ArcsProjectedState, id: SystemId, owner: string, fresh: number, damaged = 0) {
-    const system = state.systems.find((candidate) => candidate.id === id)
-    if (system) {
-        system.ships[owner] = { fresh, damaged }
-    }
-}
-
-function building(
-    state: ArcsProjectedState,
-    id: SystemId,
-    slot: number,
-    owner: string,
-    kind: BuildingKind,
-    damaged = false
-) {
-    const system = state.systems.find((candidate) => candidate.id === id)
-    if (system) {
-        system.slots[slot] = { owner, kind, damaged }
-    }
-}
-
-function player(state: ArcsProjectedState, playerId: string) {
-    const found = state.players.find((candidate) => candidate.playerId === playerId)
-    if (!found) {
-        throw new Error(`No player ${playerId}`)
-    }
-    return found
 }
 
 const noHits = { damage: 0, destroy: 0 }
@@ -191,7 +150,7 @@ describe('assigning hits', () => {
                 null,
                 null
             ]
-            player(state, a).guildCards = ['BC01', 'BC21']
+            player(state, a).guildCards = ['BC01', 'BC02', 'BC21']
             state.court[0].agents = { [b]: 1, [c]: 2 }
         })
         const [a, b, c] = players
@@ -226,8 +185,9 @@ describe('assigning hits', () => {
         // Outrage: Material and Material Guild cards are discarded, and an agent covers the slot.
         expect(attacker.resources).toEqual([null, Resource.Fuel, null, null, null, null])
         expect(state.supply[Resource.Material]).toBe(supplyBefore + 2)
-        expect(attacker.guildCards).toEqual(['BC21'])
-        expect(state.courtDiscard).toContain('BC01')
+        // Loyal Engineers is kept.
+        expect(attacker.guildCards).toEqual(['BC01', 'BC21'])
+        expect(state.courtDiscard).toContain('BC02')
         expect(attacker.outrage).toEqual([Resource.Material])
         expect(attacker.agents).toBe(agentsBefore - 1)
         // Ransack: the card with the defender's agent is secured, every Rival agent a Trophy.
@@ -362,5 +322,63 @@ describe('elimination', () => {
         expect(() => session.act(a, ActionType.EndTurn, { returnTo: '1H' })).toThrow()
         session.act(a, ActionType.EndTurn, { returnTo: '2G' })
         expect(session.hydrated().system('2G').ships[a]).toEqual({ fresh: 3, damaged: 0 })
+    })
+})
+
+describe('Court cards in battle', () => {
+    it('Gatekeepers collect 2 more dice in a gate', () => {
+        const { session, players } = leading((state, [a, b]) => {
+            ships(state, '1G', a, 1)
+            ships(state, '1G', b, 1)
+            ships(state, '1H', a, 1)
+            ships(state, '1H', b, 1)
+            player(state, a).guildCards = [Court.Gatekeepers]
+        })
+        const [a, b] = players
+        const three = { [Die.Assault]: 3, [Die.Skirmish]: 0, [Die.Raid]: 0 }
+        expect(session.hydrated().canBattle(a, '1G', b, three)).toBe(true)
+        expect(session.hydrated().canBattle(a, '1H', b, three)).toBe(false)
+    })
+
+    it('Skirmishers reroll skirmish dice, up to the Weapon icons, once', () => {
+        const { session, players } = leading((state, [a, b]) => {
+            ships(state, '1H', a, 3)
+            ships(state, '1H', b, 1)
+            player(state, a).guildCards = [Court.Skirmishers]
+            player(state, a).resources = [Resource.Weapon, null, null, null, null, null]
+        })
+        const [a, b] = players
+        session.act(a, ActionType.Battle, {
+            system: '1H',
+            defender: b,
+            dice: { [Die.Assault]: 1, [Die.Skirmish]: 2, [Die.Raid]: 0 },
+            revealsInfo: true
+        })
+        // A Weapon resource and the Skirmishers card itself.
+        expect(session.state.battle?.rerolls).toBe(2)
+        expect(() => session.act(a, ActionType.Reroll, { dice: [0], revealsInfo: true })).toThrow()
+        const [reroll] = session.act(a, ActionType.Reroll, { dice: [1, 2], revealsInfo: true })
+        expect(reroll).toMatchObject({ metadata: { rolled: expect.any(Array) } })
+        expect(session.state.battle?.rerolls ?? 0).toBe(0)
+    })
+
+    it('Sworn Guardians protect everything else, and are buried when stolen', () => {
+        const { session, players } = battling(
+            { step: BattleStep.Raid, keys: 3 },
+            (state, [a, b]) => {
+                ships(state, '1H', a, 1)
+                player(state, b).resources = [null, Resource.Fuel, null, null, null, null]
+                player(state, b).guildCards = [Court.SwornGuardians]
+            }
+        )
+        const [a, b] = players
+        expect(() => session.act(a, ActionType.Raid, { slot: 1 })).toThrow()
+        session.act(a, ActionType.Raid, { cardId: Court.SwornGuardians })
+        let state = session.hydrated()
+        expect(state.getPlayerState(a).guildCards).toEqual([])
+        expect(state.getPlayerState(b).guildCards).toEqual([])
+        session.act(a, ActionType.Raid, { slot: 1 })
+        state = session.hydrated()
+        expect(state.getPlayerState(a).resources[0]).toBe(Resource.Fuel)
     })
 })

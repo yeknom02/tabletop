@@ -13,6 +13,7 @@ import { Repair } from '../actions/repair.js'
 import { Influence } from '../actions/influence.js'
 import { Secure } from '../actions/secure.js'
 import { Battle } from '../actions/battle.js'
+import { Reroll } from '../actions/reroll.js'
 import { AssignHits } from '../actions/assignHits.js'
 import { Ransack } from '../actions/ransack.js'
 import { Raid } from '../actions/raid.js'
@@ -36,6 +37,7 @@ export const ArcsApiActions = {
     [ActionType.Influence]: Influence,
     [ActionType.Secure]: Secure,
     [ActionType.Battle]: Battle,
+    [ActionType.Reroll]: Reroll,
     [ActionType.AssignHits]: AssignHits,
     [ActionType.Ransack]: Ransack,
     [ActionType.Raid]: Raid,

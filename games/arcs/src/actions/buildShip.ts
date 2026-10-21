@@ -21,6 +21,8 @@ export const BuildShip = Type.Evaluate(
             system: SystemIdSchema,
             slot: Type.Integer({ minimum: 0 }),
             via: Type.Optional(ResourceSchema),
+            // The token spent, when a card lets another resource stand in for `via`.
+            token: Type.Optional(ResourceSchema),
             metadata: Type.Optional(BuildShipResult)
         })
     ])
@@ -38,6 +40,7 @@ export class HydratedBuildShip extends HydratableAction<typeof BuildShip> implem
     declare system: SystemId
     declare slot: number
     declare via?: Resource
+    declare token?: Resource
     declare metadata?: BuildShipResult
 
     constructor(data: BuildShip) {
@@ -45,7 +48,7 @@ export class HydratedBuildShip extends HydratableAction<typeof BuildShip> implem
     }
 
     apply(state: HydratedArcsGameState) {
-        state.pay(this.playerId, StandardAction.Build, this.via)
+        state.pay(this.playerId, StandardAction.Build, this.via, this.token)
         this.metadata = { damaged: state.buildShip(this.playerId, this.system, this.slot) }
     }
 }

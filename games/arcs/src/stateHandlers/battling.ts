@@ -4,11 +4,13 @@ import { ActionType } from '../definition/actions.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
 import { BattleStep } from '../model/battle.js'
 import { HydratedAssignHits, isAssignHits } from '../actions/assignHits.js'
+import { HydratedReroll, isReroll } from '../actions/reroll.js'
 import { HydratedRansack, isRansack } from '../actions/ransack.js'
 import { HydratedRaid, isRaid } from '../actions/raid.js'
 import { HydratedEndBattle, isEndBattle } from '../actions/endBattle.js'
 
-type BattlingAction = HydratedAssignHits | HydratedRansack | HydratedRaid | HydratedEndBattle
+type BattlingAction =
+    HydratedReroll | HydratedAssignHits | HydratedRansack | HydratedRaid | HydratedEndBattle
 
 // The attacker resolves their battle step by step; the turn resumes once it is over.
 export class BattlingStateHandler implements MachineStateHandler<
@@ -28,6 +30,9 @@ export class BattlingStateHandler implements MachineStateHandler<
                 action.defending,
                 action.buildings
             )
+        }
+        if (isReroll(action)) {
+            return gameState.canReroll(playerId, action.dice)
         }
         if (isRansack(action)) {
             return gameState.canRansack(playerId, action.cardId)
@@ -52,7 +57,9 @@ export class BattlingStateHandler implements MachineStateHandler<
         }
         switch (battle.step) {
             case BattleStep.Hits:
-                return [ActionType.AssignHits]
+                return battle.rerolls > 0
+                    ? [ActionType.Reroll, ActionType.AssignHits]
+                    : [ActionType.AssignHits]
             case BattleStep.Ransack:
                 return [ActionType.Ransack]
             case BattleStep.Raid:

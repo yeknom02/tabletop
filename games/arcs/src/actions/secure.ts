@@ -21,6 +21,8 @@ export const Secure = Type.Evaluate(
             playerId: Type.String(),
             cardId: Type.String(),
             via: Type.Optional(ResourceSchema),
+            // The token spent, when a card lets another resource stand in for `via`.
+            token: Type.Optional(ResourceSchema),
             metadata: Type.Optional(SecureResult)
         })
     ])
@@ -37,6 +39,7 @@ export class HydratedSecure extends HydratableAction<typeof Secure> implements S
     declare playerId: string
     declare cardId: string
     declare via?: Resource
+    declare token?: Resource
     declare metadata?: SecureResult
 
     constructor(data: Secure) {
@@ -44,7 +47,7 @@ export class HydratedSecure extends HydratableAction<typeof Secure> implements S
     }
 
     apply(state: HydratedArcsGameState) {
-        state.pay(this.playerId, StandardAction.Secure, this.via)
+        state.pay(this.playerId, StandardAction.Secure, this.via, this.token)
         this.metadata = { captured: state.secure(this.playerId, this.cardId) }
     }
 }

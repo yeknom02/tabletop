@@ -22,6 +22,8 @@ export const BuildBuilding = Type.Evaluate(
             system: SystemIdSchema,
             building: Type.Enum(BuildingKind),
             via: Type.Optional(ResourceSchema),
+            // The token spent, when a card lets another resource stand in for `via`.
+            token: Type.Optional(ResourceSchema),
             metadata: Type.Optional(BuildBuildingResult)
         })
     ])
@@ -42,6 +44,7 @@ export class HydratedBuildBuilding
     declare system: SystemId
     declare building: BuildingKind
     declare via?: Resource
+    declare token?: Resource
     declare metadata?: BuildBuildingResult
 
     constructor(data: BuildBuilding) {
@@ -49,7 +52,7 @@ export class HydratedBuildBuilding
     }
 
     apply(state: HydratedArcsGameState) {
-        state.pay(this.playerId, StandardAction.Build, this.via)
+        state.pay(this.playerId, StandardAction.Build, this.via, this.token)
         this.metadata = { damaged: state.buildBuilding(this.playerId, this.system, this.building) }
     }
 }

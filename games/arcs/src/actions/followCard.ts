@@ -2,7 +2,7 @@ import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { GameAction, HydratableAction } from '@tabletop/common'
 import { Visibility } from '@tabletop/common'
-import { ActionCardIdSchema } from '../components/actionCards.js'
+import { ActionCardIdSchema, Ambition, AmbitionSchema } from '../components/actionCards.js'
 import { PlayKind } from '../model/round.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
@@ -19,7 +19,9 @@ export const FollowCard = Type.Evaluate(
             cardId: Visibility.protect(ActionCardIdSchema, { policy: Visibility.Policy.Actor }),
             seizeWith: Type.Optional(
                 Visibility.protect(ActionCardIdSchema, { policy: Visibility.Policy.Actor })
-            )
+            ),
+            // With Galactic Bards: the ambition to declare.
+            declare: Type.Optional(AmbitionSchema)
         })
     ])
 )
@@ -36,12 +38,13 @@ export class HydratedFollowCard extends HydratableAction<typeof FollowCard> impl
     declare playKind: PlayKind
     declare cardId: string
     declare seizeWith?: string
+    declare declare?: Ambition
 
     constructor(data: FollowCard) {
         super(data, FollowCardValidator)
     }
 
     apply(state: HydratedArcsGameState) {
-        state.follow(this.playerId, this.cardId, this.playKind, this.seizeWith)
+        state.follow(this.playerId, this.cardId, this.playKind, this.seizeWith, this.declare)
     }
 }

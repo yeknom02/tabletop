@@ -11,7 +11,9 @@ import { LeadersAndLore, type ArcsGameConfig } from '../definition/config.js'
 import { Definition } from '../definition/definition.js'
 import { ArcsInfo } from '../definition/info.js'
 import { ArcsRuntime } from '../definition/runtime.js'
+import type { SystemId } from '../components/map.js'
 import type { ArcsProjectedState } from '../model/gameState.js'
+import type { BuildingKind } from '../model/pieces.js'
 
 export const TestMasterSeed = '0123456789abcdef0123456789abcdef'
 
@@ -98,3 +100,65 @@ export function createTestSession(game: TestGame, initialState: ArcsProjectedSta
 }
 
 export type TestSession = ReturnType<typeof createTestSession>
+
+export type BoardSetup = (state: ArcsProjectedState, players: string[]) => void
+
+// A 3-player game with an empty map and no resources, in which the first player leads `cardId`
+// and is taking actions. The others hold one Mobilization card.
+export function leadingOnEmptyBoard(
+    cardId: string,
+    setup: BoardSetup = () => {}
+): { session: TestSession; players: string[] } {
+    const session = startTestGame(3)
+    const players = [...session.state.turnManager.turnOrder]
+    session.edit((state) => {
+        for (const system of state.systems) {
+            system.ships = {}
+            system.slots = system.slots.map(() => null)
+        }
+        for (const player of state.players) {
+            player.hand = player.playerId === players[0] ? [cardId] : ['mobilization-2']
+            player.handCount = player.hand.length
+            player.resources = player.resources.map(() => null)
+        }
+        state.outOfPlay = []
+        setup(state, players)
+    })
+    session.act(players[0], ActionType.LeadCard, { cardId })
+    return { session, players }
+}
+
+export function setShips(
+    state: ArcsProjectedState,
+    id: SystemId,
+    owner: string,
+    fresh: number,
+    damaged = 0
+) {
+    const system = state.systems.find((candidate) => candidate.id === id)
+    if (system) {
+        system.ships[owner] = { fresh, damaged }
+    }
+}
+
+export function setBuilding(
+    state: ArcsProjectedState,
+    id: SystemId,
+    slot: number,
+    owner: string,
+    kind: BuildingKind,
+    damaged = false
+) {
+    const system = state.systems.find((candidate) => candidate.id === id)
+    if (system) {
+        system.slots[slot] = { owner, kind, damaged }
+    }
+}
+
+export function playerIn(state: ArcsProjectedState, playerId: string) {
+    const found = state.players.find((candidate) => candidate.playerId === playerId)
+    if (!found) {
+        throw new Error(`No player ${playerId}`)
+    }
+    return found
+}

@@ -14,6 +14,7 @@ export enum ActionType {
     Influence = 'influence',
     Secure = 'secure',
     Battle = 'battle',
+    Reroll = 'reroll',
     AssignHits = 'assignHits',
     Ransack = 'ransack',
     Raid = 'raid',

@@ -27,7 +27,8 @@ export class PlayingCardStateHandler implements MachineStateHandler<
                 action.playerId,
                 action.cardId,
                 action.playKind,
-                action.seizeWith
+                action.seizeWith,
+                action.declare
             )
         }
         return isPassInitiative(action) && gameState.canPassInitiative(action.playerId)

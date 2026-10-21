@@ -17,7 +17,9 @@ export const Repair = Type.Evaluate(
             playerId: Type.String(),
             system: SystemIdSchema,
             slot: Type.Optional(Type.Integer({ minimum: 0 })),
-            via: Type.Optional(ResourceSchema)
+            via: Type.Optional(ResourceSchema),
+            // The token spent, when a card lets another resource stand in for `via`.
+            token: Type.Optional(ResourceSchema)
         })
     ])
 )
@@ -34,13 +36,14 @@ export class HydratedRepair extends HydratableAction<typeof Repair> implements R
     declare system: SystemId
     declare slot?: number
     declare via?: Resource
+    declare token?: Resource
 
     constructor(data: Repair) {
         super(data, RepairValidator)
     }
 
     apply(state: HydratedArcsGameState) {
-        state.pay(this.playerId, StandardAction.Repair, this.via)
+        state.pay(this.playerId, StandardAction.Repair, this.via, this.token)
         if (this.slot === undefined) {
             state.repairShip(this.playerId, this.system)
         } else {

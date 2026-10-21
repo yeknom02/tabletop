@@ -1,57 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { Resource } from '../components/resources.js'
-import type { SystemId } from '../components/map.js'
-import type { ArcsProjectedState } from '../model/gameState.js'
 import { BuildingKind } from '../model/pieces.js'
 import { ActionType } from './actions.js'
-import { startTestGame, type TestSession } from '../util/testHelper.js'
+import { leadingOnEmptyBoard, setBuilding, setShips } from '../util/testHelper.js'
 
-type Setup = (state: ArcsProjectedState, players: string[]) => void
-
-// A 3-player game with an empty map: the first player leads `cardId` and is taking actions.
-function leading(
-    cardId: string,
-    setup: Setup = () => {}
-): { session: TestSession; players: string[] } {
-    const session = startTestGame(3)
-    const players = [...session.state.turnManager.turnOrder]
-    session.edit((state) => {
-        for (const system of state.systems) {
-            system.ships = {}
-            system.slots = system.slots.map(() => null)
-        }
-        for (const player of state.players) {
-            player.hand = player.playerId === players[0] ? [cardId] : ['mobilization-2']
-            player.handCount = player.hand.length
-            player.resources = player.resources.map(() => null)
-        }
-        state.outOfPlay = []
-        setup(state, players)
-    })
-    session.act(players[0], ActionType.LeadCard, { cardId })
-    return { session, players }
-}
-
-function ships(state: ArcsProjectedState, id: SystemId, owner: string, fresh: number, damaged = 0) {
-    const system = state.systems.find((candidate) => candidate.id === id)
-    if (system) {
-        system.ships[owner] = { fresh, damaged }
-    }
-}
-
-function building(
-    state: ArcsProjectedState,
-    id: SystemId,
-    slot: number,
-    owner: string,
-    kind: BuildingKind,
-    damaged = false
-) {
-    const system = state.systems.find((candidate) => candidate.id === id)
-    if (system) {
-        system.slots[slot] = { owner, kind, damaged }
-    }
-}
+const leading = leadingOnEmptyBoard
+const ships = setShips
+const building = setBuilding
 
 describe('tax', () => {
     it('gains the planet’s resource from a Loyal city, once per turn', () => {

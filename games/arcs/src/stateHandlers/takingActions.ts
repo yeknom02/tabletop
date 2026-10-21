@@ -58,34 +58,34 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         }
         if (isBattle(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Battle, action.via) &&
+                gameState.canPay(playerId, StandardAction.Battle, action.via, action.token) &&
                 gameState.canBattle(playerId, action.system, action.defender, action.dice)
             )
         }
         if (isSpendWeapon(action)) {
-            return gameState.canSpendResource(playerId, Resource.Weapon)
+            return gameState.canSpendResource(playerId, Resource.Weapon, action.token)
         }
         if (isTax(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Tax, action.via) &&
-                gameState.canTax(playerId, action.system, action.slot)
+                gameState.canPay(playerId, StandardAction.Tax, action.via, action.token) &&
+                gameState.canTax(playerId, action.system, action.slot, action.discard)
             )
         }
         if (isBuildBuilding(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Build, action.via) &&
+                gameState.canPay(playerId, StandardAction.Build, action.via, action.token) &&
                 gameState.canBuildBuilding(playerId, action.system, action.building)
             )
         }
         if (isBuildShip(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Build, action.via) &&
+                gameState.canPay(playerId, StandardAction.Build, action.via, action.token) &&
                 gameState.canBuildShip(playerId, action.system, action.slot)
             )
         }
         if (isMoveShips(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Move, action.via) &&
+                gameState.canPay(playerId, StandardAction.Move, action.via, action.token) &&
                 gameState.canMove(
                     playerId,
                     action.from,
@@ -97,7 +97,7 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         }
         if (isRepair(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Repair, action.via) &&
+                gameState.canPay(playerId, StandardAction.Repair, action.via, action.token) &&
                 (action.slot === undefined
                     ? gameState.canRepairShip(playerId, action.system)
                     : gameState.canRepairBuilding(playerId, action.system, action.slot))
@@ -105,13 +105,13 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         }
         if (isInfluence(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Influence, action.via) &&
+                gameState.canPay(playerId, StandardAction.Influence, action.via, action.token) &&
                 gameState.canInfluence(playerId, action.cardId)
             )
         }
         return (
             isSecure(action) &&
-            gameState.canPay(playerId, StandardAction.Secure, action.via) &&
+            gameState.canPay(playerId, StandardAction.Secure, action.via, action.token) &&
             gameState.canSecure(playerId, action.cardId)
         )
     }
@@ -128,11 +128,15 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         }
         const payable = (action: StandardAction) =>
             gameState.canPay(playerId, action, undefined) ||
-            Resources.some((resource) => gameState.canPay(playerId, action, resource))
+            Resources.some((via) =>
+                Resources.some((token) => gameState.canPay(playerId, action, via, token))
+            )
         const actions = ActionsByStandard.filter(([standard]) => payable(standard)).flatMap(
             ([, types]) => types
         )
-        if (gameState.canSpendResource(playerId, Resource.Weapon)) {
+        if (
+            Resources.some((token) => gameState.canSpendResource(playerId, Resource.Weapon, token))
+        ) {
             actions.push(ActionType.SpendWeapon)
         }
         actions.push(ActionType.EndTurn)
