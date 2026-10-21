@@ -168,10 +168,10 @@ export function canUseCard(state: HydratedArcsGameState, playerId: string, use: 
                 state.canStealAndGain(playerId, steal[0], discard[0])
             )
         }
-        case Court.ElderBroker: {
-            const gains = ElderBrokerGains.filter((resource) => state.supplyAvailable(resource) > 0)
-            return only('discard') && player.canGainAll(gains, discard)
-        }
+        case Court.ElderBroker:
+            return (
+                only('discard') && state.canGainAllFromSupply(playerId, ElderBrokerGains, discard)
+            )
         case Court.RelicFence:
             return (
                 only('discard') &&
@@ -272,20 +272,9 @@ export function useCard(
             }
             break
         case Court.ElderBroker: {
-            const gains = ElderBrokerGains.filter((resource) => state.supplyAvailable(resource) > 0)
-            for (const resource of gains) {
-                state.supply[resource] -= 1
-            }
-            const kept = [...gains]
-            for (const discarded of player.gainAll(gains, discard)) {
-                state.supply[discarded] += 1
-                result.discarded.push(discarded)
-                const index = kept.indexOf(discarded)
-                if (index >= 0) {
-                    kept.splice(index, 1)
-                }
-            }
-            result.gained.push(...kept)
+            const gained = state.gainAllFromSupply(playerId, ElderBrokerGains, discard)
+            result.gained.push(...gained.gained)
+            result.discarded.push(...gained.discarded)
             break
         }
         case Court.RelicFence: {
@@ -360,14 +349,6 @@ function capturesHeld(
     return Object.entries(captives).every(([owner, count]) => count <= (held[owner] ?? 0))
 }
 
-// Whether the supply can give every gain (a Cartel's supply can't).
-function supplyCovers(state: HydratedArcsGameState, gains: readonly Resource[]): boolean {
-    return Object.values(Resource).every(
-        (resource) =>
-            gains.filter((gain) => gain === resource).length <= state.supplyAvailable(resource)
-    )
-}
-
 // The action's own conditions; paying for it is checked separately.
 export function canTakeNewAction(
     state: HydratedArcsGameState,
@@ -383,7 +364,7 @@ export function canTakeNewAction(
     const gains = choice.gains ?? []
     const gain = NewActionGains[choice.name]
     if (gain !== undefined) {
-        return discard.length <= 1 && state.canGainFromSupply(playerId, gain, discard[0])
+        return state.canGainAllFromSupply(playerId, [gain], discard)
     }
     switch (choice.name) {
         case NewActionName.Pressgang: {
@@ -391,8 +372,8 @@ export function canTakeNewAction(
             return (
                 capturesHeld(state, playerId, captives) &&
                 gains.length === returned &&
-                supplyCovers(state, gains) &&
-                player.canGainAll(gains, discard)
+                state.availableGains(gains).length === gains.length &&
+                state.canGainAllFromSupply(playerId, gains, discard)
             )
         }
         case NewActionName.Execute:
@@ -446,14 +427,7 @@ export function takeNewAction(
     const captives = choice.captives ?? {}
     const gain = NewActionGains[choice.name]
     if (gain !== undefined) {
-        const gained = state.gainFromSupply(playerId, gain, discard[0])
-        if (gained.gained) {
-            result.gained.push(gain)
-        }
-        if (gained.discarded !== undefined) {
-            result.discarded.push(gained.discarded)
-        }
-        return result
+        return { ...result, ...state.gainAllFromSupply(playerId, [gain], discard) }
     }
     switch (choice.name) {
         case NewActionName.Pressgang: {
@@ -461,15 +435,9 @@ export function takeNewAction(
                 player.releaseCaptives(owner, count)
                 state.getPlayerState(owner).agents += count
             }
-            const gains = choice.gains ?? []
-            for (const resource of gains) {
-                state.supply[resource] -= 1
-            }
-            for (const discarded of player.gainAll(gains, discard)) {
-                state.supply[discarded] += 1
-                result.discarded.push(discarded)
-            }
-            result.gained.push(...gains)
+            const gained = state.gainAllFromSupply(playerId, choice.gains ?? [], discard)
+            result.gained.push(...gained.gained)
+            result.discarded.push(...gained.discarded)
             break
         }
         case NewActionName.Execute:

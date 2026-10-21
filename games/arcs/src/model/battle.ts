@@ -8,7 +8,9 @@ import type { ShipCount } from './pieces.js'
 export enum BattleStep {
     Hits = 'hits',
     Ransack = 'ransack',
-    Raid = 'raid'
+    Raid = 'raid',
+    // Elder, Beloved: the defending Elder may influence, if the attacker took Trophies.
+    Beloved = 'beloved'
 }
 
 export type RolledDie = Type.Static<typeof RolledDie>
@@ -32,6 +34,8 @@ export const BattleState = Type.Object({
     step: Type.Enum(BattleStep),
     // Skirmish dice the attacker may still reroll, with Skirmishers, before assigning hits.
     rerolls: Type.Integer({ minimum: 0 }),
+    // Whether the attacker took any Trophies.
+    trophiesTaken: Type.Boolean(),
     // Cities destroyed whose Ransack is still to choose.
     ransacks: Type.Integer({ minimum: 0 })
 })

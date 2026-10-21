@@ -41,6 +41,7 @@ function battling(
             keys: 0,
             step: BattleStep.Hits,
             rerolls: 0,
+            trophiesTaken: false,
             ransacks: 0,
             ...battle
         }

@@ -21,6 +21,7 @@ import { AssignHits } from '../actions/assignHits.js'
 import { Ransack } from '../actions/ransack.js'
 import { Raid } from '../actions/raid.js'
 import { EndBattle } from '../actions/endBattle.js'
+import { BelovedInfluence } from '../actions/belovedInfluence.js'
 import { Farsee } from '../actions/farsee.js'
 import { SwapWithRival } from '../actions/swapWithRival.js'
 import { EndTurn } from '../actions/endTurn.js'
@@ -50,6 +51,7 @@ export const ArcsApiActions = {
     [ActionType.Ransack]: Ransack,
     [ActionType.Raid]: Raid,
     [ActionType.EndBattle]: EndBattle,
+    [ActionType.BelovedInfluence]: BelovedInfluence,
     [ActionType.Farsee]: Farsee,
     [ActionType.SwapWithRival]: SwapWithRival,
     [ActionType.EndTurn]: EndTurn

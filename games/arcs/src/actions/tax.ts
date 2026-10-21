@@ -9,8 +9,8 @@ import { HydratedArcsGameState } from '../model/gameState.js'
 
 export type TaxResult = Type.Static<typeof TaxResult>
 export const TaxResult = Type.Object({
-    resource: Type.Optional(ResourceSchema),
-    discarded: Type.Optional(ResourceSchema),
+    gained: Type.Array(ResourceSchema),
+    discarded: Type.Array(ResourceSchema),
     captured: Type.Optional(Type.String())
 })
 
@@ -28,7 +28,7 @@ export const Tax = Type.Evaluate(
             // The token spent, when a card lets another resource stand in for `via`.
             token: Type.Optional(ResourceSchema),
             // With every open slot full: the resource to discard, possibly the one gained (rule 9.2.1).
-            discard: Type.Optional(ResourceSchema),
+            discard: Type.Optional(Type.Array(ResourceSchema)),
             metadata: Type.Optional(TaxResult)
         })
     ])
@@ -47,7 +47,7 @@ export class HydratedTax extends HydratableAction<typeof Tax> implements Tax {
     declare slot: number
     declare via?: Resource
     declare token?: Resource
-    declare discard?: Resource
+    declare discard?: Resource[]
     declare metadata?: TaxResult
 
     constructor(data: Tax) {
@@ -55,7 +55,14 @@ export class HydratedTax extends HydratableAction<typeof Tax> implements Tax {
     }
 
     apply(state: HydratedArcsGameState) {
+        const copyOrPivotPip = state.copyOrPivotPip(this.via)
         state.pay(this.playerId, StandardAction.Tax, this.via, this.token)
-        this.metadata = state.tax(this.playerId, this.system, this.slot, this.discard)
+        this.metadata = state.tax(
+            this.playerId,
+            this.system,
+            this.slot,
+            this.discard,
+            copyOrPivotPip
+        )
     }
 }

@@ -13,6 +13,7 @@ import { HydratedReroll, isReroll } from '../actions/reroll.js'
 import { HydratedRansack, isRansack } from '../actions/ransack.js'
 import { HydratedRaid, isRaid } from '../actions/raid.js'
 import { HydratedEndBattle, isEndBattle } from '../actions/endBattle.js'
+import { HydratedBelovedInfluence, isBelovedInfluence } from '../actions/belovedInfluence.js'
 import {
     DrawActionCard,
     HydratedDrawActionCard,
@@ -27,6 +28,7 @@ type BattlingAction =
     | HydratedRansack
     | HydratedRaid
     | HydratedEndBattle
+    | HydratedBelovedInfluence
     | HydratedDrawActionCard
 
 // The attacker resolves their battle step by step; the turn resumes once it is over.
@@ -64,6 +66,9 @@ export class BattlingStateHandler implements MachineStateHandler<
                 action.discard
             )
         }
+        if (isBelovedInfluence(action)) {
+            return gameState.canBelovedInfluence(playerId, action.cardId)
+        }
         return isEndBattle(action) && gameState.canEndBattle(playerId)
     }
 
@@ -72,10 +77,12 @@ export class BattlingStateHandler implements MachineStateHandler<
         context: MachineContext<HydratedArcsGameState>
     ): ActionType[] {
         const battle = context.gameState.battle
-        if (battle?.attacker !== playerId) {
+        if (!battle || context.gameState.battleChooser() !== playerId) {
             return []
         }
         switch (battle.step) {
+            case BattleStep.Beloved:
+                return [ActionType.BelovedInfluence]
             case BattleStep.Hits:
                 return battle.rerolls > 0
                     ? [ActionType.Reroll, ActionType.AssignHits]
@@ -88,9 +95,8 @@ export class BattlingStateHandler implements MachineStateHandler<
     }
 
     enter(context: MachineContext<HydratedArcsGameState>) {
-        const battle = context.gameState.battle
-        if (battle) {
-            context.gameState.activate(battle.attacker)
+        if (context.gameState.battle) {
+            context.gameState.activate(context.gameState.battleChooser())
         }
     }
 
@@ -101,6 +107,10 @@ export class BattlingStateHandler implements MachineStateHandler<
                 revealsInfo: true
             })
         }
-        return afterDeclaring(context.gameState)
+        const next = afterDeclaring(context.gameState)
+        if (next === MachineState.Battling) {
+            context.gameState.activate(context.gameState.battleChooser())
+        }
+        return next
     }
 }

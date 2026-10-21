@@ -28,7 +28,7 @@ describe('tax', () => {
         })
         const [a, b] = players
         const [tax] = session.act(a, ActionType.Tax, { system: '1H', slot: 0 })
-        expect(tax).toMatchObject({ metadata: { resource: Resource.Material, captured: b } })
+        expect(tax).toMatchObject({ metadata: { gained: [Resource.Material], captured: b } })
         const state = session.hydrated()
         expect(state.getPlayerState(a).captives).toEqual({ [b]: 1 })
         expect(state.getPlayerState(b).agents).toBe(9)

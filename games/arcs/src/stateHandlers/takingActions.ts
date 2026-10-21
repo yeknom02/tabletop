@@ -107,7 +107,13 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         if (isTax(action)) {
             return (
                 gameState.canPay(playerId, StandardAction.Tax, action.via, action.token) &&
-                gameState.canTax(playerId, action.system, action.slot, action.discard)
+                gameState.canTax(
+                    playerId,
+                    action.system,
+                    action.slot,
+                    action.discard,
+                    gameState.copyOrPivotPip(action.via)
+                )
             )
         }
         if (isBuildBuilding(action)) {

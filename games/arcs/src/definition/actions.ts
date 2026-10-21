@@ -22,6 +22,7 @@ export enum ActionType {
     Ransack = 'ransack',
     Raid = 'raid',
     EndBattle = 'endBattle',
+    BelovedInfluence = 'belovedInfluence',
     Farsee = 'farsee',
     SwapWithRival = 'swapWithRival',
     EndTurn = 'endTurn',

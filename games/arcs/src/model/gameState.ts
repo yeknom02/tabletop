@@ -45,6 +45,7 @@ import {
     type SystemId
 } from '../components/map.js'
 import { Cartels, Court, LoyalCards } from '../components/courtCards.js'
+import { Leader, Lore } from '../components/personas.js'
 import { DiceOfEachKind, Die, DieSymbol } from '../components/dice.js'
 import {
     ResourceSlotRaidCosts,
@@ -188,6 +189,20 @@ export const ChapterEnd = Type.Object({
 
 // A Rival of the two-player dummy, which counts for places but gains nothing.
 const AmbitionDummy = '#ambition-boxes'
+
+// Leaders who gain second place's Power for first place in an ambition, and nothing for second.
+const SecondPlaceOnly: Partial<Record<string, Ambition>> = {
+    [Leader.Elder]: Ambition.Tyrant,
+    [Leader.Warrior]: Ambition.Empath,
+    [Leader.Archivist]: Ambition.Tycoon
+}
+
+// The extra resource some leaders gain for a tax made with a Copy or Pivot's pip.
+const CopyOrPivotTaxBonus: Partial<Record<string, Resource>> = {
+    [Leader.Mystic]: Resource.Psionic,
+    [Leader.FuelDrinker]: Resource.Fuel,
+    [Leader.Agitator]: Resource.Weapon
+}
 
 // Ships an eliminated player places (rule 22.2.1).
 const EliminatedFleet = 3
@@ -371,7 +386,7 @@ export class HydratedArcsGameState
                 : setup.resources
         for (const resource of resources) {
             assertExists(resource, 'Starting systems A and B are planets')
-            this.gainFromSupply(playerId, resource)
+            this.gainAllFromSupply(playerId, [resource], [])
         }
     }
 
@@ -444,20 +459,20 @@ export class HydratedArcsGameState
             const player = this.getPlayerState(playerId)
             switch (player.leader) {
                 // Mystic, Cryptic: agents on the Material and Fuel Outrage slots.
-                case 'LEAD02':
+                case Leader.Mystic:
                     this.outrageAtSetup(player, [Resource.Material, Resource.Fuel])
                     break
                 // Overseer, Hated: scrap 2 ships and 3 agents.
-                case 'LEAD10':
+                case Leader.Overseer:
                     player.ships -= 2
                     player.agents -= 3
                     break
                 // Anarchist, Decentralized: scrap the 2 leftmost cities.
-                case 'LEAD13':
+                case Leader.Anarchist:
                     player.citiesOnBoard -= 2
                     break
                 // Quartermaster, Greedy: an agent on the Material Outrage slot.
-                case 'LEAD16':
+                case Leader.Quartermaster:
                     this.outrageAtSetup(player, [Resource.Material])
                     break
             }
@@ -780,6 +795,14 @@ export class HydratedArcsGameState
         return this.getPlayerState(playerId).guildCards.includes(cardId)
     }
 
+    isLeader(playerId: string, leader: Leader): boolean {
+        return this.getPlayerState(playerId).leader === leader
+    }
+
+    hasLore(playerId: string, lore: Lore): boolean {
+        return this.getPlayerState(playerId).lore.includes(lore)
+    }
+
     // Whether the turn can take this action, paid with a pip or a resource.
     canPay(
         playerId: string,
@@ -855,45 +878,91 @@ export class HydratedArcsGameState
 
     // Tax: a Loyal city, or a Rival city the player controls; the Rival loses an agent to the
     // player's Captives (rule 7.1).
-    canTax(playerId: string, id: SystemId, slot: number, discard?: Resource): boolean {
+    // Whether the player may tax this slot: a Loyal city, or a Rival city they control (rule 7.1),
+    // as their leader allows. Once per city per turn.
+    canTaxSlot(playerId: string, id: SystemId, slot: number): boolean {
+        if (!planetOf(id) || this.currentTurn().taxed.includes(`${id}:${slot}`)) {
+            return false
+        }
         const building = this.system(id).slots[slot]
-        if (!building || building.kind !== BuildingKind.City) {
+        const controls = this.controller(id) === playerId
+        // Anarchist, Inspiring: with Loyal ships there, Rival cities ignoring control, and empty
+        // slots like Loyal cities. Principled: never Loyal cities.
+        if (this.isLeader(playerId, Leader.Anarchist)) {
+            const ships = shipsOf(this.system(id), playerId)
+            const present = ships.fresh + ships.damaged > 0
+            if (building === null) {
+                return present
+            }
+            return (
+                building?.kind === BuildingKind.City &&
+                building.owner !== playerId &&
+                (controls || present)
+            )
+        }
+        if (building?.kind !== BuildingKind.City) {
             return false
         }
-        if (this.currentTurn().taxed.includes(`${id}:${slot}`)) {
+        // Upstart, Callow: only cities they control.
+        if (this.isLeader(playerId, Leader.Upstart) && !controls) {
             return false
         }
+        return building.owner === playerId || controls
+    }
+
+    // What taxing gains: the planet's resource, plus the leader's extra one for a tax made with the
+    // pip of a Copy or Pivot (Mystic, Fuel-Drinker, Agitator).
+    taxGains(playerId: string, id: SystemId, copyOrPivotPip: boolean): Resource[] {
         const planet = planetOf(id)
-        if (!planet || !this.canGainFromSupply(playerId, planet.resource, discard)) {
-            return false
+        assertExists(planet, `${id} is not a planet`)
+        const gains = [planet.resource]
+        const leader = this.getPlayerState(playerId).leader
+        const extra = leader === undefined ? undefined : CopyOrPivotTaxBonus[leader]
+        if (copyOrPivotPip && extra !== undefined) {
+            gains.push(extra)
         }
-        return building.owner === playerId || this.controller(id) === playerId
+        return gains
+    }
+
+    // Whether the action about to be paid is the single pip of a Copy or Pivot.
+    copyOrPivotPip(via: Resource | undefined): boolean {
+        const kind = this.turnPlay().kind
+        return via === undefined && (kind === PlayKind.Copy || kind === PlayKind.Pivot)
+    }
+
+    canTax(
+        playerId: string,
+        id: SystemId,
+        slot: number,
+        discard: readonly Resource[] = [],
+        copyOrPivotPip: boolean = false
+    ): boolean {
+        return (
+            this.canTaxSlot(playerId, id, slot) &&
+            this.canGainAllFromSupply(
+                playerId,
+                this.taxGains(playerId, id, copyOrPivotPip),
+                discard
+            )
+        )
     }
 
     tax(
         playerId: string,
         id: SystemId,
         slot: number,
-        discard?: Resource
-    ): { resource?: Resource; discarded?: Resource; captured?: string } {
+        discard: readonly Resource[] = [],
+        copyOrPivotPip: boolean = false
+    ): { gained: Resource[]; discarded: Resource[]; captured?: string } {
         assert(
-            this.canTax(playerId, id, slot, discard),
+            this.canTax(playerId, id, slot, discard, copyOrPivotPip),
             `${playerId} cannot tax ${id} slot ${slot}`
         )
         this.currentTurn().taxed.push(`${id}:${slot}`)
-        const planet = planetOf(id)
-        const result: { resource?: Resource; discarded?: Resource; captured?: string } = {}
-        if (planet) {
-            const gain = this.gainFromSupply(playerId, planet.resource, discard)
-            if (gain.gained) {
-                result.resource = planet.resource
-            }
-            if (gain.discarded !== undefined) {
-                result.discarded = gain.discarded
-            }
-        }
-        const owner = this.building(id, slot).owner
-        if (owner !== playerId) {
+        const result: { gained: Resource[]; discarded: Resource[]; captured?: string } =
+            this.gainAllFromSupply(playerId, this.taxGains(playerId, id, copyOrPivotPip), discard)
+        const owner = this.system(id).slots[slot]?.owner
+        if (owner !== undefined && owner !== playerId) {
             const rival = this.getPlayerState(owner)
             if (rival.agents > 0) {
                 rival.agents -= 1
@@ -902,6 +971,48 @@ export class HydratedArcsGameState
             }
         }
         return result
+    }
+
+    // The gains the supply can give, in order; a Cartel's supply gives none.
+    availableGains(gains: readonly Resource[]): Resource[] {
+        const left = { ...this.supply }
+        return gains.filter((resource) => {
+            if (this.cartelHolder(resource) !== undefined || left[resource] === 0) {
+                return false
+            }
+            left[resource] -= 1
+            return true
+        })
+    }
+
+    canGainAllFromSupply(
+        playerId: string,
+        gains: readonly Resource[],
+        discard: readonly Resource[]
+    ): boolean {
+        return this.getPlayerState(playerId).canGainAll(this.availableGains(gains), discard)
+    }
+
+    // Gains what the supply has, discarding what can't be held back to the supply.
+    gainAllFromSupply(
+        playerId: string,
+        gains: readonly Resource[],
+        discard: readonly Resource[]
+    ): { gained: Resource[]; discarded: Resource[] } {
+        assert(this.canGainAllFromSupply(playerId, gains, discard), `${playerId} cannot gain so`)
+        const available = this.availableGains(gains)
+        for (const resource of available) {
+            this.supply[resource] -= 1
+        }
+        const kept = [...available]
+        for (const discarded of this.getPlayerState(playerId).gainAll(available, discard)) {
+            this.supply[discarded] += 1
+            const index = kept.indexOf(discarded)
+            if (index >= 0) {
+                kept.splice(index, 1)
+            }
+        }
+        return { gained: kept, discarded: [...discard] }
     }
 
     // The supply players can gain from: none while a Cartel holds it.
@@ -916,29 +1027,22 @@ export class HydratedArcsGameState
             : this.players.find((player) => player.guildCards.includes(cartel))?.playerId
     }
 
-    // With nothing in the supply, nothing is gained and nothing discarded.
-    canGainFromSupply(playerId: string, resource: Resource, discard?: Resource): boolean {
-        return this.supplyAvailable(resource) === 0
-            ? discard === undefined
-            : this.getPlayerState(playerId).canGain(resource, discard)
-    }
-
-    // Returns whether the resource was gained, and what was discarded to make room.
-    gainFromSupply(
-        playerId: string,
-        resource: Resource,
-        discard?: Resource
-    ): { gained: boolean; discarded?: Resource } {
-        assert(this.canGainFromSupply(playerId, resource, discard), `${playerId} cannot gain so`)
-        if (this.supplyAvailable(resource) === 0) {
-            return { gained: false }
+    // Fuel-Drinker, Lavish: after scoring, all their Fuel goes if Tycoon was scored.
+    lavishSpending() {
+        if (!this.ambitionMarkers.some((marker) => marker.ambition === Ambition.Tycoon)) {
+            return
         }
-        this.supply[resource] -= 1
-        const discarded = this.getPlayerState(playerId).gain(resource, discard)
-        if (discarded !== undefined) {
-            this.supply[discarded] += 1
+        for (const player of this.players) {
+            if (player.leader !== Leader.FuelDrinker) {
+                continue
+            }
+            for (const [slot, held] of player.resources.entries()) {
+                if (held === Resource.Fuel) {
+                    player.resources[slot] = null
+                    this.supply[Resource.Fuel] += 1
+                }
+            }
         }
-        return { gained: discarded !== resource, discarded }
     }
 
     // After scoring, each Cartel's holder's Rivals discard all of its resource (to the card).
@@ -1017,13 +1121,19 @@ export class HydratedArcsGameState
             moving.damaged < 0 ||
             moving.fresh + moving.damaged === 0 ||
             moving.fresh > ships.fresh ||
-            moving.damaged > ships.damaged
+            moving.damaged > ships.damaged ||
+            // Rebel, Disorganized: at most 2 ships at a time.
+            (this.isLeader(playerId, Leader.Rebel) && moving.fresh + moving.damaged > 2)
         ) {
             return false
         }
-        const catapult = this.system(from).slots.some(
-            (building) => building?.kind === BuildingKind.Starport && building.owner === playerId
-        )
+        // Shaper, Ancient: Catapult from gates, never from starports.
+        const catapult = this.isLeader(playerId, Leader.Shaper)
+            ? isGate(from)
+            : this.system(from).slots.some(
+                  (building) =>
+                      building?.kind === BuildingKind.Starport && building.owner === playerId
+              )
         if (path.length > 1 && !catapult) {
             return false
         }
@@ -1129,7 +1239,9 @@ export class HydratedArcsGameState
             Object.entries(slot.agents).every(
                 ([owner, count]) => owner === playerId || count < own
             ) &&
-            this.canChooseWhenSecured(playerId, cardId, vox)
+            this.canChooseWhenSecured(playerId, cardId, vox) &&
+            // Demagogue, Paranoid: not a Guild card with only 1 Loyal agent.
+            !(this.isLeader(playerId, Leader.Demagogue) && !isVox(cardId) && own === 1)
         )
     }
 
@@ -1217,12 +1329,17 @@ export class HydratedArcsGameState
         const ships = shipsOf(this.system(id), playerId)
         const counts = Object.values(Die).map((die) => dice[die])
         const total = counts.reduce((sum, count) => sum + count, 0)
-        // Gatekeepers collect 2 more dice in a gate.
-        const extra = isGate(id) && this.holds(playerId, Court.Gatekeepers) ? 2 : 0
+        // Gatekeepers collect 2 more dice in a gate. The Rebel, Committed, must collect 2 more.
+        const gatekeepers = isGate(id) && this.holds(playerId, Court.Gatekeepers) ? 2 : 0
+        const committed = this.isLeader(playerId, Leader.Rebel) ? 2 : 0
+        // Corsair, Wary: no more assault dice than skirmish dice.
+        const wary =
+            !this.isLeader(playerId, Leader.Corsair) || dice[Die.Assault] <= dice[Die.Skirmish]
         return (
             counts.every((count) => count >= 0 && count <= DiceOfEachKind) &&
-            total > 0 &&
-            total <= ships.fresh + ships.damaged + extra &&
+            wary &&
+            total >= Math.max(1, committed) &&
+            total <= ships.fresh + ships.damaged + gatekeepers + committed &&
             (dice[Die.Raid] === 0 || this.canCollectRaidDice(id, defender))
         )
     }
@@ -1250,6 +1367,7 @@ export class HydratedArcsGameState
             buildingHits: 0,
             keys: 0,
             step: BattleStep.Hits,
+            trophiesTaken: false,
             rerolls: this.holds(playerId, Court.Skirmishers)
                 ? Math.min(this.weaponIcons(playerId), dice[Die.Skirmish])
                 : 0,
@@ -1266,9 +1384,12 @@ export class HydratedArcsGameState
         const battle = this.currentBattle()
         const { rolled } = battle
         const intercepts =
-            symbolsRolled(rolled, DieSymbol.Intercept) > 0
-                ? shipsOf(this.system(battle.system), battle.defender).fresh
-                : 0
+            symbolsRolled(rolled, DieSymbol.Intercept) === 0
+                ? 0
+                : // Agitator, Irregular: one hit per Weapon icon instead.
+                  this.isLeader(battle.defender, Leader.Agitator)
+                  ? this.weaponIcons(battle.defender)
+                  : shipsOf(this.system(battle.system), battle.defender).fresh
         battle.attackerHits = symbolsRolled(rolled, DieSymbol.SelfHit) + intercepts
         battle.hits = symbolsRolled(rolled, DieSymbol.Hit)
         battle.buildingHits = symbolsRolled(rolled, DieSymbol.BuildingHit)
@@ -1410,7 +1531,10 @@ export class HydratedArcsGameState
                     if (resource) {
                         outraged.push(resource)
                     }
-                    battle.ransacks += 1
+                    // Rivals cannot Ransack the Court when they battle the Elder, Beloved.
+                    if (!this.isLeader(defender, Leader.Elder)) {
+                        battle.ransacks += 1
+                    }
                 } else {
                     attackerTrophies.push({ owner: defender, kind: TrophyKind.Starport })
                 }
@@ -1418,6 +1542,18 @@ export class HydratedArcsGameState
                 building.damaged = true
             }
         }
+        // The Agitator discards a Weapon after an intercept.
+        if (
+            this.isLeader(defender, Leader.Agitator) &&
+            symbolsRolled(battle.rolled, DieSymbol.Intercept) > 0
+        ) {
+            const agitator = this.getPlayerState(defender)
+            if (agitator.resourceCount(Resource.Weapon) > 0) {
+                agitator.removeResource(Resource.Weapon)
+                this.supply[Resource.Weapon] += 1
+            }
+        }
+        battle.trophiesTaken ||= defending.destroy > 0 || destroyedBuildings.length > 0
         battle.attackerHits = 0
         battle.hits = 0
         battle.buildingHits = 0
@@ -1581,11 +1717,76 @@ export class HydratedArcsGameState
             battle.step = BattleStep.Raid
             return
         }
-        this.battle = undefined
+        this.finishBattle()
     }
 
     endBattle(playerId: string) {
         assert(this.canEndBattle(playerId), `${playerId} has no battle to end`)
+        this.finishBattle()
+    }
+
+    // What happens after a battle: repairs, then the Elder's chance to influence.
+    finishBattle() {
+        const battle = this.currentBattle()
+        const { attacker, defender, system } = battle
+        // Repair Drones repair 1 attacking ship.
+        if (this.hasLore(attacker, Lore.RepairDrones)) {
+            this.repairShipsIn(system, attacker, 1)
+        }
+        // Quartermaster, Resilient: 1 repair per starport they control on the map.
+        for (const playerId of [attacker, defender]) {
+            if (this.isLeader(playerId, Leader.Quartermaster)) {
+                this.repairShipsIn(system, playerId, this.starportsControlled(playerId))
+            }
+        }
+        if (
+            battle.trophiesTaken &&
+            this.isLeader(defender, Leader.Elder) &&
+            this.getPlayerState(defender).agents > 0 &&
+            this.court.length > 0
+        ) {
+            battle.step = BattleStep.Beloved
+            return
+        }
+        this.battle = undefined
+    }
+
+    repairShipsIn(id: SystemId, playerId: string, count: number) {
+        const ships = shipsOf(this.system(id), playerId)
+        const repaired = Math.min(count, ships.damaged)
+        if (repaired > 0) {
+            this.removeShips(id, playerId, 0, repaired)
+            this.addShips(id, playerId, repaired)
+        }
+    }
+
+    starportsControlled(playerId: string): number {
+        return this.systems
+            .filter((system) => this.controller(system.id) === playerId)
+            .flatMap((system) => buildingsIn(system))
+            .filter((building) => building.kind === BuildingKind.Starport).length
+    }
+
+    // The player whose choice the battle waits on.
+    battleChooser(): string {
+        const battle = this.currentBattle()
+        return battle.step === BattleStep.Beloved ? battle.defender : battle.attacker
+    }
+
+    canBelovedInfluence(playerId: string, cardId?: string): boolean {
+        const battle = this.battle
+        return (
+            battle?.step === BattleStep.Beloved &&
+            battle.defender === playerId &&
+            (cardId === undefined || this.canInfluence(playerId, cardId))
+        )
+    }
+
+    belovedInfluence(playerId: string, cardId?: string) {
+        assert(this.canBelovedInfluence(playerId, cardId), `${playerId} cannot influence now`)
+        if (cardId !== undefined) {
+            this.influence(playerId, cardId)
+        }
         this.battle = undefined
     }
 
@@ -1856,7 +2057,22 @@ export class HydratedArcsGameState
                 awards.push({ ambition, playerId: runnersUp[0].playerId, place: 2, power: second })
             }
         }
-        return awards.filter((award) => award.playerId !== AmbitionDummy)
+        return awards
+            .filter((award) => award.playerId !== AmbitionDummy)
+            .map((award) => this.leaderAdjustedAward(award, second))
+    }
+
+    // Elder, Warrior and Archivist score one ambition as if a place lower, without the city
+    // bonus; the Noble, Proud, scores nothing for second place.
+    private leaderAdjustedAward(award: AmbitionAward, second: number): AmbitionAward {
+        const leader = this.getPlayerState(award.playerId).leader
+        if (leader !== undefined && SecondPlaceOnly[leader] === award.ambition) {
+            return { ...award, power: award.place === 1 ? second : 0 }
+        }
+        if (leader === Leader.Noble && award.place === 2) {
+            return { ...award, power: 0 }
+        }
+        return award
     }
 
     scoreChapter(): AmbitionAward[] {
@@ -1990,6 +2206,7 @@ export class HydratedArcsGameState
     endChapter(): ChapterEnd {
         const awards = this.scoreChapter()
         this.cartelsTakeTheirDue()
+        this.lavishSpending()
         this.cleanUpChapter()
         if (this.gameIsOver()) {
             return { awards, gameOver: true }

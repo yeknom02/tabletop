@@ -60,7 +60,7 @@ describe('Cartels', () => {
         })
         const [a, b] = players
         const [tax] = session.act(a, ActionType.Tax, { system: '1H', slot: 0 })
-        expect(tax).not.toHaveProperty('metadata.resource')
+        expect(tax).toMatchObject({ metadata: { gained: [] } })
         const state = session.hydrated()
         expect(state.getPlayerState(a).resourceCount(Resource.Material)).toBe(0)
         // The Cartel card counts as a Material icon too.
@@ -102,10 +102,10 @@ describe('gaining into full slots', () => {
         const [tax] = session.act(a, ActionType.Tax, {
             system: '1H',
             slot: 0,
-            discard: Resource.Relic
+            discard: [Resource.Relic]
         })
         expect(tax).toMatchObject({
-            metadata: { resource: Resource.Material, discarded: Resource.Relic }
+            metadata: { gained: [Resource.Material], discarded: [Resource.Relic] }
         })
         expect(session.hydrated().getPlayerState(a).resources.slice(0, 2)).toEqual([
             Resource.Fuel,
