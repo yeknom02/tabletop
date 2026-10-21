@@ -5,6 +5,7 @@
     import SystemPieces from '$lib/components/map/SystemPieces.svelte'
     import Ambitions from '$lib/components/board/Ambitions.svelte'
     import Court from '$lib/components/board/Court.svelte'
+    import Targets from '$lib/components/map/Targets.svelte'
 
     const gameSession = getGameSession()
     const layouts = $derived(
@@ -32,6 +33,7 @@
         {#each layouts as layout (layout.id)}
             <SystemPieces {layout} />
         {/each}
+        <Targets />
     </div>
     <div class="side" style:width="{SideColumnWidth}px">
         <Ambitions />

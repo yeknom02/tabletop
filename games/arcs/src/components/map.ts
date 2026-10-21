@@ -22,7 +22,10 @@ export type SystemId = `${Cluster}${SystemKind}`
 export const SystemIds: readonly SystemId[] = Clusters.flatMap((cluster) =>
     [SystemKind.Gate, ...PlanetKinds].map((kind): SystemId => `${cluster}${kind}`)
 )
-export const SystemIdSchema = Type.Unsafe<SystemId>(Type.String({ pattern: '^[1-6][GACH]$' }))
+// The default is only a placeholder for building an Action, which its data replaces.
+export const SystemIdSchema = Type.Unsafe<SystemId>(
+    Type.String({ pattern: '^[1-6][GACH]$', default: '1G' })
+)
 
 export type Planet = {
     resource: Resource

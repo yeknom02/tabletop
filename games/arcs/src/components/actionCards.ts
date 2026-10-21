@@ -55,7 +55,11 @@ const NumberAmbitions: Readonly<Record<number, Ambition>> = {
 }
 
 export type ActionCardId = `${Suit}-${number}`
-export const ActionCardIdSchema = Type.String({ pattern: '^[a-z]+-[1-7]$' })
+// The default is only a placeholder for building an Action, which its data replaces.
+export const ActionCardIdSchema = Type.String({
+    pattern: '^[a-z]+-[1-7]$',
+    default: 'administration-1'
+})
 
 export type ActionCard = {
     id: ActionCardId

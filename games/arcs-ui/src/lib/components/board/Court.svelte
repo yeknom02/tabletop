@@ -1,10 +1,25 @@
 <script lang="ts">
+    import { Floater } from '@tabletop/frontend-components'
     import { agentArt, cardArt, cardBackArt } from '$lib/utils/art.js'
+    import VoxPicker from './VoxPicker.svelte'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
 
     const gameSession = getGameSession()
     const state = $derived(gameSession.gameState)
     const colorOf = (playerId: string) => state.getPlayerState(playerId).color
+
+    const targeted = (cardId: string) =>
+        gameSession.influenceTargets.includes(cardId) || gameSession.secureTargets.includes(cardId)
+
+    function chooseCard(cardId: string) {
+        if (gameSession.influenceTargets.includes(cardId)) {
+            void gameSession.influence(cardId)
+        } else if (gameSession.canSecureWith(cardId)) {
+            void gameSession.secure(cardId)
+        } else {
+            gameSession.chooseCourtCard(cardId)
+        }
+    }
 </script>
 
 <section class="court">
@@ -18,6 +33,15 @@
     <div class="cards">
         {#each state.court as slot (slot.cardId)}
             <div class="slot">
+                {#if targeted(slot.cardId)}
+                    <button
+                        type="button"
+                        id="arcs-court-{slot.cardId}"
+                        class="target"
+                        aria-label="Choose {slot.cardId}"
+                        onclick={() => chooseCard(slot.cardId)}
+                    ></button>
+                {/if}
                 <img class="card" src={cardArt(slot.cardId)} alt={slot.cardId} />
                 <div class="agents">
                     {#each Object.entries(slot.agents) as [owner, count] (owner)}
@@ -31,6 +55,16 @@
         {/each}
     </div>
 </section>
+{#if gameSession.chosenCourtCard}
+    <Floater
+        reference="#arcs-court-{gameSession.chosenCourtCard}"
+        placement="left"
+        offset={16}
+        onClose={() => gameSession.undo()}
+    >
+        <VoxPicker cardId={gameSession.chosenCourtCard} />
+    </Floater>
+{/if}
 
 <style>
     .court {
@@ -72,6 +106,20 @@
 
     .slot {
         position: relative;
+    }
+
+    .target {
+        position: absolute;
+        inset: -10px;
+        z-index: 1;
+        border: 8px solid rgb(255 214 120 / 0.95);
+        border-radius: 20px;
+        box-shadow: 0 0 30px rgb(255 214 120 / 0.85);
+        cursor: pointer;
+    }
+
+    .target:hover {
+        background: rgb(255 214 120 / 0.15);
     }
 
     .card {
