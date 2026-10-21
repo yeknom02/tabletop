@@ -1,12 +1,12 @@
-import { assert } from '@tabletop/common'
+import { assert, assertExists } from '@tabletop/common'
 import * as Type from 'typebox'
-import { actionCard, ActionCardIdSchema, Suit } from '../components/actionCards.js'
+import { actionCard, ActionCardIdSchema, StandardAction, Suit } from '../components/actionCards.js'
 import { Court } from '../components/courtCards.js'
-import { isGate, SystemIdSchema, type SystemId } from '../components/map.js'
+import { isGate, planetOf, SystemIdSchema, type SystemId } from '../components/map.js'
 import { Resource, ResourceSchema } from '../components/resources.js'
 import { MachineState } from '../definition/states.js'
 import type { HydratedArcsGameState } from './gameState.js'
-import { StealTarget } from './pieces.js'
+import { BuildingKind, StealTarget, TrophyKind } from './pieces.js'
 
 // What a player chooses when using a Court card's Prelude action. Each card reads only the fields
 // it needs: `steal` for the cards that steal, `system` for those that place ships, `actionCardId`
@@ -291,6 +291,214 @@ export function useCard(
                 player.gainResource(Resource.Relic)
                 result.gained.push(Resource.Relic)
             }
+            break
+        }
+    }
+    return result
+}
+
+// New actions that cards offer in place of a standard action (rule 8.2).
+export enum NewActionName {
+    Manufacture = 'manufacture',
+    Synthesize = 'synthesize',
+    Pressgang = 'pressgang',
+    Execute = 'execute',
+    Abduct = 'abduct',
+    Trade = 'trade'
+}
+
+export const NewActions: Readonly<
+    Record<NewActionName, { cardId: Court; replaces: StandardAction }>
+> = {
+    [NewActionName.Manufacture]: { cardId: Court.MiningInterest, replaces: StandardAction.Build },
+    [NewActionName.Synthesize]: { cardId: Court.ShippingInterest, replaces: StandardAction.Build },
+    [NewActionName.Pressgang]: { cardId: Court.PrisonWardens, replaces: StandardAction.Build },
+    [NewActionName.Execute]: { cardId: Court.PrisonWardens, replaces: StandardAction.Influence },
+    [NewActionName.Abduct]: { cardId: Court.CourtEnforcers, replaces: StandardAction.Battle },
+    [NewActionName.Trade]: { cardId: Court.ElderBroker, replaces: StandardAction.Tax }
+}
+
+// The choices a new action takes: `discard` for what can't be held, `captives` (by owner) for
+// Pressgang and Execute, `gains` for Pressgang, `courtCardId` for Abduct, and for Trade the Rival
+// city at `system` and `slot` and the resource to `give`.
+export type NewActionChoice = Type.Static<typeof NewActionChoice>
+export const NewActionChoice = Type.Object({
+    name: Type.Enum(NewActionName),
+    discard: Type.Optional(Type.Array(ResourceSchema)),
+    captives: Type.Optional(Type.Record(Type.String(), Type.Integer({ minimum: 1 }))),
+    gains: Type.Optional(Type.Array(ResourceSchema)),
+    courtCardId: Type.Optional(Type.String()),
+    system: Type.Optional(SystemIdSchema),
+    slot: Type.Optional(Type.Integer({ minimum: 0 })),
+    give: Type.Optional(ResourceSchema)
+})
+
+export type NewActionResult = Type.Static<typeof NewActionResult>
+export const NewActionResult = Type.Object({
+    gained: Type.Array(ResourceSchema),
+    discarded: Type.Array(ResourceSchema),
+    captured: Type.Record(Type.String(), Type.Integer({ minimum: 0 }))
+})
+
+const NewActionGains: Partial<Record<NewActionName, Resource>> = {
+    [NewActionName.Manufacture]: Resource.Material,
+    [NewActionName.Synthesize]: Resource.Fuel
+}
+
+function capturesHeld(
+    state: HydratedArcsGameState,
+    playerId: string,
+    captives: Readonly<Record<string, number>>
+): boolean {
+    const held = state.getPlayerState(playerId).captives
+    return Object.entries(captives).every(([owner, count]) => count <= (held[owner] ?? 0))
+}
+
+// Whether the supply can give every gain (a Cartel's supply can't).
+function supplyCovers(state: HydratedArcsGameState, gains: readonly Resource[]): boolean {
+    return Object.values(Resource).every(
+        (resource) =>
+            gains.filter((gain) => gain === resource).length <= state.supplyAvailable(resource)
+    )
+}
+
+// The action's own conditions; paying for it is checked separately.
+export function canTakeNewAction(
+    state: HydratedArcsGameState,
+    playerId: string,
+    choice: NewActionChoice
+): boolean {
+    if (!state.holds(playerId, NewActions[choice.name].cardId)) {
+        return false
+    }
+    const player = state.getPlayerState(playerId)
+    const discard = choice.discard ?? []
+    const captives = choice.captives ?? {}
+    const gains = choice.gains ?? []
+    const gain = NewActionGains[choice.name]
+    if (gain !== undefined) {
+        return discard.length <= 1 && state.canGainFromSupply(playerId, gain, discard[0])
+    }
+    switch (choice.name) {
+        case NewActionName.Pressgang: {
+            const returned = Object.values(captives).reduce((sum, count) => sum + count, 0)
+            return (
+                capturesHeld(state, playerId, captives) &&
+                gains.length === returned &&
+                supplyCovers(state, gains) &&
+                player.canGainAll(gains, discard)
+            )
+        }
+        case NewActionName.Execute:
+            return discard.length === 0 && capturesHeld(state, playerId, captives)
+        case NewActionName.Abduct: {
+            const slot = state.court.find((candidate) => candidate.cardId === choice.courtCardId)
+            if (!slot) {
+                return false
+            }
+            const rivals = Object.entries(slot.agents)
+                .filter(([owner]) => owner !== playerId)
+                .reduce((sum, [, count]) => sum + count, 0)
+            return rivals > 0 && rivals < state.weaponIcons(playerId)
+        }
+        case NewActionName.Trade: {
+            if (choice.system === undefined || choice.slot === undefined || !choice.give) {
+                return false
+            }
+            const city = state.system(choice.system).slots[choice.slot]
+            const planet = planetOf(choice.system)
+            if (
+                !city ||
+                !planet ||
+                city.kind !== BuildingKind.City ||
+                city.owner === playerId ||
+                state.controller(choice.system) !== playerId
+            ) {
+                return false
+            }
+            const rival = state.getPlayerState(city.owner)
+            return (
+                rival.resourceCount(planet.resource) > 0 &&
+                rival.resourceCount(choice.give) === 0 &&
+                player.resourceCount(choice.give) > 0
+            )
+        }
+        default:
+            return false
+    }
+}
+
+export function takeNewAction(
+    state: HydratedArcsGameState,
+    playerId: string,
+    choice: NewActionChoice
+): NewActionResult {
+    assert(canTakeNewAction(state, playerId, choice), `${playerId} cannot ${choice.name}`)
+    const player = state.getPlayerState(playerId)
+    const result: NewActionResult = { gained: [], discarded: [], captured: {} }
+    const discard = choice.discard ?? []
+    const captives = choice.captives ?? {}
+    const gain = NewActionGains[choice.name]
+    if (gain !== undefined) {
+        const gained = state.gainFromSupply(playerId, gain, discard[0])
+        if (gained.gained) {
+            result.gained.push(gain)
+        }
+        if (gained.discarded !== undefined) {
+            result.discarded.push(gained.discarded)
+        }
+        return result
+    }
+    switch (choice.name) {
+        case NewActionName.Pressgang: {
+            for (const [owner, count] of Object.entries(captives)) {
+                player.releaseCaptives(owner, count)
+                state.getPlayerState(owner).agents += count
+            }
+            const gains = choice.gains ?? []
+            for (const resource of gains) {
+                state.supply[resource] -= 1
+            }
+            for (const discarded of player.gainAll(gains, discard)) {
+                state.supply[discarded] += 1
+                result.discarded.push(discarded)
+            }
+            result.gained.push(...gains)
+            break
+        }
+        case NewActionName.Execute:
+            for (const [owner, count] of Object.entries(captives)) {
+                player.releaseCaptives(owner, count)
+                for (let index = 0; index < count; index++) {
+                    player.trophies.push({ owner, kind: TrophyKind.Agent })
+                }
+            }
+            break
+        case NewActionName.Abduct: {
+            const slot = state.courtSlot(choice.courtCardId ?? '')
+            for (const [owner, count] of Object.entries(slot.agents)) {
+                if (owner !== playerId) {
+                    player.capture(owner, count)
+                    result.captured[owner] = count
+                    delete slot.agents[owner]
+                }
+            }
+            break
+        }
+        case NewActionName.Trade: {
+            const system = choice.system
+            const give = choice.give
+            assertExists(system, 'Trade names a system')
+            assertExists(give, 'Trade names a resource to give')
+            const city = state.building(system, choice.slot ?? 0)
+            const taken = planetOf(system)?.resource
+            assertExists(taken, 'Trade is at a planet')
+            const rival = state.getPlayerState(city.owner)
+            rival.removeResource(taken)
+            player.removeResource(give)
+            rival.gainResource(give)
+            player.gainResource(taken)
+            result.gained.push(taken)
             break
         }
     }

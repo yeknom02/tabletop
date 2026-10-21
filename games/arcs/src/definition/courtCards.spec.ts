@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { Ambition } from '../components/actionCards.js'
 import { Court } from '../components/courtCards.js'
 import { Resource } from '../components/resources.js'
-import { BuildingKind } from '../model/pieces.js'
+import { NewActionName } from '../model/courtEffects.js'
+import { BuildingKind, TrophyKind } from '../model/pieces.js'
 import { PlayKind } from '../model/round.js'
 import { ActionType } from './actions.js'
 import {
@@ -359,5 +360,130 @@ describe('Court card Prelude actions', () => {
         expect(state.getPlayerState(a).hand).toEqual(bottom)
         expect(state.actionDiscard.remaining).toBe(pile - 1)
         expect(state.courtDiscard).toContain(Court.Farseers)
+    })
+})
+
+describe('new actions', () => {
+    function holding(cardId: string, lead: string, setup: BoardSetup = () => {}) {
+        return leadingOnEmptyBoard(lead, (state, players) => {
+            playerIn(state, players[0]).guildCards = [cardId]
+            setup(state, players)
+        })
+    }
+
+    it('Manufacture builds a Material instead of a building', () => {
+        const { session, players } = holding(Court.MiningInterest, 'construction-2')
+        const [a] = players
+        const [action] = session.act(a, ActionType.TakeNewAction, {
+            name: NewActionName.Manufacture
+        })
+        expect(action).toMatchObject({ metadata: { gained: [Resource.Material] } })
+        expect(session.state.turn?.pips).toBe(3)
+        // Mobilization can't build.
+        const moving = holding(Court.MiningInterest, 'mobilization-2')
+        expect(() =>
+            moving.session.act(moving.players[0], ActionType.TakeNewAction, {
+                name: NewActionName.Manufacture
+            })
+        ).toThrow()
+    })
+
+    it('Pressgang returns Captives for resources; Execute makes them Trophies', () => {
+        const { session, players } = holding(
+            Court.PrisonWardens,
+            'construction-2',
+            (state, [a, b]) => {
+                playerIn(state, a).captives = { [b]: 3 }
+                playerIn(state, b).agents -= 3
+            }
+        )
+        const [a, b] = players
+        const agents = session.hydrated().getPlayerState(b).agents
+        session.act(a, ActionType.TakeNewAction, {
+            name: NewActionName.Pressgang,
+            captives: { [b]: 2 },
+            gains: [Resource.Psionic, Resource.Relic]
+        })
+        let state = session.hydrated()
+        expect(state.getPlayerState(a).captives).toEqual({ [b]: 1 })
+        expect(state.getPlayerState(b).agents).toBe(agents + 2)
+        expect(state.getPlayerState(a).resources.slice(0, 2)).toEqual([
+            Resource.Psionic,
+            Resource.Relic
+        ])
+        // Execute replaces Influence, which Administration has.
+        const influencing = holding(Court.PrisonWardens, 'administration-2', (draft, [x, y]) => {
+            playerIn(draft, x).captives = { [y]: 2 }
+        })
+        const [x, y] = influencing.players
+        influencing.session.act(x, ActionType.TakeNewAction, {
+            name: NewActionName.Execute,
+            captives: { [y]: 2 }
+        })
+        state = influencing.session.hydrated()
+        expect(state.getPlayerState(x).captives).toEqual({})
+        expect(state.getPlayerState(x).trophies).toEqual([
+            { owner: y, kind: TrophyKind.Agent },
+            { owner: y, kind: TrophyKind.Agent }
+        ])
+    })
+
+    it('Abduct captures the Rival agents on a Court card with fewer than the Weapon icons', () => {
+        const { session, players } = holding(
+            Court.CourtEnforcers,
+            'aggression-2',
+            (state, [a, b, c]) => {
+                playerIn(state, a).resources = [Resource.Weapon, null, null, null, null, null]
+                state.court[0].agents = { [a]: 1, [b]: 1 }
+                state.court[1].agents = { [b]: 1, [c]: 1 }
+            }
+        )
+        const [a, b] = players
+        // Two Weapon icons: the resource and Court Enforcers.
+        expect(() =>
+            session.act(a, ActionType.TakeNewAction, {
+                name: NewActionName.Abduct,
+                courtCardId: session.state.court[1].cardId
+            })
+        ).toThrow()
+        session.act(a, ActionType.TakeNewAction, {
+            name: NewActionName.Abduct,
+            courtCardId: session.state.court[0].cardId
+        })
+        expect(session.state.court[0].agents).toEqual({ [a]: 1 })
+        expect(session.hydrated().getPlayerState(a).captives).toEqual({ [b]: 1 })
+    })
+
+    it('Trade swaps resources with a Rival whose city the player controls', () => {
+        const { session, players } = holding(
+            Court.ElderBroker,
+            'administration-2',
+            (state, [a, b]) => {
+                // 1H is a Material planet.
+                setBuilding(state, '1H', 0, b, BuildingKind.City)
+                setShips(state, '1H', a, 1)
+                playerIn(state, a).resources = [Resource.Psionic, null, null, null, null, null]
+                playerIn(state, b).resources = [
+                    Resource.Material,
+                    Resource.Psionic,
+                    null,
+                    null,
+                    null,
+                    null
+                ]
+            }
+        )
+        const [a, b] = players
+        const trade = { name: NewActionName.Trade, system: '1H', slot: 0, give: Resource.Psionic }
+        // They already have Psionic.
+        expect(() => session.act(a, ActionType.TakeNewAction, trade)).toThrow()
+        session.edit((state) => {
+            playerIn(state, a).resources[1] = Resource.Weapon
+        })
+        session.act(a, ActionType.TakeNewAction, { ...trade, give: Resource.Weapon })
+        const state = session.hydrated()
+        expect(state.getPlayerState(a).resourceCount(Resource.Material)).toBe(1)
+        expect(state.getPlayerState(b).resourceCount(Resource.Weapon)).toBe(1)
+        expect(state.getPlayerState(b).resourceCount(Resource.Material)).toBe(0)
     })
 })

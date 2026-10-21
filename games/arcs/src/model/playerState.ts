@@ -203,4 +203,14 @@ export class HydratedArcsPlayerState
     capture(owner: string, count: number = 1) {
         this.captives[owner] = (this.captives[owner] ?? 0) + count
     }
+
+    releaseCaptives(owner: string, count: number) {
+        const held = this.captives[owner] ?? 0
+        assert(count <= held, `Player ${this.playerId} holds only ${held} of ${owner}'s agents`)
+        if (held === count) {
+            delete this.captives[owner]
+        } else {
+            this.captives[owner] = held - count
+        }
+    }
 }

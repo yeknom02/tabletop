@@ -9,6 +9,7 @@ import { HydratedFollowCard, isFollowCard } from '../actions/followCard.js'
 import { HydratedSpendWeapon, isSpendWeapon } from '../actions/spendWeapon.js'
 import { HydratedUseCard, isUseCard } from '../actions/useCard.js'
 import { HydratedUseFarseers, isUseFarseers } from '../actions/useFarseers.js'
+import { HydratedTakeNewAction, isTakeNewAction } from '../actions/takeNewAction.js'
 import { HydratedTax, isTax } from '../actions/tax.js'
 import { HydratedBuildBuilding, isBuildBuilding } from '../actions/buildBuilding.js'
 import { HydratedBuildShip, isBuildShip } from '../actions/buildShip.js'
@@ -55,6 +56,9 @@ export class ArcsHydrator implements GameHydrator<ArcsProjectedState, HydratedAr
             }
             case isUseFarseers(data): {
                 return new HydratedUseFarseers(data)
+            }
+            case isTakeNewAction(data): {
+                return new HydratedTakeNewAction(data)
             }
             case isTax(data): {
                 return new HydratedTax(data)

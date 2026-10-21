@@ -14,8 +14,9 @@ import { HydratedSecure, isSecure } from '../actions/secure.js'
 import { HydratedSpendWeapon, isSpendWeapon } from '../actions/spendWeapon.js'
 import { HydratedBattle, isBattle } from '../actions/battle.js'
 import { HydratedUseCard, isUseCard } from '../actions/useCard.js'
-import { canUseCard } from '../model/courtEffects.js'
+import { canTakeNewAction, canUseCard, NewActions } from '../model/courtEffects.js'
 import { HydratedUseFarseers, isUseFarseers } from '../actions/useFarseers.js'
+import { HydratedTakeNewAction, isTakeNewAction } from '../actions/takeNewAction.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
 import { endChapter } from './playingCard.js'
 
@@ -31,6 +32,7 @@ type TakingActionsAction =
     | HydratedSpendWeapon
     | HydratedUseCard
     | HydratedUseFarseers
+    | HydratedTakeNewAction
     | HydratedEndTurn
 
 const ActionsByStandard: ReadonlyArray<[StandardAction, ActionType[]]> = [
@@ -63,6 +65,16 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         }
         if (isUseFarseers(action)) {
             return gameState.canUseFarseers(playerId, action.discards)
+        }
+        if (isTakeNewAction(action)) {
+            return (
+                gameState.canPay(
+                    playerId,
+                    NewActions[action.name].replaces,
+                    action.via,
+                    action.token
+                ) && canTakeNewAction(gameState, playerId, action)
+            )
         }
         if (isUseCard(action)) {
             return canUseCard(gameState, playerId, action)
@@ -149,6 +161,13 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             Resources.some((token) => gameState.canSpendResource(playerId, Resource.Weapon, token))
         ) {
             actions.push(ActionType.SpendWeapon)
+        }
+        if (
+            Object.values(NewActions).some(
+                ({ cardId, replaces }) => gameState.holds(playerId, cardId) && payable(replaces)
+            )
+        ) {
+            actions.push(ActionType.TakeNewAction)
         }
         const turn = gameState.turn
         if (

@@ -8,6 +8,7 @@ import { FollowCard } from '../actions/followCard.js'
 import { SpendWeapon } from '../actions/spendWeapon.js'
 import { UseCard } from '../actions/useCard.js'
 import { UseFarseers } from '../actions/useFarseers.js'
+import { TakeNewAction } from '../actions/takeNewAction.js'
 import { Tax } from '../actions/tax.js'
 import { BuildBuilding } from '../actions/buildBuilding.js'
 import { BuildShip } from '../actions/buildShip.js'
@@ -36,6 +37,7 @@ export const ArcsActionSchemas = {
     [ActionType.SpendWeapon]: SpendWeapon,
     [ActionType.UseCard]: UseCard,
     [ActionType.UseFarseers]: UseFarseers,
+    [ActionType.TakeNewAction]: TakeNewAction,
     [ActionType.Tax]: Tax,
     [ActionType.BuildBuilding]: BuildBuilding,
     [ActionType.BuildShip]: BuildShip,

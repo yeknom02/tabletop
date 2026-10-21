@@ -8,6 +8,7 @@ export enum ActionType {
     SpendWeapon = 'spendWeapon',
     UseCard = 'useCard',
     UseFarseers = 'useFarseers',
+    TakeNewAction = 'takeNewAction',
     Tax = 'tax',
     BuildBuilding = 'buildBuilding',
     BuildShip = 'buildShip',
