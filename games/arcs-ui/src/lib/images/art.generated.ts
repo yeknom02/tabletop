@@ -2,318 +2,364 @@
 
 import image0 from './map/map.webp'
 import image1 from './cover.webp'
-import image2 from './pieces/red-ship.webp'
-import image3 from './pieces/red-ship-damaged.webp'
-import image4 from './pieces/red-city.webp'
-import image5 from './pieces/red-city-damaged.webp'
-import image6 from './pieces/red-starport.webp'
-import image7 from './pieces/red-starport-damaged.webp'
-import image8 from './pieces/red-agent.webp'
-import image9 from './pieces/blue-ship.webp'
-import image10 from './pieces/blue-ship-damaged.webp'
-import image11 from './pieces/blue-city.webp'
-import image12 from './pieces/blue-city-damaged.webp'
-import image13 from './pieces/blue-starport.webp'
-import image14 from './pieces/blue-starport-damaged.webp'
-import image15 from './pieces/blue-agent.webp'
-import image16 from './pieces/white-ship.webp'
-import image17 from './pieces/white-ship-damaged.webp'
-import image18 from './pieces/white-city.webp'
-import image19 from './pieces/white-city-damaged.webp'
-import image20 from './pieces/white-starport.webp'
-import image21 from './pieces/white-starport-damaged.webp'
-import image22 from './pieces/white-agent.webp'
-import image23 from './pieces/yellow-ship.webp'
-import image24 from './pieces/yellow-ship-damaged.webp'
-import image25 from './pieces/yellow-city.webp'
-import image26 from './pieces/yellow-city-damaged.webp'
-import image27 from './pieces/yellow-starport.webp'
-import image28 from './pieces/yellow-starport-damaged.webp'
-import image29 from './pieces/yellow-agent.webp'
-import image30 from './pieces/empty-slot.webp'
-import image31 from './resources/material.webp'
-import image32 from './resources/fuel.webp'
-import image33 from './resources/weapon.webp'
-import image34 from './resources/relic.webp'
-import image35 from './resources/psionic.webp'
-import image36 from './dice/assault-1.webp'
-import image37 from './dice/assault-2.webp'
-import image38 from './dice/assault-3.webp'
-import image39 from './dice/assault-4.webp'
-import image40 from './dice/assault-5.webp'
-import image41 from './dice/assault-6.webp'
-import image42 from './dice/skirmish-1.webp'
-import image43 from './dice/skirmish-2.webp'
-import image44 from './dice/skirmish-3.webp'
-import image45 from './dice/skirmish-4.webp'
-import image46 from './dice/skirmish-5.webp'
-import image47 from './dice/skirmish-6.webp'
-import image48 from './dice/raid-1.webp'
-import image49 from './dice/raid-2.webp'
-import image50 from './dice/raid-3.webp'
-import image51 from './dice/raid-4.webp'
-import image52 from './dice/raid-5.webp'
-import image53 from './dice/raid-6.webp'
-import image54 from './cards/action/administration-1.webp'
-import image55 from './cards/action/administration-2.webp'
-import image56 from './cards/action/administration-3.webp'
-import image57 from './cards/action/administration-4.webp'
-import image58 from './cards/action/administration-5.webp'
-import image59 from './cards/action/administration-6.webp'
-import image60 from './cards/action/administration-7.webp'
-import image61 from './cards/action/aggression-1.webp'
-import image62 from './cards/action/aggression-2.webp'
-import image63 from './cards/action/aggression-3.webp'
-import image64 from './cards/action/aggression-4.webp'
-import image65 from './cards/action/aggression-5.webp'
-import image66 from './cards/action/aggression-6.webp'
-import image67 from './cards/action/aggression-7.webp'
-import image68 from './cards/action/construction-1.webp'
-import image69 from './cards/action/construction-2.webp'
-import image70 from './cards/action/construction-3.webp'
-import image71 from './cards/action/construction-4.webp'
-import image72 from './cards/action/construction-5.webp'
-import image73 from './cards/action/construction-6.webp'
-import image74 from './cards/action/construction-7.webp'
-import image75 from './cards/action/mobilization-1.webp'
-import image76 from './cards/action/mobilization-2.webp'
-import image77 from './cards/action/mobilization-3.webp'
-import image78 from './cards/action/mobilization-4.webp'
-import image79 from './cards/action/mobilization-5.webp'
-import image80 from './cards/action/mobilization-6.webp'
-import image81 from './cards/action/mobilization-7.webp'
-import image82 from './cards/court/BC01.webp'
-import image83 from './cards/court/BC02.webp'
-import image84 from './cards/court/BC03.webp'
-import image85 from './cards/court/BC04.webp'
-import image86 from './cards/court/BC05.webp'
-import image87 from './cards/court/BC06.webp'
-import image88 from './cards/court/BC07.webp'
-import image89 from './cards/court/BC08.webp'
-import image90 from './cards/court/BC09.webp'
-import image91 from './cards/court/BC10.webp'
-import image92 from './cards/court/BC11.webp'
-import image93 from './cards/court/BC12.webp'
-import image94 from './cards/court/BC13.webp'
-import image95 from './cards/court/BC14.webp'
-import image96 from './cards/court/BC15.webp'
-import image97 from './cards/court/BC16.webp'
-import image98 from './cards/court/BC17.webp'
-import image99 from './cards/court/BC18.webp'
-import image100 from './cards/court/BC19.webp'
-import image101 from './cards/court/BC20.webp'
-import image102 from './cards/court/BC21.webp'
-import image103 from './cards/court/BC22.webp'
-import image104 from './cards/court/BC23.webp'
-import image105 from './cards/court/BC24.webp'
-import image106 from './cards/court/BC25.webp'
-import image107 from './cards/court/BC26.webp'
-import image108 from './cards/court/BC27.webp'
-import image109 from './cards/court/BC28.webp'
-import image110 from './cards/court/BC29.webp'
-import image111 from './cards/court/BC30.webp'
-import image112 from './cards/court/BC31.webp'
-import image113 from './cards/lore/L01.webp'
-import image114 from './cards/lore/L02.webp'
-import image115 from './cards/lore/L03.webp'
-import image116 from './cards/lore/L04.webp'
-import image117 from './cards/lore/L05.webp'
-import image118 from './cards/lore/L06.webp'
-import image119 from './cards/lore/L07.webp'
-import image120 from './cards/lore/L08.webp'
-import image121 from './cards/lore/L09.webp'
-import image122 from './cards/lore/L10.webp'
-import image123 from './cards/lore/L11.webp'
-import image124 from './cards/lore/L12.webp'
-import image125 from './cards/lore/L13.webp'
-import image126 from './cards/lore/L14.webp'
-import image127 from './cards/lore/L15.webp'
-import image128 from './cards/lore/L16.webp'
-import image129 from './cards/lore/L17.webp'
-import image130 from './cards/lore/L18.webp'
-import image131 from './cards/lore/L19.webp'
-import image132 from './cards/lore/L20.webp'
-import image133 from './cards/lore/L21.webp'
-import image134 from './cards/lore/L22.webp'
-import image135 from './cards/lore/L23.webp'
-import image136 from './cards/lore/L24.webp'
-import image137 from './cards/lore/L25.webp'
-import image138 from './cards/lore/L26.webp'
-import image139 from './cards/lore/L27.webp'
-import image140 from './cards/lore/L28.webp'
-import image141 from './cards/leader/LEAD01.webp'
-import image142 from './cards/leader/LEAD02.webp'
-import image143 from './cards/leader/LEAD03.webp'
-import image144 from './cards/leader/LEAD04.webp'
-import image145 from './cards/leader/LEAD05.webp'
-import image146 from './cards/leader/LEAD06.webp'
-import image147 from './cards/leader/LEAD07.webp'
-import image148 from './cards/leader/LEAD08.webp'
-import image149 from './cards/leader/LEAD09.webp'
-import image150 from './cards/leader/LEAD10.webp'
-import image151 from './cards/leader/LEAD11.webp'
-import image152 from './cards/leader/LEAD12.webp'
-import image153 from './cards/leader/LEAD13.webp'
-import image154 from './cards/leader/LEAD14.webp'
-import image155 from './cards/leader/LEAD15.webp'
-import image156 from './cards/leader/LEAD16.webp'
+import image2 from './map/out-1.webp'
+import image3 from './map/out-2.webp'
+import image4 from './map/out-3.webp'
+import image5 from './map/out-4.webp'
+import image6 from './map/out-5.webp'
+import image7 from './map/out-6.webp'
+import image8 from './pieces/red-ship.webp'
+import image9 from './pieces/red-city.webp'
+import image10 from './pieces/red-city-damaged.webp'
+import image11 from './pieces/red-starport.webp'
+import image12 from './pieces/red-starport-damaged.webp'
+import image13 from './pieces/red-agent.webp'
+import image14 from './pieces/blue-ship.webp'
+import image15 from './pieces/blue-city.webp'
+import image16 from './pieces/blue-city-damaged.webp'
+import image17 from './pieces/blue-starport.webp'
+import image18 from './pieces/blue-starport-damaged.webp'
+import image19 from './pieces/blue-agent.webp'
+import image20 from './pieces/white-ship.webp'
+import image21 from './pieces/white-city.webp'
+import image22 from './pieces/white-city-damaged.webp'
+import image23 from './pieces/white-starport.webp'
+import image24 from './pieces/white-starport-damaged.webp'
+import image25 from './pieces/white-agent.webp'
+import image26 from './pieces/yellow-ship.webp'
+import image27 from './pieces/yellow-city.webp'
+import image28 from './pieces/yellow-city-damaged.webp'
+import image29 from './pieces/yellow-starport.webp'
+import image30 from './pieces/yellow-starport-damaged.webp'
+import image31 from './pieces/yellow-agent.webp'
+import image32 from './tokens/initiative.webp'
+import image33 from './resources/material.webp'
+import image34 from './icons/material.webp'
+import image35 from './resources/fuel.webp'
+import image36 from './icons/fuel.webp'
+import image37 from './resources/weapon.webp'
+import image38 from './icons/weapon.webp'
+import image39 from './resources/relic.webp'
+import image40 from './icons/relic.webp'
+import image41 from './resources/psionic.webp'
+import image42 from './icons/psionic.webp'
+import image43 from './icons/hit.webp'
+import image44 from './icons/self-hit.webp'
+import image45 from './icons/intercept.webp'
+import image46 from './icons/building-hit.webp'
+import image47 from './icons/key.webp'
+import image48 from './tokens/ambition-front-5-3.webp'
+import image49 from './tokens/ambition-front-3-2.webp'
+import image50 from './tokens/ambition-front-2-0.webp'
+import image51 from './tokens/ambition-back-9-4.webp'
+import image52 from './tokens/ambition-back-6-3.webp'
+import image53 from './tokens/ambition-back-4-2.webp'
+import image54 from './textures/paper.webp'
+import image55 from './textures/space.webp'
+import image56 from './cards/back-action.webp'
+import image57 from './cards/back-court.webp'
+import image58 from './cards/back-lore.webp'
+import image59 from './dice/assault-1.webp'
+import image60 from './dice/assault-2.webp'
+import image61 from './dice/assault-3.webp'
+import image62 from './dice/assault-4.webp'
+import image63 from './dice/assault-5.webp'
+import image64 from './dice/assault-6.webp'
+import image65 from './dice/skirmish-1.webp'
+import image66 from './dice/skirmish-2.webp'
+import image67 from './dice/skirmish-3.webp'
+import image68 from './dice/skirmish-4.webp'
+import image69 from './dice/skirmish-5.webp'
+import image70 from './dice/skirmish-6.webp'
+import image71 from './dice/raid-1.webp'
+import image72 from './dice/raid-2.webp'
+import image73 from './dice/raid-3.webp'
+import image74 from './dice/raid-4.webp'
+import image75 from './dice/raid-5.webp'
+import image76 from './dice/raid-6.webp'
+import image77 from './cards/action/administration-1.webp'
+import image78 from './cards/action/administration-2.webp'
+import image79 from './cards/action/administration-3.webp'
+import image80 from './cards/action/administration-4.webp'
+import image81 from './cards/action/administration-5.webp'
+import image82 from './cards/action/administration-6.webp'
+import image83 from './cards/action/administration-7.webp'
+import image84 from './cards/action/aggression-1.webp'
+import image85 from './cards/action/aggression-2.webp'
+import image86 from './cards/action/aggression-3.webp'
+import image87 from './cards/action/aggression-4.webp'
+import image88 from './cards/action/aggression-5.webp'
+import image89 from './cards/action/aggression-6.webp'
+import image90 from './cards/action/aggression-7.webp'
+import image91 from './cards/action/construction-1.webp'
+import image92 from './cards/action/construction-2.webp'
+import image93 from './cards/action/construction-3.webp'
+import image94 from './cards/action/construction-4.webp'
+import image95 from './cards/action/construction-5.webp'
+import image96 from './cards/action/construction-6.webp'
+import image97 from './cards/action/construction-7.webp'
+import image98 from './cards/action/mobilization-1.webp'
+import image99 from './cards/action/mobilization-2.webp'
+import image100 from './cards/action/mobilization-3.webp'
+import image101 from './cards/action/mobilization-4.webp'
+import image102 from './cards/action/mobilization-5.webp'
+import image103 from './cards/action/mobilization-6.webp'
+import image104 from './cards/action/mobilization-7.webp'
+import image105 from './cards/court/BC01.webp'
+import image106 from './cards/court/BC02.webp'
+import image107 from './cards/court/BC03.webp'
+import image108 from './cards/court/BC04.webp'
+import image109 from './cards/court/BC05.webp'
+import image110 from './cards/court/BC06.webp'
+import image111 from './cards/court/BC07.webp'
+import image112 from './cards/court/BC08.webp'
+import image113 from './cards/court/BC09.webp'
+import image114 from './cards/court/BC10.webp'
+import image115 from './cards/court/BC11.webp'
+import image116 from './cards/court/BC12.webp'
+import image117 from './cards/court/BC13.webp'
+import image118 from './cards/court/BC14.webp'
+import image119 from './cards/court/BC15.webp'
+import image120 from './cards/court/BC16.webp'
+import image121 from './cards/court/BC17.webp'
+import image122 from './cards/court/BC18.webp'
+import image123 from './cards/court/BC19.webp'
+import image124 from './cards/court/BC20.webp'
+import image125 from './cards/court/BC21.webp'
+import image126 from './cards/court/BC22.webp'
+import image127 from './cards/court/BC23.webp'
+import image128 from './cards/court/BC24.webp'
+import image129 from './cards/court/BC25.webp'
+import image130 from './cards/court/BC26.webp'
+import image131 from './cards/court/BC27.webp'
+import image132 from './cards/court/BC28.webp'
+import image133 from './cards/court/BC29.webp'
+import image134 from './cards/court/BC30.webp'
+import image135 from './cards/court/BC31.webp'
+import image136 from './cards/lore/L01.webp'
+import image137 from './cards/lore/L02.webp'
+import image138 from './cards/lore/L03.webp'
+import image139 from './cards/lore/L04.webp'
+import image140 from './cards/lore/L05.webp'
+import image141 from './cards/lore/L06.webp'
+import image142 from './cards/lore/L07.webp'
+import image143 from './cards/lore/L08.webp'
+import image144 from './cards/lore/L09.webp'
+import image145 from './cards/lore/L10.webp'
+import image146 from './cards/lore/L11.webp'
+import image147 from './cards/lore/L12.webp'
+import image148 from './cards/lore/L13.webp'
+import image149 from './cards/lore/L14.webp'
+import image150 from './cards/lore/L15.webp'
+import image151 from './cards/lore/L16.webp'
+import image152 from './cards/lore/L17.webp'
+import image153 from './cards/lore/L18.webp'
+import image154 from './cards/lore/L19.webp'
+import image155 from './cards/lore/L20.webp'
+import image156 from './cards/lore/L21.webp'
+import image157 from './cards/lore/L22.webp'
+import image158 from './cards/lore/L23.webp'
+import image159 from './cards/lore/L24.webp'
+import image160 from './cards/lore/L25.webp'
+import image161 from './cards/lore/L26.webp'
+import image162 from './cards/lore/L27.webp'
+import image163 from './cards/lore/L28.webp'
+import image164 from './cards/leader/LEAD01.webp'
+import image165 from './cards/leader/LEAD02.webp'
+import image166 from './cards/leader/LEAD03.webp'
+import image167 from './cards/leader/LEAD04.webp'
+import image168 from './cards/leader/LEAD05.webp'
+import image169 from './cards/leader/LEAD06.webp'
+import image170 from './cards/leader/LEAD07.webp'
+import image171 from './cards/leader/LEAD08.webp'
+import image172 from './cards/leader/LEAD09.webp'
+import image173 from './cards/leader/LEAD10.webp'
+import image174 from './cards/leader/LEAD11.webp'
+import image175 from './cards/leader/LEAD12.webp'
+import image176 from './cards/leader/LEAD13.webp'
+import image177 from './cards/leader/LEAD14.webp'
+import image178 from './cards/leader/LEAD15.webp'
+import image179 from './cards/leader/LEAD16.webp'
 
 export const Art: Readonly<Record<string, string>> = {
     'map/map': image0,
     cover: image1,
-    'pieces/red-ship': image2,
-    'pieces/red-ship-damaged': image3,
-    'pieces/red-city': image4,
-    'pieces/red-city-damaged': image5,
-    'pieces/red-starport': image6,
-    'pieces/red-starport-damaged': image7,
-    'pieces/red-agent': image8,
-    'pieces/blue-ship': image9,
-    'pieces/blue-ship-damaged': image10,
-    'pieces/blue-city': image11,
-    'pieces/blue-city-damaged': image12,
-    'pieces/blue-starport': image13,
-    'pieces/blue-starport-damaged': image14,
-    'pieces/blue-agent': image15,
-    'pieces/white-ship': image16,
-    'pieces/white-ship-damaged': image17,
-    'pieces/white-city': image18,
-    'pieces/white-city-damaged': image19,
-    'pieces/white-starport': image20,
-    'pieces/white-starport-damaged': image21,
-    'pieces/white-agent': image22,
-    'pieces/yellow-ship': image23,
-    'pieces/yellow-ship-damaged': image24,
-    'pieces/yellow-city': image25,
-    'pieces/yellow-city-damaged': image26,
-    'pieces/yellow-starport': image27,
-    'pieces/yellow-starport-damaged': image28,
-    'pieces/yellow-agent': image29,
-    'pieces/empty-slot': image30,
-    'resources/material': image31,
-    'resources/fuel': image32,
-    'resources/weapon': image33,
-    'resources/relic': image34,
-    'resources/psionic': image35,
-    'dice/assault-1': image36,
-    'dice/assault-2': image37,
-    'dice/assault-3': image38,
-    'dice/assault-4': image39,
-    'dice/assault-5': image40,
-    'dice/assault-6': image41,
-    'dice/skirmish-1': image42,
-    'dice/skirmish-2': image43,
-    'dice/skirmish-3': image44,
-    'dice/skirmish-4': image45,
-    'dice/skirmish-5': image46,
-    'dice/skirmish-6': image47,
-    'dice/raid-1': image48,
-    'dice/raid-2': image49,
-    'dice/raid-3': image50,
-    'dice/raid-4': image51,
-    'dice/raid-5': image52,
-    'dice/raid-6': image53,
-    'cards/action/administration-1': image54,
-    'cards/action/administration-2': image55,
-    'cards/action/administration-3': image56,
-    'cards/action/administration-4': image57,
-    'cards/action/administration-5': image58,
-    'cards/action/administration-6': image59,
-    'cards/action/administration-7': image60,
-    'cards/action/aggression-1': image61,
-    'cards/action/aggression-2': image62,
-    'cards/action/aggression-3': image63,
-    'cards/action/aggression-4': image64,
-    'cards/action/aggression-5': image65,
-    'cards/action/aggression-6': image66,
-    'cards/action/aggression-7': image67,
-    'cards/action/construction-1': image68,
-    'cards/action/construction-2': image69,
-    'cards/action/construction-3': image70,
-    'cards/action/construction-4': image71,
-    'cards/action/construction-5': image72,
-    'cards/action/construction-6': image73,
-    'cards/action/construction-7': image74,
-    'cards/action/mobilization-1': image75,
-    'cards/action/mobilization-2': image76,
-    'cards/action/mobilization-3': image77,
-    'cards/action/mobilization-4': image78,
-    'cards/action/mobilization-5': image79,
-    'cards/action/mobilization-6': image80,
-    'cards/action/mobilization-7': image81,
-    'cards/court/BC01': image82,
-    'cards/court/BC02': image83,
-    'cards/court/BC03': image84,
-    'cards/court/BC04': image85,
-    'cards/court/BC05': image86,
-    'cards/court/BC06': image87,
-    'cards/court/BC07': image88,
-    'cards/court/BC08': image89,
-    'cards/court/BC09': image90,
-    'cards/court/BC10': image91,
-    'cards/court/BC11': image92,
-    'cards/court/BC12': image93,
-    'cards/court/BC13': image94,
-    'cards/court/BC14': image95,
-    'cards/court/BC15': image96,
-    'cards/court/BC16': image97,
-    'cards/court/BC17': image98,
-    'cards/court/BC18': image99,
-    'cards/court/BC19': image100,
-    'cards/court/BC20': image101,
-    'cards/court/BC21': image102,
-    'cards/court/BC22': image103,
-    'cards/court/BC23': image104,
-    'cards/court/BC24': image105,
-    'cards/court/BC25': image106,
-    'cards/court/BC26': image107,
-    'cards/court/BC27': image108,
-    'cards/court/BC28': image109,
-    'cards/court/BC29': image110,
-    'cards/court/BC30': image111,
-    'cards/court/BC31': image112,
-    'cards/lore/L01': image113,
-    'cards/lore/L02': image114,
-    'cards/lore/L03': image115,
-    'cards/lore/L04': image116,
-    'cards/lore/L05': image117,
-    'cards/lore/L06': image118,
-    'cards/lore/L07': image119,
-    'cards/lore/L08': image120,
-    'cards/lore/L09': image121,
-    'cards/lore/L10': image122,
-    'cards/lore/L11': image123,
-    'cards/lore/L12': image124,
-    'cards/lore/L13': image125,
-    'cards/lore/L14': image126,
-    'cards/lore/L15': image127,
-    'cards/lore/L16': image128,
-    'cards/lore/L17': image129,
-    'cards/lore/L18': image130,
-    'cards/lore/L19': image131,
-    'cards/lore/L20': image132,
-    'cards/lore/L21': image133,
-    'cards/lore/L22': image134,
-    'cards/lore/L23': image135,
-    'cards/lore/L24': image136,
-    'cards/lore/L25': image137,
-    'cards/lore/L26': image138,
-    'cards/lore/L27': image139,
-    'cards/lore/L28': image140,
-    'cards/leader/LEAD01': image141,
-    'cards/leader/LEAD02': image142,
-    'cards/leader/LEAD03': image143,
-    'cards/leader/LEAD04': image144,
-    'cards/leader/LEAD05': image145,
-    'cards/leader/LEAD06': image146,
-    'cards/leader/LEAD07': image147,
-    'cards/leader/LEAD08': image148,
-    'cards/leader/LEAD09': image149,
-    'cards/leader/LEAD10': image150,
-    'cards/leader/LEAD11': image151,
-    'cards/leader/LEAD12': image152,
-    'cards/leader/LEAD13': image153,
-    'cards/leader/LEAD14': image154,
-    'cards/leader/LEAD15': image155,
-    'cards/leader/LEAD16': image156
+    'map/out-1': image2,
+    'map/out-2': image3,
+    'map/out-3': image4,
+    'map/out-4': image5,
+    'map/out-5': image6,
+    'map/out-6': image7,
+    'pieces/red-ship': image8,
+    'pieces/red-city': image9,
+    'pieces/red-city-damaged': image10,
+    'pieces/red-starport': image11,
+    'pieces/red-starport-damaged': image12,
+    'pieces/red-agent': image13,
+    'pieces/blue-ship': image14,
+    'pieces/blue-city': image15,
+    'pieces/blue-city-damaged': image16,
+    'pieces/blue-starport': image17,
+    'pieces/blue-starport-damaged': image18,
+    'pieces/blue-agent': image19,
+    'pieces/white-ship': image20,
+    'pieces/white-city': image21,
+    'pieces/white-city-damaged': image22,
+    'pieces/white-starport': image23,
+    'pieces/white-starport-damaged': image24,
+    'pieces/white-agent': image25,
+    'pieces/yellow-ship': image26,
+    'pieces/yellow-city': image27,
+    'pieces/yellow-city-damaged': image28,
+    'pieces/yellow-starport': image29,
+    'pieces/yellow-starport-damaged': image30,
+    'pieces/yellow-agent': image31,
+    'tokens/initiative': image32,
+    'resources/material': image33,
+    'icons/material': image34,
+    'resources/fuel': image35,
+    'icons/fuel': image36,
+    'resources/weapon': image37,
+    'icons/weapon': image38,
+    'resources/relic': image39,
+    'icons/relic': image40,
+    'resources/psionic': image41,
+    'icons/psionic': image42,
+    'icons/hit': image43,
+    'icons/self-hit': image44,
+    'icons/intercept': image45,
+    'icons/building-hit': image46,
+    'icons/key': image47,
+    'tokens/ambition-front-5-3': image48,
+    'tokens/ambition-front-3-2': image49,
+    'tokens/ambition-front-2-0': image50,
+    'tokens/ambition-back-9-4': image51,
+    'tokens/ambition-back-6-3': image52,
+    'tokens/ambition-back-4-2': image53,
+    'textures/paper': image54,
+    'textures/space': image55,
+    'cards/back-action': image56,
+    'cards/back-court': image57,
+    'cards/back-lore': image58,
+    'dice/assault-1': image59,
+    'dice/assault-2': image60,
+    'dice/assault-3': image61,
+    'dice/assault-4': image62,
+    'dice/assault-5': image63,
+    'dice/assault-6': image64,
+    'dice/skirmish-1': image65,
+    'dice/skirmish-2': image66,
+    'dice/skirmish-3': image67,
+    'dice/skirmish-4': image68,
+    'dice/skirmish-5': image69,
+    'dice/skirmish-6': image70,
+    'dice/raid-1': image71,
+    'dice/raid-2': image72,
+    'dice/raid-3': image73,
+    'dice/raid-4': image74,
+    'dice/raid-5': image75,
+    'dice/raid-6': image76,
+    'cards/action/administration-1': image77,
+    'cards/action/administration-2': image78,
+    'cards/action/administration-3': image79,
+    'cards/action/administration-4': image80,
+    'cards/action/administration-5': image81,
+    'cards/action/administration-6': image82,
+    'cards/action/administration-7': image83,
+    'cards/action/aggression-1': image84,
+    'cards/action/aggression-2': image85,
+    'cards/action/aggression-3': image86,
+    'cards/action/aggression-4': image87,
+    'cards/action/aggression-5': image88,
+    'cards/action/aggression-6': image89,
+    'cards/action/aggression-7': image90,
+    'cards/action/construction-1': image91,
+    'cards/action/construction-2': image92,
+    'cards/action/construction-3': image93,
+    'cards/action/construction-4': image94,
+    'cards/action/construction-5': image95,
+    'cards/action/construction-6': image96,
+    'cards/action/construction-7': image97,
+    'cards/action/mobilization-1': image98,
+    'cards/action/mobilization-2': image99,
+    'cards/action/mobilization-3': image100,
+    'cards/action/mobilization-4': image101,
+    'cards/action/mobilization-5': image102,
+    'cards/action/mobilization-6': image103,
+    'cards/action/mobilization-7': image104,
+    'cards/court/BC01': image105,
+    'cards/court/BC02': image106,
+    'cards/court/BC03': image107,
+    'cards/court/BC04': image108,
+    'cards/court/BC05': image109,
+    'cards/court/BC06': image110,
+    'cards/court/BC07': image111,
+    'cards/court/BC08': image112,
+    'cards/court/BC09': image113,
+    'cards/court/BC10': image114,
+    'cards/court/BC11': image115,
+    'cards/court/BC12': image116,
+    'cards/court/BC13': image117,
+    'cards/court/BC14': image118,
+    'cards/court/BC15': image119,
+    'cards/court/BC16': image120,
+    'cards/court/BC17': image121,
+    'cards/court/BC18': image122,
+    'cards/court/BC19': image123,
+    'cards/court/BC20': image124,
+    'cards/court/BC21': image125,
+    'cards/court/BC22': image126,
+    'cards/court/BC23': image127,
+    'cards/court/BC24': image128,
+    'cards/court/BC25': image129,
+    'cards/court/BC26': image130,
+    'cards/court/BC27': image131,
+    'cards/court/BC28': image132,
+    'cards/court/BC29': image133,
+    'cards/court/BC30': image134,
+    'cards/court/BC31': image135,
+    'cards/lore/L01': image136,
+    'cards/lore/L02': image137,
+    'cards/lore/L03': image138,
+    'cards/lore/L04': image139,
+    'cards/lore/L05': image140,
+    'cards/lore/L06': image141,
+    'cards/lore/L07': image142,
+    'cards/lore/L08': image143,
+    'cards/lore/L09': image144,
+    'cards/lore/L10': image145,
+    'cards/lore/L11': image146,
+    'cards/lore/L12': image147,
+    'cards/lore/L13': image148,
+    'cards/lore/L14': image149,
+    'cards/lore/L15': image150,
+    'cards/lore/L16': image151,
+    'cards/lore/L17': image152,
+    'cards/lore/L18': image153,
+    'cards/lore/L19': image154,
+    'cards/lore/L20': image155,
+    'cards/lore/L21': image156,
+    'cards/lore/L22': image157,
+    'cards/lore/L23': image158,
+    'cards/lore/L24': image159,
+    'cards/lore/L25': image160,
+    'cards/lore/L26': image161,
+    'cards/lore/L27': image162,
+    'cards/lore/L28': image163,
+    'cards/leader/LEAD01': image164,
+    'cards/leader/LEAD02': image165,
+    'cards/leader/LEAD03': image166,
+    'cards/leader/LEAD04': image167,
+    'cards/leader/LEAD05': image168,
+    'cards/leader/LEAD06': image169,
+    'cards/leader/LEAD07': image170,
+    'cards/leader/LEAD08': image171,
+    'cards/leader/LEAD09': image172,
+    'cards/leader/LEAD10': image173,
+    'cards/leader/LEAD11': image174,
+    'cards/leader/LEAD12': image175,
+    'cards/leader/LEAD13': image176,
+    'cards/leader/LEAD14': image177,
+    'cards/leader/LEAD15': image178,
+    'cards/leader/LEAD16': image179
 }

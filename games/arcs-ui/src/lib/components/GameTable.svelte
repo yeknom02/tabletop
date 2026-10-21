@@ -1,6 +1,7 @@
 <script lang="ts">
     import { untrack } from 'svelte'
     import {
+        CustomFont,
         DefaultTableLayout,
         DefaultTabs,
         GameChat,
@@ -16,6 +17,8 @@
     import History from '$lib/components/History.svelte'
     import { ArcsGameSession } from '$lib/model/session.svelte'
     import { setGameSession } from '$lib/model/sessionContext.svelte'
+    import Cinzel from '$lib/fonts/Cinzel-Latin.woff2'
+    import Jost from '$lib/fonts/Jost-Latin.woff2'
 
     let { gameSession }: { gameSession: GameSession<ArcsProjectedState, HydratedArcsGameState> } =
         $props()
@@ -32,6 +35,9 @@
     const arcsSession = untrack(() => ensureArcsGameSession(gameSession))
     setGameSession(arcsSession)
 </script>
+
+<CustomFont fontFamily="Arcs Cinzel" url={Cinzel} format="woff2" fontWeight="400 900" />
+<CustomFont fontFamily="Arcs Jost" url={Jost} format="woff2" fontWeight="100 900" />
 
 <div class="arcs-table" aria-busy={gameSession.busy}>
     <DefaultTableLayout>
@@ -76,6 +82,7 @@
         --arcs-ink: #e9e2d0;
         --arcs-muted: #9aa0ad;
         min-height: 100%;
+        font-family: 'Arcs Jost', sans-serif;
         background: radial-gradient(ellipse at top, #1b2233, var(--arcs-space) 70%);
         color: var(--arcs-ink);
     }

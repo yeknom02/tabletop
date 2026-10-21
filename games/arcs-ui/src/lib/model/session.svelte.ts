@@ -1,6 +1,12 @@
 import { GameSession } from '@tabletop/frontend-components'
 import { assertExists } from '@tabletop/common'
 import {
+    chooseHandCard,
+    hasManualArcsSelection,
+    popArcsSelection,
+    type ArcsSelection
+} from './stagedSelection.js'
+import {
     actionCard,
     ActionType,
     Ambition,
@@ -30,9 +36,16 @@ export type HandCardChoice = {
 export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArcsGameState> {
     private readonly canAct = $derived(this.isPlayable && !this.isViewingHistory && this.isMyTurn)
 
+    private selection: ArcsSelection = $state({})
+    readonly hasManualSelection = $derived(hasManualArcsSelection(this.selection))
+
     readonly canUndo = $derived(
-        this.isPlayable && !this.isViewingHistory && Boolean(this.undoableAction)
+        this.isPlayable &&
+            !this.isViewingHistory &&
+            (this.hasManualSelection || Boolean(this.undoableAction))
     )
+
+    readonly chosenHandCard = $derived(this.selection.handCard?.value)
 
     readonly machineState = $derived(this.gameState.machineState)
 
@@ -69,6 +82,28 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
 
     readonly possessiveName = (playerId: string): string =>
         playerId === this.myPlayer?.id ? 'your' : `${this.getPlayerName(playerId)}'s`
+
+    override beforeNewState() {
+        this.resetAction()
+    }
+
+    resetAction() {
+        this.selection = {}
+    }
+
+    override async undo() {
+        if (!this.canUndo || this.busy) return
+        if (this.hasManualSelection) {
+            this.selection = popArcsSelection(this.selection)
+            return
+        }
+        await super.undo()
+    }
+
+    chooseHandCard(cardId: string) {
+        this.selection =
+            this.chosenHandCard === cardId ? {} : chooseHandCard(this.selection, cardId)
+    }
 
     async draft(cardId: string, kind: DraftKind) {
         await this.applyAction(this.createPlayerAction(DraftCard, { cardId, kind }))

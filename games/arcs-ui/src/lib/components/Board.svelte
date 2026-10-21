@@ -1,8 +1,10 @@
 <script lang="ts">
-    import { MapArt } from '$lib/utils/art.js'
-    import { MapSize, systemLayout } from '$lib/utils/mapLayout.js'
+    import { MapArt, outOfPlayArt } from '$lib/utils/art.js'
+    import { MapSize, SideColumnWidth, systemLayout } from '$lib/utils/mapLayout.js'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import SystemPieces from '$lib/components/map/SystemPieces.svelte'
+    import Ambitions from '$lib/components/board/Ambitions.svelte'
+    import Court from '$lib/components/board/Court.svelte'
 
     const gameSession = getGameSession()
     const layouts = $derived(
@@ -10,48 +12,58 @@
             .filter((system) => gameSession.gameState.inPlay(system.id))
             .map((system) => systemLayout(system))
     )
-    const outOfPlay = $derived(
-        gameSession.gameState.systems.filter((system) => !gameSession.gameState.inPlay(system.id))
-    )
 </script>
 
-<div class="board" style:width="{MapSize.width}px" style:height="{MapSize.height}px">
-    <img class="map" src={MapArt} alt="The Reach" draggable="false" />
-    {#each outOfPlay as system (system.id)}
-        <div
-            class="out-of-play"
-            style:left="{systemLayout(system).anchor.x}px"
-            style:top="{systemLayout(system).anchor.y}px"
-        >
-            Out of play
-        </div>
-    {/each}
-    {#each layouts as layout (layout.id)}
-        <SystemPieces {layout} />
-    {/each}
+<div
+    class="board"
+    style:width="{MapSize.width + SideColumnWidth}px"
+    style:height="{MapSize.height}px"
+>
+    <div class="map" style:width="{MapSize.width}px" style:height="{MapSize.height}px">
+        <img class="layer" src={MapArt} alt="The Reach" draggable="false" />
+        {#each gameSession.gameState.outOfPlay as cluster (cluster)}
+            <img
+                class="layer"
+                src={outOfPlayArt(cluster)}
+                alt="Cluster {cluster} is out of play"
+                draggable="false"
+            />
+        {/each}
+        {#each layouts as layout (layout.id)}
+            <SystemPieces {layout} />
+        {/each}
+    </div>
+    <div class="side" style:width="{SideColumnWidth}px">
+        <Ambitions />
+        <Court />
+    </div>
 </div>
 
 <style>
     .board {
         position: relative;
+        display: flex;
         user-select: none;
+        font-family: 'Arcs Jost', sans-serif;
     }
 
     .map {
+        position: relative;
+        flex: none;
+    }
+
+    .layer {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
+        pointer-events: none;
     }
 
-    .out-of-play {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        padding: 4px 12px;
-        border-radius: 6px;
-        background: rgb(0 0 0 / 0.6);
-        color: #aaa;
-        font-size: 28px;
-        white-space: nowrap;
+    .side {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        padding: 28px 28px 28px 36px;
     }
 </style>

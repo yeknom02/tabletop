@@ -34,7 +34,8 @@
         gap: 12px;
         height: 44px;
         padding: 0 14px;
-        font-family: 'Cinzel', Georgia, serif;
+        font-family: 'Arcs Cinzel', Georgia, serif;
+        font-weight: 700;
         letter-spacing: 0.04em;
     }
 

@@ -4,6 +4,9 @@ import { isGate, type SystemId, type SystemState, type Building } from '@tableto
 // The map art's own pixel size; everything on the board is laid out in these units.
 export const MapSize = { width: 2528, height: 1776 }
 
+// The column beside the map for the ambitions and the Court.
+export const SideColumnWidth = 820
+
 const MapCentre: Point = { x: 1264, y: 888 }
 
 // Where HRF lays each system's pieces, on the inner end of its wedge or on its gate.
@@ -34,9 +37,9 @@ const SystemAnchors: Readonly<Record<SystemId, Point>> = {
     '6H': { x: 830, y: 450 }
 }
 
-export const BuildingSize = 84
-export const ShipWidth = 92
-const ShipRowGap = 52
+export const BuildingSize = 88
+export const ShipWidth = 96
+const ShipRowGap = 70
 const BuildingGap = 8
 
 export type PlacedBuilding = {
