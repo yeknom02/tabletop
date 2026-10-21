@@ -60,7 +60,8 @@ import {
     SystemState,
     TrophyKind,
     type Building,
-    type ShipCount
+    type ShipCount,
+    type StealTarget
 } from './pieces.js'
 import {
     BattleState,
@@ -788,6 +789,7 @@ export class HydratedArcsGameState
     ) {
         assert(this.canPay(playerId, action, via, token), `${playerId} cannot ${action} that way`)
         const turn = this.currentTurn()
+        turn.acted = true
         if (token === undefined) {
             turn.pips -= 1
             this.endPrelude()
@@ -804,6 +806,7 @@ export class HydratedArcsGameState
             `${playerId} cannot spend a Weapon`
         )
         const turn = this.currentTurn()
+        turn.acted = true
         this.getPlayerState(playerId).removeResource(token)
         turn.spent[token] += 1
         turn.weaponSpent = true
@@ -1474,21 +1477,14 @@ export class HydratedArcsGameState
     // The keys a raid on this target costs, if the defender has it: a resource slot or a Guild
     // card (rule 7.7.5).
     raidCost(target: RaidTarget): number | undefined {
-        const defender = this.getPlayerState(this.currentBattle().defender)
-        // Sworn Guardians protects everything else its holder has, until it is stolen itself.
-        if (
-            defender.guildCards.includes(Court.SwornGuardians) &&
-            target.cardId !== Court.SwornGuardians
-        ) {
+        const battle = this.currentBattle()
+        if (!this.canSteal(battle.attacker, { playerId: battle.defender, ...target })) {
             return undefined
         }
         if (target.slot !== undefined) {
-            return defender.resources[target.slot] ? ResourceSlotRaidCosts[target.slot] : undefined
+            return ResourceSlotRaidCosts[target.slot]
         }
-        if (target.cardId !== undefined && defender.guildCards.includes(target.cardId)) {
-            return CourtCards.find((card) => card.id === target.cardId)?.raidCost
-        }
-        return undefined
+        return CourtCards.find((card) => card.id === target.cardId)?.raidCost
     }
 
     // Raiding needs an attacking ship left and enough keys for something.
@@ -1514,18 +1510,12 @@ export class HydratedArcsGameState
         if (battle?.step !== BattleStep.Raid || battle.attacker !== playerId) {
             return false
         }
-        if ((target.slot === undefined) === (target.cardId === undefined)) {
-            return false
-        }
         const cost = this.raidCost(target)
-        if (cost === undefined || cost > battle.keys) {
-            return false
-        }
-        if (target.slot === undefined) {
-            return discard === undefined
-        }
-        const stolen = this.getPlayerState(battle.defender).resources[target.slot]
-        return stolen !== null && this.getPlayerState(playerId).canGain(stolen, discard)
+        return (
+            cost !== undefined &&
+            cost <= battle.keys &&
+            this.canStealAndGain(playerId, { playerId: battle.defender, ...target }, discard)
+        )
     }
 
     // Steals one resource or Guild card. A stolen resource goes into an empty slot; with none
@@ -1533,30 +1523,12 @@ export class HydratedArcsGameState
     raid(playerId: string, target: RaidTarget, discard?: Resource): RaidResult {
         assert(this.canRaid(playerId, target, discard), `${playerId} cannot raid that`)
         const battle = this.currentBattle()
-        const defender = this.getPlayerState(battle.defender)
-        const cost = this.raidCost(target) ?? 0
-        battle.keys -= cost
-        const result: RaidResult = {}
-        if (target.slot !== undefined) {
-            const stolen = defender.resources[target.slot]
-            assertExists(stolen, 'The raided slot holds a resource')
-            defender.resources[target.slot] = null
-            result.resource = stolen
-            const discarded = this.getPlayerState(playerId).gain(stolen, discard)
-            if (discarded) {
-                this.supply[discarded] += 1
-                result.discarded = discarded
-            }
-        } else if (target.cardId !== undefined) {
-            defender.guildCards = defender.guildCards.filter((cardId) => cardId !== target.cardId)
-            // Stolen Sworn Guardians are buried.
-            if (target.cardId === Court.SwornGuardians) {
-                this.courtDeck.putOnBottom(target.cardId)
-            } else {
-                this.getPlayerState(playerId).guildCards.push(target.cardId)
-            }
-            result.cardId = target.cardId
-        }
+        battle.keys -= this.raidCost(target) ?? 0
+        const result = this.stealAndGain(
+            playerId,
+            { playerId: battle.defender, ...target },
+            discard
+        )
         this.advanceBattle()
         return result
     }
@@ -1583,6 +1555,119 @@ export class HydratedArcsGameState
     endBattle(playerId: string) {
         assert(this.canEndBattle(playerId), `${playerId} has no battle to end`)
         this.battle = undefined
+    }
+
+    // ----- Court card Prelude actions that draw -----
+
+    canUseFarseers(playerId: string, discards: readonly string[]): boolean {
+        const turn = this.turn
+        if (
+            this.machineState !== MachineState.TakingActions ||
+            turn?.playerId !== playerId ||
+            !turn.prelude ||
+            !this.holds(playerId, Court.Farseers) ||
+            turn.securedInPrelude.includes(Court.Farseers)
+        ) {
+            return false
+        }
+        const hand = [...(this.getPlayerState(playerId).hand ?? [])]
+        return discards.every((cardId) => {
+            const index = hand.indexOf(cardId)
+            if (index >= 0) {
+                hand.splice(index, 1)
+            }
+            return index >= 0
+        })
+    }
+
+    // The discarded cards go shuffled onto the action discard pile before the draw, so a small
+    // pile can give them back. Returns how many cards were drawn.
+    useFarseers(playerId: string, discards: readonly string[]): number {
+        assert(this.canUseFarseers(playerId, discards), `${playerId} cannot use Farseers so`)
+        this.currentTurn().acted = true
+        const player = this.getPlayerState(playerId)
+        player.guildCards = player.guildCards.filter((cardId) => cardId !== Court.Farseers)
+        this.courtDiscard.push(Court.Farseers)
+        for (const cardId of discards) {
+            player.removeFromHand(cardId)
+        }
+        const shuffled = [...discards]
+        shuffle(shuffled, this.getProtectedPrng().random)
+        this.actionDiscard.putOnTop(shuffled)
+        const drawn = this.actionDiscard.drawFromBottom(discards.length + 1)
+        player.takeIntoHand(drawn)
+        return drawn.length
+    }
+
+    // ----- Stealing -----
+
+    // A Rival's resource or Guild card. Sworn Guardians protect all their holder's others.
+    canSteal(thief: string, target: StealTarget): boolean {
+        if (target.playerId === thief || !this.turnManager.turnOrder.includes(target.playerId)) {
+            return false
+        }
+        if ((target.slot === undefined) === (target.cardId === undefined)) {
+            return false
+        }
+        const victim = this.getPlayerState(target.playerId)
+        if (
+            victim.guildCards.includes(Court.SwornGuardians) &&
+            target.cardId !== Court.SwornGuardians
+        ) {
+            return false
+        }
+        if (target.slot !== undefined) {
+            return (victim.resources[target.slot] ?? null) !== null
+        }
+        return target.cardId !== undefined && victim.guildCards.includes(target.cardId)
+    }
+
+    // Takes it from the Rival. A stolen Guild card joins the thief's, except that stolen Sworn
+    // Guardians are buried; a stolen resource is returned for the thief to gain.
+    steal(thief: string, target: StealTarget): { resource?: Resource; cardId?: string } {
+        assert(this.canSteal(thief, target), `${thief} cannot steal that`)
+        const victim = this.getPlayerState(target.playerId)
+        if (target.slot !== undefined) {
+            const resource = victim.resources[target.slot]
+            assertExists(resource, 'The slot holds a resource')
+            victim.resources[target.slot] = null
+            return { resource }
+        }
+        const cardId = target.cardId
+        assertExists(cardId, 'A Guild card is named')
+        victim.guildCards = victim.guildCards.filter((held) => held !== cardId)
+        if (cardId === Court.SwornGuardians) {
+            this.courtDeck.putOnBottom(cardId)
+        } else {
+            this.getPlayerState(thief).guildCards.push(cardId)
+        }
+        return { cardId }
+    }
+
+    // Whether the thief can steal this and hold it, discarding `discard` if their slots are full.
+    canStealAndGain(thief: string, target: StealTarget, discard?: Resource): boolean {
+        if (!this.canSteal(thief, target)) {
+            return false
+        }
+        if (target.slot === undefined) {
+            return discard === undefined
+        }
+        const resource = this.getPlayerState(target.playerId).resources[target.slot]
+        return resource !== null && this.getPlayerState(thief).canGain(resource, discard)
+    }
+
+    stealAndGain(thief: string, target: StealTarget, discard?: Resource): RaidResult {
+        assert(this.canStealAndGain(thief, target, discard), `${thief} cannot steal that`)
+        const stolen = this.steal(thief, target)
+        const result: RaidResult = { ...stolen }
+        if (stolen.resource !== undefined) {
+            const discarded = this.getPlayerState(thief).gain(stolen.resource, discard)
+            if (discarded !== undefined) {
+                this.supply[discarded] += 1
+                result.discarded = discarded
+            }
+        }
+        return result
     }
 
     // ----- Elimination -----
@@ -1833,11 +1918,18 @@ export class HydratedArcsGameState
         return { awards, gameOver: false }
     }
 
+    // Unions take their claimed cards back to hand first.
     discardPlayedCards() {
+        const claimed = new Set<string>()
+        for (const union of this.round.unions) {
+            this.getPlayerState(union.playerId).takeIntoHand([union.actionCardId])
+            this.courtDiscard.push(union.unionId)
+            claimed.add(union.actionCardId)
+        }
         for (const play of this.round.plays) {
             const faceDown = play.faceDown ?? []
             this.actionDiscard.putOnTop(faceDown)
-            if (play.cardId) {
+            if (play.cardId && !claimed.has(play.cardId)) {
                 if (this.splitDiscards) {
                     this.faceUpDiscard.push(play.cardId)
                 } else {

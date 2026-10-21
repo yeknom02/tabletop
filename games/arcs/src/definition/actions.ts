@@ -6,6 +6,8 @@ export enum ActionType {
     PassInitiative = 'passInitiative',
     FollowCard = 'followCard',
     SpendWeapon = 'spendWeapon',
+    UseCard = 'useCard',
+    UseFarseers = 'useFarseers',
     Tax = 'tax',
     BuildBuilding = 'buildBuilding',
     BuildShip = 'buildShip',

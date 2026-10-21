@@ -57,3 +57,11 @@ export function buildingsIn(system: SystemState): Building[] {
         ...system.extraBuildings
     ]
 }
+
+// Something to steal from a Rival: the resource in one of their slots, or one of their Guild cards.
+export type StealTarget = Type.Static<typeof StealTarget>
+export const StealTarget = Type.Object({
+    playerId: Type.String(),
+    slot: Type.Optional(Type.Integer({ minimum: 0 })),
+    cardId: Type.Optional(Type.String())
+})

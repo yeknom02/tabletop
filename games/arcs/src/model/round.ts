@@ -27,6 +27,15 @@ export const CardPlay = Type.Object({
     zeroed: Type.Boolean()
 })
 
+// A Union placed beside a face-up played card: at the end of the round its holder takes the card
+// into hand and the Union is discarded.
+export type UnionClaim = Type.Static<typeof UnionClaim>
+export const UnionClaim = Type.Object({
+    playerId: Type.String(),
+    unionId: Type.String(),
+    actionCardId: ActionCardIdSchema
+})
+
 export type RoundState = Type.Static<typeof RoundState>
 export const RoundState = Type.Object({
     // Who took the round's first turn: turns go clockwise from them.
@@ -36,12 +45,13 @@ export const RoundState = Type.Object({
     seizedBy: Type.Optional(Type.String()),
     // Whether an ambition was declared this round (Galactic Bards can declare only if not).
     declared: Type.Boolean(),
+    unions: Type.Array(UnionClaim),
     // Players who passed the initiative in a row without playing a card (rule 5.1.2.1).
     passes: Type.Integer({ minimum: 0 })
 })
 
 export function newRound(leader: string, passes: number = 0): RoundState {
-    return { leader, plays: [], passes, declared: false }
+    return { leader, plays: [], passes, declared: false, unions: [] }
 }
 
 // What the player taking their turn has left to do (rules 8.1 and 9.1).
@@ -61,7 +71,11 @@ export const TurnRecord = Type.Object({
     // Starports that built a ship this turn, as `<system>:<slot>` (rule 7.2.1).
     starportsBuilt: Type.Array(Type.String()),
     // Court cards secured during this Prelude, whose Prelude actions can't be used in it.
-    securedInPrelude: Type.Array(Type.String())
+    securedInPrelude: Type.Array(Type.String()),
+    // Whether the player has taken any action yet (Lattice Spies must come first).
+    acted: Type.Boolean(),
+    // Once-per-turn card abilities used this turn.
+    usedCards: Type.Array(Type.String())
 })
 
 export function newTurnRecord(playerId: string, pips: number): TurnRecord {
@@ -73,6 +87,8 @@ export function newTurnRecord(playerId: string, pips: number): TurnRecord {
         weaponSpent: false,
         taxed: [],
         starportsBuilt: [],
-        securedInPrelude: []
+        securedInPrelude: [],
+        acted: false,
+        usedCards: []
     }
 }

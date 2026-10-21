@@ -129,30 +129,56 @@ export class HydratedArcsPlayerState
         return true
     }
 
-    hasEmptySlot(): boolean {
-        return this.resources.some((held, index) => held === null && index < this.openSlots())
+    emptySlots(): number {
+        return this.resources.filter((held, index) => held === null && index < this.openSlots())
+            .length
     }
 
     // Gaining into full slots means discarding a resource: one held, or the one gained (rule 9.2.1).
     canGain(resource: Resource, discard?: Resource): boolean {
-        if (this.hasEmptySlot()) {
-            return discard === undefined
-        }
-        return discard !== undefined && (discard === resource || this.resourceCount(discard) > 0)
+        return this.canGainAll([resource], discard === undefined ? [] : [discard])
     }
 
     // Returns the resource discarded to make room, if any.
     gain(resource: Resource, discard?: Resource): Resource | undefined {
-        assert(this.canGain(resource, discard), `Player ${this.playerId} cannot gain ${resource}`)
-        if (discard === undefined) {
-            this.gainResource(resource)
-            return undefined
+        return this.gainAll([resource], discard === undefined ? [] : [discard])[0]
+    }
+
+    // Gaining several at once discards exactly what can't be held, from what is held and gained.
+    canGainAll(gains: readonly Resource[], discards: readonly Resource[]): boolean {
+        const held = this.resources.filter(
+            (resource, index): resource is Resource => resource !== null && index < this.openSlots()
+        )
+        const pool = [...held, ...gains]
+        if (discards.length !== Math.max(0, pool.length - this.openSlots())) {
+            return false
         }
-        if (discard !== resource) {
-            this.removeResource(discard)
+        for (const discard of discards) {
+            const index = pool.indexOf(discard)
+            if (index < 0) {
+                return false
+            }
+            pool.splice(index, 1)
+        }
+        return true
+    }
+
+    // New resources fill the leftmost empty slots. Returns the resources discarded.
+    gainAll(gains: readonly Resource[], discards: readonly Resource[]): Resource[] {
+        assert(this.canGainAll(gains, discards), `Player ${this.playerId} cannot gain those`)
+        const kept = [...gains]
+        for (const discard of discards) {
+            const index = kept.indexOf(discard)
+            if (index >= 0) {
+                kept.splice(index, 1)
+            } else {
+                this.removeResource(discard)
+            }
+        }
+        for (const resource of kept) {
             this.gainResource(resource)
         }
-        return discard
+        return [...discards]
     }
 
     removeResource(resource: Resource) {

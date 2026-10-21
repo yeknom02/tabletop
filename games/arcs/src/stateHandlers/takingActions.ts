@@ -13,6 +13,9 @@ import { HydratedInfluence, isInfluence } from '../actions/influence.js'
 import { HydratedSecure, isSecure } from '../actions/secure.js'
 import { HydratedSpendWeapon, isSpendWeapon } from '../actions/spendWeapon.js'
 import { HydratedBattle, isBattle } from '../actions/battle.js'
+import { HydratedUseCard, isUseCard } from '../actions/useCard.js'
+import { canUseCard } from '../model/courtEffects.js'
+import { HydratedUseFarseers, isUseFarseers } from '../actions/useFarseers.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
 import { endChapter } from './playingCard.js'
 
@@ -26,6 +29,8 @@ type TakingActionsAction =
     | HydratedSecure
     | HydratedBattle
     | HydratedSpendWeapon
+    | HydratedUseCard
+    | HydratedUseFarseers
     | HydratedEndTurn
 
 const ActionsByStandard: ReadonlyArray<[StandardAction, ActionType[]]> = [
@@ -55,6 +60,12 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             return action.returnTo === undefined
                 ? !gameState.isEliminated(playerId)
                 : gameState.canReturnFleet(playerId, action.returnTo)
+        }
+        if (isUseFarseers(action)) {
+            return gameState.canUseFarseers(playerId, action.discards)
+        }
+        if (isUseCard(action)) {
+            return canUseCard(gameState, playerId, action)
         }
         if (isBattle(action)) {
             return (
@@ -138,6 +149,18 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             Resources.some((token) => gameState.canSpendResource(playerId, Resource.Weapon, token))
         ) {
             actions.push(ActionType.SpendWeapon)
+        }
+        const turn = gameState.turn
+        if (
+            turn.prelude &&
+            gameState
+                .getPlayerState(playerId)
+                .guildCards.some((cardId) => !turn.securedInPrelude.includes(cardId))
+        ) {
+            actions.push(ActionType.UseCard)
+        }
+        if (gameState.canUseFarseers(playerId, [])) {
+            actions.push(ActionType.UseFarseers)
         }
         actions.push(ActionType.EndTurn)
         return actions

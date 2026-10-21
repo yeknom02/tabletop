@@ -10,7 +10,8 @@ import {
     playerIn,
     setBuilding,
     setShips,
-    startTestGame
+    startTestGame,
+    type BoardSetup
 } from '../util/testHelper.js'
 
 describe('Loyal cards', () => {
@@ -154,5 +155,209 @@ describe('declaring without the zero marker', () => {
         )
         // The lead card keeps its number.
         expect(state.leadNumber()).toBe(2)
+    })
+})
+
+describe('Court card Prelude actions', () => {
+    function holding(cardId: string, setup: BoardSetup = () => {}, lead = 'construction-2') {
+        return leadingOnEmptyBoard(lead, (state, players) => {
+            const [a, b, c] = players
+            for (const playerId of [a, b, c]) {
+                setShips(state, '6H', playerId, 1)
+            }
+            playerIn(state, a).guildCards = [cardId]
+            setup(state, players)
+        })
+    }
+
+    it('Mining Interest fills the empty slots, stealing once the supply runs out', () => {
+        const { session, players } = holding(Court.MiningInterest, (state, [a, b]) => {
+            playerIn(state, a).resources = [Resource.Fuel, null, null, null, null, null]
+            playerIn(state, b).resources = [Resource.Material, null, null, null, null, null]
+            state.supply[Resource.Material] = 1
+        })
+        const [a, b] = players
+        expect(() => session.act(a, ActionType.UseCard, { cardId: Court.MiningInterest })).toThrow()
+        session.act(a, ActionType.UseCard, {
+            cardId: Court.MiningInterest,
+            steal: [{ playerId: b, slot: 0 }]
+        })
+        const state = session.hydrated()
+        expect(state.getPlayerState(a).resources.slice(0, 3)).toEqual([
+            Resource.Fuel,
+            Resource.Material,
+            Resource.Material
+        ])
+        expect(state.getPlayerState(b).resources[0]).toBeNull()
+        expect(state.getPlayerState(a).guildCards).toEqual([])
+        expect(state.courtDiscard).toContain(Court.MiningInterest)
+    })
+
+    it('a Cartel can be discarded to steal 1 of its resource, or nothing', () => {
+        const { session, players } = holding(Court.FuelCartel, (state, [, b]) => {
+            playerIn(state, b).resources = [
+                Resource.Material,
+                Resource.Fuel,
+                null,
+                null,
+                null,
+                null
+            ]
+        })
+        const [a, b] = players
+        expect(() =>
+            session.act(a, ActionType.UseCard, {
+                cardId: Court.FuelCartel,
+                steal: [{ playerId: b, slot: 0 }]
+            })
+        ).toThrow()
+        session.act(a, ActionType.UseCard, {
+            cardId: Court.FuelCartel,
+            steal: [{ playerId: b, slot: 1 }]
+        })
+        expect(session.hydrated().getPlayerState(a).resources[0]).toBe(Resource.Fuel)
+    })
+
+    it('a Union takes its face-up played card back to hand at the end of the round', () => {
+        const { session, players } = holding(Court.ConstructionUnion)
+        const [a, b, c] = players
+        session.act(a, ActionType.UseCard, {
+            cardId: Court.ConstructionUnion,
+            actionCardId: 'construction-2'
+        })
+        expect(session.state.round.unions).toHaveLength(1)
+        session.act(a, ActionType.EndTurn)
+        for (const playerId of [b, c]) {
+            session.act(playerId, ActionType.FollowCard, {
+                cardId: 'mobilization-2',
+                playKind: PlayKind.Pivot
+            })
+            session.act(playerId, ActionType.EndTurn)
+        }
+        const state = session.hydrated()
+        expect(state.getPlayerState(a).hand).toEqual(['construction-2'])
+        expect(state.courtDiscard).toContain(Court.ConstructionUnion)
+    })
+
+    it('Prison Wardens place 3 ships in a system the player controls', () => {
+        const { session, players } = holding(Court.PrisonWardens, (state, [a, b]) => {
+            setShips(state, '2A', a, 2)
+            setShips(state, '2A', b, 1)
+            setShips(state, '3A', b, 1)
+        })
+        const [a] = players
+        expect(() =>
+            session.act(a, ActionType.UseCard, { cardId: Court.PrisonWardens, system: '3A' })
+        ).toThrow()
+        session.act(a, ActionType.UseCard, { cardId: Court.PrisonWardens, system: '2A' })
+        expect(session.hydrated().system('2A').ships[a]).toEqual({ fresh: 5, damaged: 0 })
+    })
+
+    it('Gatekeepers place a ship in every gate in play', () => {
+        const { session, players } = holding(Court.Gatekeepers)
+        session.act(players[0], ActionType.UseCard, { cardId: Court.Gatekeepers })
+        const state = session.hydrated()
+        const gates = state.systems.filter((system) => system.id.endsWith('G'))
+        expect(gates.every((gate) => gate.ships[players[0]]?.fresh === 1)).toBe(true)
+    })
+
+    it('Lattice Spies seize the initiative, but only before any other action', () => {
+        const late = holding(Court.LatticeSpies, () => {}, 'mobilization-2')
+        const [a] = late.players
+        late.session.act(a, ActionType.Influence, { cardId: late.session.state.court[0].cardId })
+        expect(() =>
+            late.session.act(a, ActionType.UseCard, { cardId: Court.LatticeSpies })
+        ).toThrow()
+        // The leader holds the initiative already, so a follower uses it.
+        const { session, players } = leadingOnEmptyBoard('construction-2', (state, [x, y]) => {
+            setShips(state, '6H', x, 1)
+            playerIn(state, y).guildCards = [Court.LatticeSpies]
+        })
+        const [leader, follower] = players
+        session.act(leader, ActionType.EndTurn)
+        session.act(follower, ActionType.FollowCard, {
+            cardId: 'mobilization-2',
+            playKind: PlayKind.Pivot
+        })
+        const [use] = session.act(follower, ActionType.UseCard, { cardId: Court.LatticeSpies })
+        expect(use).toMatchObject({ metadata: { seized: true } })
+        expect(session.state.round.seizedBy).toBe(follower)
+    })
+
+    it('Silver-Tongues steal a Guild card', () => {
+        const { session, players } = holding(Court.SilverTongues, (state, [, b]) => {
+            playerIn(state, b).guildCards = [Court.RelicFence]
+        })
+        const [a, b] = players
+        session.act(a, ActionType.UseCard, {
+            cardId: Court.SilverTongues,
+            steal: [{ playerId: b, cardId: Court.RelicFence }]
+        })
+        const state = session.hydrated()
+        expect(state.getPlayerState(a).guildCards).toEqual([Court.RelicFence])
+        expect(state.getPlayerState(b).guildCards).toEqual([])
+    })
+
+    it('Elder Broker gains Material, Fuel and a Weapon, discarding what can’t be held', () => {
+        const { session, players } = holding(Court.ElderBroker, (state, [a]) => {
+            playerIn(state, a).citiesOnBoard = 5
+            playerIn(state, a).resources = [Resource.Relic, null, null, null, null, null]
+        })
+        const [a] = players
+        expect(() => session.act(a, ActionType.UseCard, { cardId: Court.ElderBroker })).toThrow()
+        session.act(a, ActionType.UseCard, {
+            cardId: Court.ElderBroker,
+            discard: [Resource.Relic, Resource.Material]
+        })
+        expect(session.hydrated().getPlayerState(a).resources.slice(0, 2)).toEqual([
+            Resource.Fuel,
+            Resource.Weapon
+        ])
+    })
+
+    it('Relic Fence trades a resource for a Relic once per turn, and is kept', () => {
+        const { session, players } = holding(Court.RelicFence, (state, [a]) => {
+            playerIn(state, a).resources = [Resource.Fuel, Resource.Fuel, null, null, null, null]
+        })
+        const [a] = players
+        const use = { cardId: Court.RelicFence, discard: [Resource.Fuel] }
+        session.act(a, ActionType.UseCard, use)
+        expect(() => session.act(a, ActionType.UseCard, use)).toThrow()
+        const player = session.hydrated().getPlayerState(a)
+        expect(player.resources.slice(0, 2)).toEqual([Resource.Fuel, Resource.Relic])
+        expect(player.guildCards).toEqual([Court.RelicFence])
+    })
+
+    it('can’t be used in the Prelude the card was secured in', () => {
+        const { session, players } = holding(Court.RelicFence, (state, [a]) => {
+            playerIn(state, a).guildCards = []
+            playerIn(state, a).resources = [Resource.Fuel, Resource.Relic, null, null, null, null]
+            state.court[0] = { cardId: Court.RelicFence, agents: { [a]: 1 } }
+            playerIn(state, a).agents -= 1
+        })
+        const [a] = players
+        session.act(a, ActionType.Secure, { cardId: Court.RelicFence, via: Resource.Relic })
+        expect(() =>
+            session.act(a, ActionType.UseCard, {
+                cardId: Court.RelicFence,
+                discard: [Resource.Fuel]
+            })
+        ).toThrow()
+    })
+
+    it('Farseers swap cards from hand for cards from the bottom of the action discard pile', () => {
+        const { session, players } = holding(Court.Farseers)
+        const [a] = players
+        session.edit((state) => {
+            playerIn(state, a).hand = ['aggression-4']
+            playerIn(state, a).handCount = 1
+        })
+        const pile = session.state.actionDiscard.remaining
+        const bottom = session.state.actionDiscard.items.slice(0, 2)
+        session.act(a, ActionType.UseFarseers, { discards: ['aggression-4'], revealsInfo: true })
+        const state = session.hydrated()
+        expect(state.getPlayerState(a).hand).toEqual(bottom)
+        expect(state.actionDiscard.remaining).toBe(pile - 1)
+        expect(state.courtDiscard).toContain(Court.Farseers)
     })
 })
