@@ -1,5 +1,7 @@
 import { GameAction, type GameHydrator, type HydratedAction } from '@tabletop/common'
 import { HydratedArcsGameState, type ArcsProjectedState } from '../model/gameState.js'
+import { HydratedDrawArchive, isDrawArchive } from '../actions/drawArchive.js'
+import { HydratedKeepLore, isKeepLore } from '../actions/keepLore.js'
 import { HydratedDraftCard, isDraftCard } from '../actions/draftCard.js'
 import { HydratedKeepHand, isKeepHand } from '../actions/keepHand.js'
 import { HydratedRedrawHand, isRedrawHand } from '../actions/redrawHand.js'
@@ -10,6 +12,8 @@ import { HydratedSpendWeapon, isSpendWeapon } from '../actions/spendWeapon.js'
 import { HydratedUseCard, isUseCard } from '../actions/useCard.js'
 import { HydratedUseFarseers, isUseFarseers } from '../actions/useFarseers.js'
 import { HydratedTakeNewAction, isTakeNewAction } from '../actions/takeNewAction.js'
+import { HydratedRuthless, isRuthless } from '../actions/ruthless.js'
+import { HydratedMythic, isMythic } from '../actions/mythic.js'
 import { HydratedTax, isTax } from '../actions/tax.js'
 import { HydratedBuildBuilding, isBuildBuilding } from '../actions/buildBuilding.js'
 import { HydratedBuildShip, isBuildShip } from '../actions/buildShip.js'
@@ -39,6 +43,12 @@ import { HydratedEndChapter, isEndChapter } from '../actions/endChapter.js'
 export class ArcsHydrator implements GameHydrator<ArcsProjectedState, HydratedArcsGameState> {
     hydrateAction(data: GameAction): HydratedAction {
         switch (true) {
+            case isDrawArchive(data): {
+                return new HydratedDrawArchive(data)
+            }
+            case isKeepLore(data): {
+                return new HydratedKeepLore(data)
+            }
             case isDraftCard(data): {
                 return new HydratedDraftCard(data)
             }
@@ -68,6 +78,12 @@ export class ArcsHydrator implements GameHydrator<ArcsProjectedState, HydratedAr
             }
             case isTakeNewAction(data): {
                 return new HydratedTakeNewAction(data)
+            }
+            case isRuthless(data): {
+                return new HydratedRuthless(data)
+            }
+            case isMythic(data): {
+                return new HydratedMythic(data)
             }
             case isTax(data): {
                 return new HydratedTax(data)

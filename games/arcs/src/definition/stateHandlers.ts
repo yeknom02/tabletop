@@ -3,6 +3,7 @@ import { MachineState } from './states.js'
 import type { HydratedArcsGameState } from '../model/gameState.js'
 import { DraftingStateHandler } from '../stateHandlers/drafting.js'
 import { DealingStateHandler } from '../stateHandlers/dealing.js'
+import { ArchivingStateHandler } from '../stateHandlers/archiving.js'
 import { MulliganStateHandler } from '../stateHandlers/mulligan.js'
 import { PlayingCardStateHandler } from '../stateHandlers/playingCard.js'
 import { TakingActionsStateHandler } from '../stateHandlers/takingActions.js'
@@ -17,6 +18,7 @@ export const ArcsStateHandlers: Record<
 > = {
     [MachineState.Drafting]: new DraftingStateHandler(),
     [MachineState.Dealing]: new DealingStateHandler(),
+    [MachineState.Archiving]: new ArchivingStateHandler(),
     [MachineState.Mulligan]: new MulliganStateHandler(),
     [MachineState.PlayingCard]: new PlayingCardStateHandler(),
     [MachineState.TakingActions]: new TakingActionsStateHandler(),

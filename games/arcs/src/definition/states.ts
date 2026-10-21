@@ -3,6 +3,8 @@ export enum MachineState {
     Drafting = 'Drafting',
     // Hands are dealt once the draft is done, which is a reveal.
     Dealing = 'Dealing',
+    // The Archivist draws 5 lore after setup and keeps 2.
+    Archiving = 'Archiving',
     // Two players: after each deal, the player without initiative may redraw (rule 6.2.4.1).
     Mulligan = 'Mulligan',
     // The active player leads, passes the initiative, or follows the lead card.

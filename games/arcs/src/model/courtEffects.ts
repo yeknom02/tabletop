@@ -8,7 +8,7 @@ import {
     Suit
 } from '../components/actionCards.js'
 import { Court } from '../components/courtCards.js'
-import { clusterOf, isGate, planetOf, SystemIdSchema, type SystemId } from '../components/map.js'
+import { clusterOf, isGate, SystemIdSchema, type SystemId } from '../components/map.js'
 import { Resource, ResourceSchema } from '../components/resources.js'
 import { MachineState } from '../definition/states.js'
 import { canAffordDeclaration } from './declaration.js'
@@ -394,10 +394,10 @@ export function canTakeNewAction(
                 return false
             }
             const city = state.system(choice.system).slots[choice.slot]
-            const planet = planetOf(choice.system)
+            const planetType = state.planetType(choice.system)
             if (
                 !city ||
-                !planet ||
+                planetType === undefined ||
                 city.kind !== BuildingKind.City ||
                 city.owner === playerId ||
                 state.controller(choice.system) !== playerId
@@ -406,7 +406,7 @@ export function canTakeNewAction(
             }
             const rival = state.getPlayerState(city.owner)
             return (
-                rival.resourceCount(planet.resource) > 0 &&
+                rival.resourceCount(planetType) > 0 &&
                 rival.resourceCount(choice.give) === 0 &&
                 player.resourceCount(choice.give) > 0
             )
@@ -466,7 +466,7 @@ export function takeNewAction(
             assertExists(system, 'Trade names a system')
             assertExists(give, 'Trade names a resource to give')
             const city = state.building(system, choice.slot ?? 0)
-            const taken = planetOf(system)?.resource
+            const taken = state.planetType(system)
             assertExists(taken, 'Trade is at a planet')
             const rival = state.getPlayerState(city.owner)
             rival.removeResource(taken)

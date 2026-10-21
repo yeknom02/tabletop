@@ -9,6 +9,8 @@ export enum ActionType {
     UseCard = 'useCard',
     UseFarseers = 'useFarseers',
     TakeNewAction = 'takeNewAction',
+    Ruthless = 'ruthless',
+    Mythic = 'mythic',
     Tax = 'tax',
     BuildBuilding = 'buildBuilding',
     BuildShip = 'buildShip',
@@ -32,6 +34,8 @@ export enum ActionType {
     SwapWithRival = 'swapWithRival',
     EndTurn = 'endTurn',
     DealHands = 'dealHands',
+    DrawArchive = 'drawArchive',
+    KeepLore = 'keepLore',
     DrawActionCard = 'drawActionCard',
     EndChapter = 'endChapter'
 }

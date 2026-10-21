@@ -65,7 +65,16 @@ function mapBySeat(state: ArcsProjectedState) {
     }))
 }
 
+// Drafts the first card offered each time, and has an Archivist keep the first 2 lore drawn.
 function draftAll(session: TestSession) {
+    draftLeadersAndLore(session)
+    const archive = session.state.archive
+    if (archive) {
+        session.act(archive.playerId, ActionType.KeepLore, { cardIds: archive.cards.slice(0, 2) })
+    }
+}
+
+function draftLeadersAndLore(session: TestSession) {
     while (session.state.machineState === MachineState.Drafting) {
         const playerId = session.currentPlayerId()
         const state = session.hydrated()

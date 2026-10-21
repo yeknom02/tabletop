@@ -8,6 +8,7 @@ import { MachineState } from '../definition/states.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
 import { HydratedDealHands, isDealHands } from '../actions/dealHands.js'
+import { startPlay } from './archiving.js'
 
 export class DealingStateHandler implements MachineStateHandler<
     HydratedDealHands,
@@ -31,7 +32,11 @@ export class DealingStateHandler implements MachineStateHandler<
     }
 }
 
-// Two players get a mulligan after every deal; otherwise play begins.
+// The first deal is the end of setup, after which the Archivist draws lore. Two players get a
+// mulligan after every deal; otherwise play begins.
 export function afterDeal(gameState: HydratedArcsGameState): MachineState {
-    return gameState.players.length === 2 ? MachineState.Mulligan : MachineState.PlayingCard
+    if (gameState.chapter === 1 && gameState.archivist() !== undefined) {
+        return MachineState.Archiving
+    }
+    return startPlay(gameState)
 }

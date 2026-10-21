@@ -17,7 +17,9 @@ export const Influence = Type.Evaluate(
             cardId: Type.String(),
             via: Type.Optional(ResourceSchema),
             // The token spent, when a card lets another resource stand in for `via`.
-            token: Type.Optional(ResourceSchema)
+            token: Type.Optional(ResourceSchema),
+            // A leader's extra action, taken without a pip or resource.
+            bonus: Type.Optional(Type.Boolean())
         })
     ])
 )
@@ -34,13 +36,14 @@ export class HydratedInfluence extends HydratableAction<typeof Influence> implem
     declare cardId: string
     declare via?: Resource
     declare token?: Resource
+    declare bonus?: boolean
 
     constructor(data: Influence) {
         super(data, InfluenceValidator)
     }
 
     apply(state: HydratedArcsGameState) {
-        state.pay(this.playerId, StandardAction.Influence, this.via, this.token)
+        state.pay(this.playerId, StandardAction.Influence, this.via, this.token, this.bonus)
         state.influence(this.playerId, this.cardId)
     }
 }

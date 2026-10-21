@@ -1,5 +1,5 @@
 import * as Type from 'typebox'
-import { DieSchema, DieFaces, DieSymbol, type Die } from '../components/dice.js'
+import { Die, DieSchema, DieFaces, DieSymbol } from '../components/dice.js'
 import { SystemIdSchema } from '../components/map.js'
 import type { ShipCount } from './pieces.js'
 
@@ -32,8 +32,12 @@ export const BattleState = Type.Object({
     buildingHits: Type.Integer({ minimum: 0 }),
     keys: Type.Integer({ minimum: 0 }),
     step: Type.Enum(BattleStep),
-    // Skirmish dice the attacker may still reroll, with Skirmishers, before assigning hits.
-    rerolls: Type.Integer({ minimum: 0 }),
+    // Dice of each kind the attacker may reroll, once, before assigning hits.
+    rerolls: Type.Object({
+        [Die.Assault]: Type.Integer({ minimum: 0 }),
+        [Die.Skirmish]: Type.Integer({ minimum: 0 }),
+        [Die.Raid]: Type.Integer({ minimum: 0 })
+    }),
     // Whether the attacker took any Trophies.
     trophiesTaken: Type.Boolean(),
     // Cities destroyed whose Ransack is still to choose.
@@ -85,4 +89,12 @@ export function hitShips(
         return undefined
     }
     return { left, used: hits.damage + destroyedDamaged + 2 * destroyedFresh }
+}
+
+export function noRerolls(): Record<Die, number> {
+    return { [Die.Assault]: 0, [Die.Skirmish]: 0, [Die.Raid]: 0 }
+}
+
+export function anyRerolls(rerolls: Readonly<Record<Die, number>>): boolean {
+    return Object.values(rerolls).some((count) => count > 0)
 }

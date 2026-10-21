@@ -1,4 +1,6 @@
 import type * as Type from 'typebox'
+import { DrawArchive } from '../actions/drawArchive.js'
+import { KeepLore } from '../actions/keepLore.js'
 import { DraftCard } from '../actions/draftCard.js'
 import { KeepHand } from '../actions/keepHand.js'
 import { RedrawHand } from '../actions/redrawHand.js'
@@ -9,6 +11,8 @@ import { SpendWeapon } from '../actions/spendWeapon.js'
 import { UseCard } from '../actions/useCard.js'
 import { UseFarseers } from '../actions/useFarseers.js'
 import { TakeNewAction } from '../actions/takeNewAction.js'
+import { Ruthless } from '../actions/ruthless.js'
+import { Mythic } from '../actions/mythic.js'
 import { Tax } from '../actions/tax.js'
 import { BuildBuilding } from '../actions/buildBuilding.js'
 import { BuildShip } from '../actions/buildShip.js'
@@ -38,6 +42,8 @@ import { ActionType } from './actions.js'
 
 export const ArcsActionSchemas = {
     [ActionType.DraftCard]: DraftCard,
+    [ActionType.DrawArchive]: DrawArchive,
+    [ActionType.KeepLore]: KeepLore,
     [ActionType.KeepHand]: KeepHand,
     [ActionType.RedrawHand]: RedrawHand,
     [ActionType.LeadCard]: LeadCard,
@@ -47,6 +53,8 @@ export const ArcsActionSchemas = {
     [ActionType.UseCard]: UseCard,
     [ActionType.UseFarseers]: UseFarseers,
     [ActionType.TakeNewAction]: TakeNewAction,
+    [ActionType.Ruthless]: Ruthless,
+    [ActionType.Mythic]: Mythic,
     [ActionType.Tax]: Tax,
     [ActionType.BuildBuilding]: BuildBuilding,
     [ActionType.BuildShip]: BuildShip,

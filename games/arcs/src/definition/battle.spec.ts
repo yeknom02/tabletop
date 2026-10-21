@@ -4,7 +4,7 @@ import { isBattle } from '../actions/battle.js'
 import { Court } from '../components/courtCards.js'
 import { Die, DieSymbol } from '../components/dice.js'
 import { Resource } from '../components/resources.js'
-import { BattleStep, symbolsRolled, type BattleState } from '../model/battle.js'
+import { BattleStep, symbolsRolled, type BattleState, noRerolls } from '../model/battle.js'
 import { BuildingKind, TrophyKind } from '../model/pieces.js'
 import { ActionType } from './actions.js'
 import { MachineState } from './states.js'
@@ -40,7 +40,7 @@ function battling(
             buildingHits: 0,
             keys: 0,
             step: BattleStep.Hits,
-            rerolls: 0,
+            rerolls: noRerolls(),
             trophiesTaken: false,
             ransacks: 0,
             ...battle
@@ -356,11 +356,11 @@ describe('Court cards in battle', () => {
             revealsInfo: true
         })
         // A Weapon resource and the Skirmishers card itself.
-        expect(session.state.battle?.rerolls).toBe(2)
+        expect(session.state.battle?.rerolls).toEqual({ ...noRerolls(), [Die.Skirmish]: 2 })
         expect(() => session.act(a, ActionType.Reroll, { dice: [0], revealsInfo: true })).toThrow()
         const [reroll] = session.act(a, ActionType.Reroll, { dice: [1, 2], revealsInfo: true })
         expect(reroll).toMatchObject({ metadata: { rolled: expect.any(Array) } })
-        expect(session.state.battle?.rerolls ?? 0).toBe(0)
+        expect(session.state.battle?.rerolls ?? noRerolls()).toEqual(noRerolls())
     })
 
     it('Sworn Guardians protect everything else, and are buried when stolen', () => {

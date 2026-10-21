@@ -5,8 +5,8 @@ import { ActionType } from '../definition/actions.js'
 import { BattleRoll } from './battle.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
 
-// Skirmishers: after rolling, reroll up to one skirmish die per Weapon icon, once. `dice` are
-// indexes into the roll. The new faces are a reveal, so Undo stops here.
+// After rolling, reroll the dice that cards allow (Skirmishers, Corsair, Seeker Torpedoes,
+// Empath's Vision), once. `dice` are indexes into the roll. The new faces are a reveal, so Undo stops here.
 export type Reroll = Type.Static<typeof Reroll>
 export const Reroll = Type.Evaluate(
     Type.Intersect([

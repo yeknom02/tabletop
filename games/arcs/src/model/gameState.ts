@@ -31,6 +31,7 @@ import {
 import {
     CourtCards,
     LeaderSetups,
+    LoreCards,
     type LeaderSetup,
     type LeaderStart
 } from '../components/cardData.js'
@@ -68,6 +69,8 @@ import {
     BattleState,
     BattleStep,
     hitShips,
+    anyRerolls,
+    noRerolls,
     rollDie,
     shipHitCapacity,
     type RolledDie,
@@ -145,6 +148,12 @@ export const ArcsGameState = Type.Object({
     turn: Type.Optional(TurnRecord),
     draft: Type.Optional(DraftState),
     battle: Type.Optional(BattleState),
+    // Archivist, Learned: the 5 lore drawn after setup, 2 of which they keep.
+    archive: Type.Optional(
+        Type.Object({ playerId: Type.String(), cards: Type.Array(Type.String()) })
+    ),
+    // Planets whose type the Shaper's Mythic changed, by system.
+    planetTypes: Type.Record(Type.String(), ResourceSchema),
     // Abilities set off by an ambition just declared, being resolved.
     declaration: Type.Optional(Declaration)
 })
@@ -194,6 +203,37 @@ const CopyOrPivotTaxBonus: Partial<Record<string, Resource>> = {
     [Leader.Agitator]: Resource.Weapon
 }
 
+// Leaders' extra actions on a Copy or Pivot turn, and the pip action each goes with.
+const LeaderBonuses: readonly {
+    leader: Leader
+    action: StandardAction
+    partner: StandardAction
+    before: boolean
+}[] = [
+    {
+        leader: Leader.Warrior,
+        action: StandardAction.Move,
+        partner: StandardAction.Battle,
+        before: true
+    },
+    {
+        leader: Leader.Feastbringer,
+        action: StandardAction.Influence,
+        partner: StandardAction.Secure,
+        before: true
+    },
+    {
+        leader: Leader.Noble,
+        action: StandardAction.Influence,
+        partner: StandardAction.Influence,
+        before: false
+    }
+]
+
+// Archivist, Learned: lore drawn after setup, and kept.
+const ArchiveDraw = 5
+const ArchiveKeep = 2
+
 // Ships an eliminated player places (rule 22.2.1).
 const EliminatedFleet = 3
 
@@ -231,6 +271,8 @@ export class HydratedArcsGameState
     declare turn?: TurnRecord
     declare draft?: DraftState
     declare battle?: BattleState
+    declare planetTypes: Record<string, Resource>
+    declare archive?: { playerId: string; cards: string[] }
     declare declaration?: Declaration
 
     constructor(data: ArcsProjectedState) {
@@ -250,6 +292,11 @@ export class HydratedArcsGameState
         const system = this.systems.find((candidate) => candidate.id === id)
         assertExists(system, `No system ${id}`)
         return system
+    }
+
+    // A planet's type: printed, unless the Shaper's Mythic changed it.
+    planetType(id: SystemId): Resource | undefined {
+        return this.planetTypes[id] ?? planetOf(id)?.resource
     }
 
     inPlay(id: SystemId): boolean {
@@ -468,6 +515,39 @@ export class HydratedArcsGameState
             }
         }
         this.draft = undefined
+    }
+
+    // ----- Archivist, Learned -----
+
+    archivist(): string | undefined {
+        return this.players.find((player) => player.leader === Leader.Archivist)?.playerId
+    }
+
+    // Draws 5 lore from those nobody has, at random.
+    drawArchive() {
+        const playerId = this.archivist()
+        assertExists(playerId, 'There is an Archivist')
+        const held = new Set(this.players.flatMap((player) => player.lore))
+        const deck = LoreCards.map((card) => card.id).filter((cardId) => !held.has(cardId))
+        shuffle(deck, this.getProtectedPrng().random)
+        this.archive = { playerId, cards: deck.slice(0, ArchiveDraw) }
+    }
+
+    canKeepLore(playerId: string, cardIds: readonly string[]): boolean {
+        const archive = this.archive
+        return (
+            archive?.playerId === playerId &&
+            cardIds.length === Math.min(ArchiveKeep, archive.cards.length) &&
+            new Set(cardIds).size === cardIds.length &&
+            cardIds.every((cardId) => archive.cards.includes(cardId))
+        )
+    }
+
+    // The rest are scrapped.
+    keepLore(playerId: string, cardIds: readonly string[]) {
+        assert(this.canKeepLore(playerId, cardIds), `${playerId} cannot keep those`)
+        this.getPlayerState(playerId).lore.push(...cardIds)
+        this.archive = undefined
     }
 
     private outrageAtSetup(player: HydratedArcsPlayerState, resources: readonly Resource[]) {
@@ -809,14 +889,27 @@ export class HydratedArcsGameState
         playerId: string,
         action: StandardAction,
         via: Resource | undefined,
-        token: Resource | undefined = via
+        token: Resource | undefined = via,
+        bonus: boolean = false
     ): boolean {
         const turn = this.turn
         if (turn?.playerId !== playerId || this.machineState !== MachineState.TakingActions) {
             return false
         }
+        if (bonus) {
+            return (
+                via === undefined &&
+                token === undefined &&
+                this.bonusSource(playerId, action) !== undefined
+            )
+        }
         if (via === undefined) {
-            return token === undefined && turn.pips > 0 && this.pipActions().includes(action)
+            return (
+                token === undefined &&
+                turn.pips > 0 &&
+                this.pipActions().includes(action) &&
+                (turn.owed === undefined || turn.owed === action)
+            )
         }
         return (
             this.canSpendResource(playerId, via, token ?? via) &&
@@ -828,18 +921,67 @@ export class HydratedArcsGameState
         playerId: string,
         action: StandardAction,
         via: Resource | undefined,
-        token: Resource | undefined = via
+        token: Resource | undefined = via,
+        bonus: boolean = false
     ) {
-        assert(this.canPay(playerId, action, via, token), `${playerId} cannot ${action} that way`)
+        assert(
+            this.canPay(playerId, action, via, token, bonus),
+            `${playerId} cannot ${action} that way`
+        )
         const turn = this.currentTurn()
         turn.acted = true
-        if (token === undefined) {
+        turn.lastBuildingAction = undefined
+        if (bonus) {
+            const source = this.bonusSource(playerId, action)
+            assertExists(source, 'An extra action has a source')
+            turn.bonusesUsed.push(source.leader)
+            if (!turn.pipActionsTaken.includes(source.partner)) {
+                turn.owed = source.partner
+            }
+        } else if (token === undefined) {
             turn.pips -= 1
+            turn.pipActionsTaken.push(action)
+            if (turn.owed === action) {
+                turn.owed = undefined
+            }
             this.endPrelude()
         } else {
             this.getPlayerState(playerId).removeResource(token)
             turn.spent[token] += 1
         }
+    }
+
+    // A leader's extra action on a Copy or Pivot turn, if one is open: the Warrior's move and the
+    // Feastbringer's influence go with the pip's battle or secure, before or after it; the
+    // Noble's second influence follows the first.
+    bonusSource(
+        playerId: string,
+        action: StandardAction
+    ): { leader: Leader; partner: StandardAction } | undefined {
+        const turn = this.turn
+        if (turn?.playerId !== playerId || this.machineState !== MachineState.TakingActions) {
+            return undefined
+        }
+        const kind = this.turnPlay().kind
+        if (kind !== PlayKind.Copy && kind !== PlayKind.Pivot) {
+            return undefined
+        }
+        const bonus = LeaderBonuses.find(
+            (candidate) =>
+                candidate.action === action &&
+                this.isLeader(playerId, candidate.leader) &&
+                !turn.bonusesUsed.includes(candidate.leader)
+        )
+        if (!bonus) {
+            return undefined
+        }
+        const after = turn.pipActionsTaken.includes(bonus.partner)
+        const before =
+            bonus.before &&
+            turn.owed === undefined &&
+            turn.pips > 0 &&
+            this.pipActions().includes(bonus.partner)
+        return after || before ? { leader: bonus.leader, partner: bonus.partner } : undefined
     }
 
     // A spent Weapon lets this turn's pips battle (rule 9.1).
@@ -914,9 +1056,9 @@ export class HydratedArcsGameState
     // What taxing gains: the planet's resource, plus the leader's extra one for a tax made with the
     // pip of a Copy or Pivot (Mystic, Fuel-Drinker, Agitator).
     taxGains(playerId: string, id: SystemId, copyOrPivotPip: boolean): Resource[] {
-        const planet = planetOf(id)
-        assertExists(planet, `${id} is not a planet`)
-        const gains = [planet.resource]
+        const planetType = this.planetType(id)
+        assertExists(planetType, `${id} is not a planet`)
+        const gains = [planetType]
         const leader = this.getPlayerState(playerId).leader
         const extra = leader === undefined ? undefined : CopyOrPivotTaxBonus[leader]
         if (copyOrPivotPip && extra !== undefined) {
@@ -959,7 +1101,9 @@ export class HydratedArcsGameState
             this.canTax(playerId, id, slot, discard, copyOrPivotPip),
             `${playerId} cannot tax ${id} slot ${slot}`
         )
-        this.currentTurn().taxed.push(`${id}:${slot}`)
+        const turn = this.currentTurn()
+        turn.taxed.push(`${id}:${slot}`)
+        turn.lastBuildingAction = { kind: 'tax', system: id, slot, copyOrPivotPip }
         const result: { gained: Resource[]; discarded: Resource[]; captured?: string } =
             this.gainAllFromSupply(playerId, this.taxGains(playerId, id, copyOrPivotPip), discard)
         const owner = this.system(id).slots[slot]?.owner
@@ -1097,10 +1241,125 @@ export class HydratedArcsGameState
 
     buildShip(playerId: string, id: SystemId, slot: number): boolean {
         assert(this.canBuildShip(playerId, id, slot), `${playerId} cannot build a ship there`)
-        this.currentTurn().starportsBuilt.push(`${id}:${slot}`)
+        const turn = this.currentTurn()
+        turn.starportsBuilt.push(`${id}:${slot}`)
+        turn.lastBuildingAction = { kind: 'buildShip', system: id, slot, copyOrPivotPip: false }
         const damaged = this.controlledByOther(id, playerId)
         this.placeShipFromSupply(id, playerId, damaged)
         return damaged
+    }
+
+    // ----- Overseer, Ruthless, and Shaper, Mythic -----
+
+    // Whether a change would go through, tried on a copy of the state.
+    wouldSucceed(change: (state: HydratedArcsGameState) => void): boolean {
+        const copy = new HydratedArcsGameState(structuredClone(this.dehydrate()))
+        try {
+            change(copy)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    canRuthless(playerId: string, choice: RuthlessChoice): boolean {
+        const turn = this.turn
+        return (
+            this.machineState === MachineState.TakingActions &&
+            turn?.playerId === playerId &&
+            turn.lastBuildingAction !== undefined &&
+            this.isLeader(playerId, Leader.Overseer) &&
+            !turn.usedCards.includes(Leader.Overseer) &&
+            this.wouldSucceed((copy) => copy.applyRuthless(playerId, choice))
+        )
+    }
+
+    // Once per turn, after a tax or a ship build, hit the building to take the action again with
+    // it. Destroying a city Provokes Outrage first; a Rival's city is a Trophy and is owed a
+    // Ransack.
+    ruthless(playerId: string, choice: RuthlessChoice): RuthlessResult {
+        assert(this.canRuthless(playerId, choice), `${playerId} cannot use Ruthless so`)
+        return this.applyRuthless(playerId, choice)
+    }
+
+    applyRuthless(playerId: string, choice: RuthlessChoice): RuthlessResult {
+        const turn = this.currentTurn()
+        const last = turn.lastBuildingAction
+        assertExists(last, 'Ruthless follows a tax or ship build')
+        turn.usedCards.push(Leader.Overseer)
+        turn.lastBuildingAction = undefined
+        const { system: id, slot } = last
+        const building = this.building(id, slot)
+        const owner = building.owner
+        const result: RuthlessResult = { destroyed: building.damaged, gained: [], discarded: [] }
+        if (!building.damaged) {
+            building.damaged = true
+        } else {
+            this.system(id).slots[slot] = null
+            const kind = building.kind === BuildingKind.City ? TrophyKind.City : TrophyKind.Starport
+            if (owner === playerId) {
+                this.returnPiece(owner, kind)
+            } else {
+                this.getPlayerState(playerId).trophies.push({ owner, kind })
+            }
+            if (building.kind === BuildingKind.City) {
+                this.destroyCity(playerId, id)
+            }
+        }
+        const owesRansack =
+            result.destroyed &&
+            building.kind === BuildingKind.City &&
+            owner !== playerId &&
+            this.ransackableCards(owner).length > 0
+        if (owesRansack) {
+            assertExists(choice.ransack, 'A Ransack is owed')
+            assert(this.ransackableCards(owner).includes(choice.ransack), 'Not ransackable')
+            assert(this.canChooseWhenSecured(playerId, choice.ransack, choice.vox), 'Bad choice')
+            this.takeCourtCard(playerId, choice.ransack, 'trophies', choice.vox)
+        } else {
+            assert(choice.ransack === undefined && choice.vox === undefined, 'No Ransack owed')
+        }
+        if (last.kind === 'tax') {
+            const gained = this.gainAllFromSupply(
+                playerId,
+                this.taxGains(playerId, id, last.copyOrPivotPip),
+                choice.discard ?? []
+            )
+            result.gained = gained.gained
+            result.discarded = gained.discarded
+            const rival = owner === playerId ? undefined : this.getPlayerState(owner)
+            if (rival && rival.agents > 0) {
+                rival.agents -= 1
+                this.getPlayerState(playerId).capture(owner)
+            }
+        } else {
+            assert((choice.discard ?? []).length === 0, 'Building a ship gains nothing')
+            this.placeShipFromSupply(id, playerId, this.controlledByOther(id, playerId))
+        }
+        return result
+    }
+
+    canMythic(playerId: string, resource: Resource): boolean {
+        const last = this.turn?.lastBuildingAction
+        return (
+            this.machineState === MachineState.TakingActions &&
+            this.turn?.playerId === playerId &&
+            last?.kind === 'tax' &&
+            this.isLeader(playerId, Leader.Shaper) &&
+            this.planetTypes[last.system] === undefined &&
+            this.getPlayerState(playerId).resourceCount(resource) > 0
+        )
+    }
+
+    // After taxing, place a resource over the planet's icon: its type for good.
+    mythic(playerId: string, resource: Resource) {
+        assert(this.canMythic(playerId, resource), `${playerId} cannot use Mythic so`)
+        const turn = this.currentTurn()
+        const last = turn.lastBuildingAction
+        assertExists(last, 'Mythic follows a tax')
+        this.getPlayerState(playerId).removeResource(resource)
+        this.planetTypes[last.system] = resource
+        turn.lastBuildingAction = undefined
     }
 
     // Move ships from one system along a path. Without a Loyal starport where they start, the path
@@ -1369,9 +1628,7 @@ export class HydratedArcsGameState
             keys: 0,
             step: BattleStep.Hits,
             trophiesTaken: false,
-            rerolls: this.holds(playerId, Court.Skirmishers)
-                ? Math.min(this.weaponIcons(playerId), dice[Die.Skirmish])
-                : 0,
+            rerolls: this.rerollAllowance(playerId, id, dice),
             ransacks: 0
         }
         this.battle = battle
@@ -1395,7 +1652,10 @@ export class HydratedArcsGameState
         battle.hits = symbolsRolled(rolled, DieSymbol.Hit)
         battle.buildingHits = symbolsRolled(rolled, DieSymbol.BuildingHit)
         battle.keys = symbolsRolled(rolled, DieSymbol.Key)
-        if (battle.rerolls === 0 && battle.attackerHits + battle.hits + battle.buildingHits === 0) {
+        if (
+            !anyRerolls(battle.rerolls) &&
+            battle.attackerHits + battle.hits + battle.buildingHits === 0
+        ) {
             this.advanceBattle()
         }
     }
@@ -1411,16 +1671,56 @@ export class HydratedArcsGameState
         )
     }
 
+    // How many dice of each kind the attacker may reroll: Skirmishers' skirmish dice up to the
+    // Weapon icons, the Corsair's raid dice up to the kinds of resource held (Tricky), Seeker
+    // Torpedoes' assault dice up to the fresh attacking ships, and with Empath's Vision while
+    // Empath is declared, any.
+    rerollAllowance(
+        playerId: string,
+        id: SystemId,
+        dice: Readonly<Record<Die, number>>
+    ): Record<Die, number> {
+        const allowance = noRerolls()
+        if (this.hasLore(playerId, Lore.EmpathsVision) && this.isDeclared(Ambition.Empath)) {
+            return { ...dice }
+        }
+        if (this.holds(playerId, Court.Skirmishers)) {
+            allowance[Die.Skirmish] = this.weaponIcons(playerId)
+        }
+        if (this.isLeader(playerId, Leader.Corsair)) {
+            const kinds = new Set(this.getPlayerState(playerId).resources.filter((held) => held))
+            allowance[Die.Raid] = kinds.size
+        }
+        if (this.hasLore(playerId, Lore.SeekerTorpedoes)) {
+            allowance[Die.Assault] = shipsOf(this.system(id), playerId).fresh
+        }
+        for (const die of Object.values(Die)) {
+            allowance[die] = Math.min(allowance[die], dice[die])
+        }
+        return allowance
+    }
+
+    isDeclared(ambition: Ambition): boolean {
+        return this.ambitionMarkers.some((marker) => marker.ambition === ambition)
+    }
+
     canReroll(playerId: string, dice: readonly number[]): boolean {
         const battle = this.battle
         if (battle?.step !== BattleStep.Hits || battle.attacker !== playerId) {
             return false
         }
+        const rerolling = noRerolls()
+        for (const index of dice) {
+            const rolled = battle.rolled[index]
+            if (!rolled) {
+                return false
+            }
+            rerolling[rolled.die] += 1
+        }
         return (
             dice.length > 0 &&
-            dice.length <= battle.rerolls &&
             new Set(dice).size === dice.length &&
-            dice.every((index) => battle.rolled[index]?.die === Die.Skirmish)
+            Object.values(Die).every((die) => rerolling[die] <= battle.rerolls[die])
         )
     }
 
@@ -1430,9 +1730,9 @@ export class HydratedArcsGameState
         const battle = this.currentBattle()
         const random = this.getProtectedPrng().random
         for (const index of dice) {
-            battle.rolled[index] = rollDie(Die.Skirmish, random)
+            battle.rolled[index] = rollDie(battle.rolled[index].die, random)
         }
-        battle.rerolls = 0
+        battle.rerolls = noRerolls()
         this.tallyRoll()
         return battle.rolled
     }
@@ -1558,7 +1858,7 @@ export class HydratedArcsGameState
         battle.attackerHits = 0
         battle.hits = 0
         battle.buildingHits = 0
-        battle.rerolls = 0
+        battle.rerolls = noRerolls()
         this.advanceBattle()
         return {
             attackerShipsDestroyed: attacking.destroy,
@@ -1582,12 +1882,12 @@ export class HydratedArcsGameState
     // Rule 7.7.4.1: whoever destroys a city discards their resources and Guild cards of its planet
     // type and is Outraged by it. Returns the resource, if the planet has one.
     destroyCity(destroyer: string, id: SystemId): Resource | undefined {
-        const planet = planetOf(id)
-        if (!planet) {
+        const planetType = this.planetType(id)
+        if (planetType === undefined) {
             return undefined
         }
-        this.provokeOutrage(destroyer, planet.resource)
-        return planet.resource
+        this.provokeOutrage(destroyer, planetType)
+        return planetType
     }
 
     provokeOutrage(playerId: string, resource: Resource) {
@@ -1617,8 +1917,7 @@ export class HydratedArcsGameState
     }
 
     // Court cards with any of the defender's agents, which a Ransack can secure (rule 7.7.4.2).
-    ransackableCards(): string[] {
-        const defender = this.currentBattle().defender
+    ransackableCards(defender: string = this.currentBattle().defender): string[] {
         return this.court
             .filter((slot) => (slot.agents[defender] ?? 0) > 0)
             .map((slot) => slot.cardId)
@@ -2210,6 +2509,14 @@ export type ShipsMoving = { fresh: number; damaged: number }
 export type RaidTarget = { slot?: number; cardId?: string }
 
 export type RaidResult = { resource?: Resource; discarded?: Resource; cardId?: string }
+
+export type RuthlessChoice = {
+    discard?: Resource[]
+    ransack?: string
+    vox?: VoxChoice
+}
+
+export type RuthlessResult = { destroyed: boolean; gained: Resource[]; discarded: Resource[] }
 
 export type SecuredCard = { taken: Record<string, number>; vox?: VoxResult }
 

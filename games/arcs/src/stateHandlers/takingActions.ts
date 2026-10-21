@@ -28,6 +28,9 @@ import {
     isDrawActionCard
 } from '../actions/drawActionCard.js'
 import { Court } from '../components/courtCards.js'
+import { Leader } from '../components/personas.js'
+import { HydratedRuthless, isRuthless } from '../actions/ruthless.js'
+import { HydratedMythic, isMythic } from '../actions/mythic.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
 import { endChapter } from './playingCard.js'
 import { afterDeclaring } from './declaring.js'
@@ -45,6 +48,8 @@ type TakingActionsAction =
     | HydratedUseCard
     | HydratedUseFarseers
     | HydratedTakeNewAction
+    | HydratedRuthless
+    | HydratedMythic
     | HydratedDrawActionCard
     | HydratedEndTurn
 
@@ -75,12 +80,21 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             return false
         }
         if (isEndTurn(action)) {
+            if (gameState.turn?.owed !== undefined) {
+                return false
+            }
             return action.returnTo === undefined
                 ? !gameState.isEliminated(playerId)
                 : gameState.canReturnFleet(playerId, action.returnTo)
         }
         if (isUseFarseers(action)) {
             return gameState.canUseFarseers(playerId, action.discards)
+        }
+        if (isRuthless(action)) {
+            return gameState.canRuthless(playerId, action)
+        }
+        if (isMythic(action)) {
+            return gameState.canMythic(playerId, action.resource)
         }
         if (isTakeNewAction(action)) {
             return (
@@ -130,7 +144,13 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         }
         if (isMoveShips(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Move, action.via, action.token) &&
+                gameState.canPay(
+                    playerId,
+                    StandardAction.Move,
+                    action.via,
+                    action.token,
+                    action.bonus
+                ) &&
                 gameState.canMove(
                     playerId,
                     action.from,
@@ -150,8 +170,13 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         }
         if (isInfluence(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Influence, action.via, action.token) &&
-                gameState.canInfluence(playerId, action.cardId)
+                gameState.canPay(
+                    playerId,
+                    StandardAction.Influence,
+                    action.via,
+                    action.token,
+                    action.bonus
+                ) && gameState.canInfluence(playerId, action.cardId)
             )
         }
         return (
@@ -173,6 +198,7 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         }
         const payable = (action: StandardAction) =>
             gameState.canPay(playerId, action, undefined) ||
+            gameState.bonusSource(playerId, action) !== undefined ||
             Resources.some((via) =>
                 Resources.some((token) => gameState.canPay(playerId, action, via, token))
             )
@@ -202,6 +228,17 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         }
         if (gameState.canUseFarseers(playerId, [])) {
             actions.push(ActionType.UseFarseers)
+        }
+        const last = gameState.turn.lastBuildingAction
+        if (
+            last !== undefined &&
+            gameState.isLeader(playerId, Leader.Overseer) &&
+            !gameState.turn.usedCards.includes(Leader.Overseer)
+        ) {
+            actions.push(ActionType.Ruthless)
+        }
+        if (last?.kind === 'tax' && gameState.isLeader(playerId, Leader.Shaper)) {
+            actions.push(ActionType.Mythic)
         }
         actions.push(ActionType.EndTurn)
         return actions

@@ -28,7 +28,9 @@ export const MoveShips = Type.Evaluate(
             ),
             via: Type.Optional(ResourceSchema),
             // The token spent, when a card lets another resource stand in for `via`.
-            token: Type.Optional(ResourceSchema)
+            token: Type.Optional(ResourceSchema),
+            // A leader's extra action, taken without a pip or resource.
+            bonus: Type.Optional(Type.Boolean())
         })
     ])
 )
@@ -49,13 +51,14 @@ export class HydratedMoveShips extends HydratableAction<typeof MoveShips> implem
     declare dropOffs: ShipsMoving[]
     declare via?: Resource
     declare token?: Resource
+    declare bonus?: boolean
 
     constructor(data: MoveShips) {
         super(data, MoveShipsValidator)
     }
 
     apply(state: HydratedArcsGameState) {
-        state.pay(this.playerId, StandardAction.Move, this.via, this.token)
+        state.pay(this.playerId, StandardAction.Move, this.via, this.token, this.bonus)
         state.move(
             this.playerId,
             this.from,

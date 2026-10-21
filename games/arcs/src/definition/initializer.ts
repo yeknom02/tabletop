@@ -118,6 +118,7 @@ export class ArcsGameInitializer
             faceUpDiscard: [],
             ambitionMarkers: AmbitionMarkerSides.map(() => ({ flipped: false })),
             ambitionResources,
+            planetTypes: {},
             chapter: 1,
             initiative,
             round: newRound(initiative)

@@ -1,6 +1,7 @@
 import { Visibility } from '@tabletop/common'
 import * as Type from 'typebox'
-import { ActionCardIdSchema } from '../components/actionCards.js'
+import { ActionCardIdSchema, StandardAction } from '../components/actionCards.js'
+import { SystemIdSchema } from '../components/map.js'
 import { ResourceCounts, resourceCounts } from '../components/resources.js'
 
 // How a card was played this round (rules 5.1.1 and 5.2.2).
@@ -75,7 +76,21 @@ export const TurnRecord = Type.Object({
     // Whether the player has taken any action yet (Lattice Spies must come first).
     acted: Type.Boolean(),
     // Once-per-turn card abilities used this turn.
-    usedCards: Type.Array(Type.String())
+    usedCards: Type.Array(Type.String()),
+    // Standard actions paid for with pips, and leaders' extra actions taken (by leader).
+    pipActionsTaken: Type.Array(Type.Enum(StandardAction)),
+    bonusesUsed: Type.Array(Type.String()),
+    // An extra action taken first commits the pip to its partner action.
+    owed: Type.Optional(Type.Enum(StandardAction)),
+    // The tax or ship build just taken, which Ruthless can repeat and Mythic can follow.
+    lastBuildingAction: Type.Optional(
+        Type.Object({
+            kind: Type.Union([Type.Literal('tax'), Type.Literal('buildShip')]),
+            system: SystemIdSchema,
+            slot: Type.Integer({ minimum: 0 }),
+            copyOrPivotPip: Type.Boolean()
+        })
+    )
 })
 
 export function newTurnRecord(playerId: string, pips: number): TurnRecord {
@@ -89,6 +104,8 @@ export function newTurnRecord(playerId: string, pips: number): TurnRecord {
         starportsBuilt: [],
         securedInPrelude: [],
         acted: false,
-        usedCards: []
+        usedCards: [],
+        pipActionsTaken: [],
+        bonusesUsed: []
     }
 }

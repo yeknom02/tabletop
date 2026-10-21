@@ -5,11 +5,12 @@ import { Court } from '../components/courtCards.js'
 import { Die } from '../components/dice.js'
 import { Leader } from '../components/personas.js'
 import { Resource } from '../components/resources.js'
-import { BattleStep } from '../model/battle.js'
-import { ArcsGameStateValidator, type ArcsProjectedState } from '../model/gameState.js'
+import { BattleStep, noRerolls } from '../model/battle.js'
+import { ArcsGameStateValidator, DraftKind, type ArcsProjectedState } from '../model/gameState.js'
 import { BuildingKind } from '../model/pieces.js'
 import { PlayKind } from '../model/round.js'
 import { ActionType } from './actions.js'
+import { LeadersAndLore } from './config.js'
 import { MachineState } from './states.js'
 import {
     leadingOnEmptyBoard,
@@ -190,7 +191,7 @@ describe('after battle', () => {
                 buildingHits: 0,
                 keys: 0,
                 step: BattleStep.Hits,
-                rerolls: 0,
+                rerolls: noRerolls(),
                 trophiesTaken: false,
                 ransacks: 0
             }
@@ -267,7 +268,7 @@ describe('after battle', () => {
                 buildingHits: 0,
                 keys: 0,
                 step: BattleStep.Hits,
-                rerolls: 0,
+                rerolls: noRerolls(),
                 trophiesTaken: false,
                 ransacks: 0
             }
@@ -365,5 +366,126 @@ describe('declaring an ambition', () => {
         expect(demagogue.session.state.court[0].agents).toEqual({ [a]: 1 })
         expect(demagogue.session.state.court[1].agents).toEqual({ [a]: 1 })
         expect(demagogue.session.state.machineState).toBe(MachineState.TakingActions)
+    })
+})
+
+describe('leaders’ extra actions on a Copy or Pivot', () => {
+    function following(
+        leader: Leader,
+        card: string,
+        setup: (state: ArcsProjectedState, players: string[]) => void = () => {}
+    ) {
+        const result = leadingOnEmptyBoard('construction-2', (state, players) => {
+            const [a, b] = players
+            setShips(state, '6H', a, 1)
+            playerIn(state, b).leader = leader
+            playerIn(state, b).hand = [card]
+            setup(state, players)
+        })
+        const [a, b] = result.players
+        result.session.act(a, ActionType.EndTurn)
+        result.session.act(b, ActionType.FollowCard, { cardId: card, playKind: PlayKind.Pivot })
+        return result
+    }
+
+    it('Warrior moves before battling, and must then battle', () => {
+        const { session, players } = following(Leader.Warrior, 'aggression-3', (state, [a, b]) => {
+            setShips(state, '1H', b, 2)
+            setShips(state, '1G', a, 1)
+        })
+        const [, b] = players
+        session.act(b, ActionType.MoveShips, {
+            from: '1H',
+            path: ['1G'],
+            fresh: 2,
+            damaged: 0,
+            dropOffs: [],
+            bonus: true
+        })
+        expect(session.state.turn?.owed).toBe('battle')
+        expect(() => session.act(b, ActionType.EndTurn)).toThrow()
+        expect(() =>
+            session.act(b, ActionType.Influence, { cardId: session.state.court[0].cardId })
+        ).toThrow()
+    })
+
+    it('Noble influences twice', () => {
+        const { session, players } = following(Leader.Noble, 'administration-3')
+        const [, b] = players
+        const cardId = session.state.court[0].cardId
+        session.act(b, ActionType.Influence, { cardId })
+        expect(() => session.act(b, ActionType.Influence, { cardId })).toThrow()
+        session.act(b, ActionType.Influence, { cardId, bonus: true })
+        expect(session.state.court[0].agents).toEqual({ [b]: 2 })
+        expect(() => session.act(b, ActionType.Influence, { cardId, bonus: true })).toThrow()
+    })
+})
+
+describe('Overseer and Shaper', () => {
+    it('Ruthless destroys a damaged Rival city to tax it again: Outrage, Trophy and Ransack', () => {
+        const { session, players } = leadingOnEmptyBoard('administration-2', (state, [a, b]) => {
+            playerIn(state, a).leader = Leader.Overseer
+            setShips(state, '1H', a, 2)
+            setBuilding(state, '1H', 0, b, BuildingKind.City, true)
+            state.court[0].agents = { [b]: 1 }
+        })
+        const [a, b] = players
+        session.act(a, ActionType.Tax, { system: '1H', slot: 0 })
+        const cardId = session.state.court[0].cardId
+        expect(() => session.act(a, ActionType.Ruthless, {})).toThrow()
+        const [ruthless] = session.act(a, ActionType.Ruthless, { ransack: cardId })
+        expect(ruthless).toMatchObject({
+            metadata: { destroyed: true, gained: [Resource.Material] }
+        })
+        const state = session.hydrated()
+        const overseer = state.getPlayerState(a)
+        // The first Material went to Outrage; the second came after it.
+        expect(overseer.resourceCount(Resource.Material)).toBe(1)
+        expect(overseer.outrage).toEqual([Resource.Material])
+        expect(overseer.trophies).toContainEqual({ owner: b, kind: 'city' })
+        expect(overseer.trophies).toContainEqual({ owner: b, kind: 'agent' })
+        expect(() => session.act(a, ActionType.Ruthless, {})).toThrow()
+    })
+
+    it('Mythic changes a planet’s type for good', () => {
+        const { session, players } = leadingOnEmptyBoard('administration-2', (state, [a]) => {
+            playerIn(state, a).leader = Leader.Shaper
+            setBuilding(state, '1H', 0, a, BuildingKind.City)
+            playerIn(state, a).resources = [Resource.Relic, null, null, null, null, null]
+        })
+        const [a] = players
+        session.act(a, ActionType.Tax, { system: '1H', slot: 0 })
+        session.act(a, ActionType.Mythic, { resource: Resource.Relic })
+        const state = session.hydrated()
+        expect(state.planetType('1H')).toBe(Resource.Relic)
+        expect(state.getPlayerState(a).resources.slice(0, 2)).toEqual([null, Resource.Material])
+    })
+})
+
+describe('the Archivist', () => {
+    it('draws 5 lore after setup and keeps 2', () => {
+        const session = startTestGame(3, { leadersAndLore: LeadersAndLore.OneLore })
+        session.edit((state) => {
+            if (state.draft) {
+                state.draft.leaders[0] = Leader.Archivist
+            }
+        })
+        while (session.state.machineState === MachineState.Drafting) {
+            const playerId = session.currentPlayerId()
+            const state = session.hydrated()
+            const leader = state.needsFromDraft(playerId, DraftKind.Leader)
+            session.act(playerId, ActionType.DraftCard, {
+                cardId: leader ? state.draft?.leaders[0] : state.draft?.lore[0],
+                kind: leader ? DraftKind.Leader : DraftKind.Lore
+            })
+        }
+        expect(session.state.machineState).toBe(MachineState.Archiving)
+        const archive = session.state.archive
+        expect(archive?.cards).toHaveLength(5)
+        const archivist = archive?.playerId ?? ''
+        expect(session.state.activePlayerIds).toEqual([archivist])
+        session.act(archivist, ActionType.KeepLore, { cardIds: archive?.cards.slice(0, 2) })
+        expect(session.hydrated().getPlayerState(archivist).lore).toHaveLength(3)
+        expect(session.state.machineState).toBe(MachineState.PlayingCard)
     })
 })

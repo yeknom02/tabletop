@@ -7,7 +7,7 @@ import {
 import { MachineState } from '../definition/states.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
-import { BattleStep } from '../model/battle.js'
+import { anyRerolls, BattleStep } from '../model/battle.js'
 import { HydratedAssignHits, isAssignHits } from '../actions/assignHits.js'
 import { HydratedReroll, isReroll } from '../actions/reroll.js'
 import { HydratedRansack, isRansack } from '../actions/ransack.js'
@@ -84,7 +84,7 @@ export class BattlingStateHandler implements MachineStateHandler<
             case BattleStep.Beloved:
                 return [ActionType.BelovedInfluence]
             case BattleStep.Hits:
-                return battle.rerolls > 0
+                return anyRerolls(battle.rerolls)
                     ? [ActionType.Reroll, ActionType.AssignHits]
                     : [ActionType.AssignHits]
             case BattleStep.Ransack:
