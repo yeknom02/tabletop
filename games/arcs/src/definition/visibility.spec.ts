@@ -130,10 +130,52 @@ describe('Farseers', () => {
             const view = project(session, { kind: 'player', playerId: viewer })
             expect(view.declaration?.rivalHand).toBeUndefined()
         }
-        session.act(a, ActionType.SwapWithRival, { give: 'aggression-2', take: 'mobilization-6' })
+        const [swap] = session.act(a, ActionType.SwapWithRival, {
+            give: 'aggression-2',
+            take: 'mobilization-6'
+        })
+        for (const viewer of [b, c]) {
+            const seen = ArcsRuntime.visibility.actions.project(
+                swap,
+                { kind: 'player', playerId: viewer },
+                { config: session.game.config }
+            )
+            expect(JSON.stringify(seen)).not.toContain('mobilization-6')
+            expect(JSON.stringify(seen)).not.toContain('aggression-2')
+        }
         expect(session.hand(a)).toEqual(['mobilization-6'])
         expect(session.hand(b)).toEqual(['administration-1', 'aggression-2'])
         expect(session.state.declaration).toBeUndefined()
         expect(session.state.machineState).toBe(MachineState.TakingActions)
+    })
+})
+
+describe('Farseers’ Prelude', () => {
+    it('hides the cards discarded and drawn from everyone else', () => {
+        const session = startTestGame(3, { leadersAndLore: LeadersAndLore.None })
+        const [a, b] = session.state.turnManager.turnOrder
+        session.edit((state) => {
+            for (const player of state.players) {
+                if (player.playerId === a) {
+                    player.hand = ['construction-5', 'aggression-2']
+                    player.handCount = 2
+                    player.guildCards = [Court.Farseers]
+                }
+            }
+        })
+        session.act(a, ActionType.LeadCard, { cardId: 'construction-5' })
+        const [use] = session.act(a, ActionType.UseFarseers, {
+            discards: ['aggression-2'],
+            revealsInfo: true
+        })
+        const seen = ArcsRuntime.visibility.actions.project(
+            use,
+            { kind: 'player', playerId: b },
+            { config: session.game.config }
+        )
+        expect(JSON.stringify(seen)).not.toContain('aggression-2')
+        const view = project(session, { kind: 'player', playerId: b })
+        expect(view.players.find((player) => player.playerId === a)?.hand).toBeUndefined()
+        expect(view.players.find((player) => player.playerId === a)?.handCount).toBe(2)
     })
 })

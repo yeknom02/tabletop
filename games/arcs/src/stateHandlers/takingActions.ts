@@ -1,5 +1,6 @@
 import {
     ActionSource,
+    assert,
     type HydratedAction,
     type MachineStateHandler,
     MachineContext
@@ -30,7 +31,7 @@ import {
     isDrawActionCard
 } from '../actions/drawActionCard.js'
 import { Court } from '../components/courtCards.js'
-import { Leader } from '../components/personas.js'
+import { Leader, Lore } from '../components/personas.js'
 import { HydratedRuthless, isRuthless } from '../actions/ruthless.js'
 import { HydratedMythic, isMythic } from '../actions/mythic.js'
 import { HydratedUseLore, isUseLore } from '../actions/useLore.js'
@@ -87,7 +88,7 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             return false
         }
         if (isEndTurn(action)) {
-            if (gameState.turn?.owed !== undefined) {
+            if (gameState.turn?.owed !== undefined && gameState.canTakeOwed(playerId)) {
                 return false
             }
             return action.returnTo === undefined
@@ -104,13 +105,12 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             return gameState.canMythic(playerId, action.resource)
         }
         if (isTakeNewAction(action)) {
-            return (
-                gameState.canPay(
-                    playerId,
-                    NewActions[action.name].replaces,
-                    action.via,
-                    action.token
-                ) && canTakeNewAction(gameState, playerId, action)
+            return this.canPayThen(
+                gameState,
+                playerId,
+                NewActions[action.name].replaces,
+                action,
+                (state) => canTakeNewAction(state, playerId, action)
             )
         }
         if (isUseLore(action)) {
@@ -120,86 +120,91 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             return canUseCard(gameState, playerId, action)
         }
         if (isFireRifles(action)) {
-            return (
-                gameState.canPay(playerId, StandardAction.Battle, action.via, action.token) &&
-                gameState.canFireRifles(playerId, action.system, action.target, action.defender)
+            return this.canPayThen(gameState, playerId, StandardAction.Battle, action, (state) =>
+                state.canFireRifles(playerId, action.system, action.target, action.defender)
             )
         }
         if (isBattle(action)) {
             return (
-                gameState.canPay(playerId, StandardAction.Battle, action.via, action.token) &&
-                gameState.canBattle(
-                    playerId,
-                    action.system,
-                    action.defender,
-                    action.dice,
-                    action.railgun
-                ) &&
-                (action.dice !== undefined) === (action.revealsInfo === true)
+                (action.dice !== undefined) === (action.revealsInfo === true) &&
+                this.canPayThen(gameState, playerId, StandardAction.Battle, action, (state) =>
+                    state.canBattle(
+                        playerId,
+                        action.system,
+                        action.defender,
+                        action.dice,
+                        action.railgun
+                    )
+                )
             )
         }
         if (isSpendWeapon(action)) {
             return gameState.canSpendResource(playerId, Resource.Weapon, action.token)
         }
         if (isTax(action)) {
-            return (
-                gameState.canPay(playerId, StandardAction.Tax, action.via, action.token) &&
-                gameState.canTax(
+            const copyOrPivotPip = gameState.copyOrPivotPip(action.via)
+            return this.canPayThen(gameState, playerId, StandardAction.Tax, action, (state) =>
+                state.canTax(
                     playerId,
                     action.system,
                     action.slot,
                     action.discard,
-                    gameState.copyOrPivotPip(action.via),
+                    copyOrPivotPip,
                     action.cityType
                 )
             )
         }
         if (isBuildBuilding(action)) {
-            return (
-                gameState.canPay(playerId, StandardAction.Build, action.via, action.token) &&
-                gameState.canBuildBuilding(playerId, action.system, action.building)
+            return this.canPayThen(gameState, playerId, StandardAction.Build, action, (state) =>
+                state.canBuildBuilding(playerId, action.system, action.building)
             )
         }
         if (isBuildShip(action)) {
-            return (
-                gameState.canPay(playerId, StandardAction.Build, action.via, action.token) &&
-                gameState.canBuildShip(playerId, action.system, action.slot)
+            return this.canPayThen(gameState, playerId, StandardAction.Build, action, (state) =>
+                state.canBuildShip(playerId, action.system, action.slot)
             )
         }
         if (isMoveShips(action)) {
-            return (
-                gameState.canPay(
-                    playerId,
-                    StandardAction.Move,
-                    action.via,
-                    action.token,
-                    action.bonus
-                ) && gameState.canMoveWithSprint(playerId, action, action.sprint)
+            return this.canPayThen(gameState, playerId, StandardAction.Move, action, (state) =>
+                state.canMoveWithSprint(playerId, action, action.sprint)
             )
         }
         if (isRepair(action)) {
-            return (
-                gameState.canPay(playerId, StandardAction.Repair, action.via, action.token) &&
-                (action.slot === undefined
-                    ? gameState.canRepairShip(playerId, action.system)
-                    : gameState.canRepairBuilding(playerId, action.system, action.slot))
+            return this.canPayThen(gameState, playerId, StandardAction.Repair, action, (state) =>
+                action.slot === undefined
+                    ? state.canRepairShip(playerId, action.system)
+                    : state.canRepairBuilding(playerId, action.system, action.slot)
             )
         }
         if (isInfluence(action)) {
-            return (
-                gameState.canPay(
-                    playerId,
-                    StandardAction.Influence,
-                    action.via,
-                    action.token,
-                    action.bonus
-                ) && gameState.canInfluence(playerId, action.cardId)
+            return this.canPayThen(gameState, playerId, StandardAction.Influence, action, (state) =>
+                state.canInfluence(playerId, action.cardId)
             )
         }
         return (
             isSecure(action) &&
-            gameState.canPay(playerId, StandardAction.Secure, action.via, action.token) &&
-            gameState.canSecure(playerId, action.cardId, action.vox)
+            this.canPayThen(gameState, playerId, StandardAction.Secure, action, (state) =>
+                state.canSecure(playerId, action.cardId, action.vox)
+            )
+        )
+    }
+
+    // The action's own conditions hold once it is paid for: spending a resource token can open a
+    // slot, or end the Prelude.
+    private canPayThen(
+        gameState: HydratedArcsGameState,
+        playerId: string,
+        standard: StandardAction,
+        payment: { via?: Resource; token?: Resource; bonus?: boolean },
+        check: (state: HydratedArcsGameState) => boolean
+    ): boolean {
+        const { via, token, bonus = false } = payment
+        return (
+            gameState.canPay(playerId, standard, via, token, bonus) &&
+            gameState.wouldSucceed((state) => {
+                state.pay(playerId, standard, via, token, bonus)
+                assert(check(state), 'The action cannot be taken once paid for')
+            })
         )
     }
 
@@ -226,6 +231,9 @@ export class TakingActionsStateHandler implements MachineStateHandler<
             Resources.some((token) => gameState.canSpendResource(playerId, Resource.Weapon, token))
         ) {
             actions.push(ActionType.SpendWeapon)
+        }
+        if (gameState.hasLore(playerId, Lore.GalacticRifles) && payable(StandardAction.Battle)) {
+            actions.push(ActionType.FireRifles)
         }
         if (
             Object.values(NewActionName).some(

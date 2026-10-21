@@ -114,6 +114,26 @@ describe('gaining into full slots', () => {
     })
 })
 
+describe('paying with a resource from full slots', () => {
+    it('frees a slot before the tax gains, so nothing is discarded', () => {
+        const { session, players } = leadingOnEmptyBoard('administration-2', (state, [a]) => {
+            setBuilding(state, '1H', 0, a, BuildingKind.City)
+            setBuilding(state, '1A', 0, a, BuildingKind.City)
+            playerIn(state, a).citiesOnBoard = 5
+            playerIn(state, a).resources = [Resource.Psionic, Resource.Fuel, null, null, null, null]
+        })
+        const [a] = players
+        // A Psionic pays for an action on the lead card, Administration's Tax.
+        const tax = { system: '1H', slot: 0, via: Resource.Psionic }
+        expect(() => session.act(a, ActionType.Tax, { ...tax, discard: [Resource.Fuel] })).toThrow()
+        session.act(a, ActionType.Tax, tax)
+        expect(session.hydrated().getPlayerState(a).resources.slice(0, 2)).toEqual([
+            Resource.Material,
+            Resource.Fuel
+        ])
+    })
+})
+
 describe('declaring without the zero marker', () => {
     it('Secret Order declares Keeper or Empath without zeroing the lead card', () => {
         const session = startTestGame(3)

@@ -1029,6 +1029,25 @@ export class HydratedArcsGameState
         return after || before ? { leader: bonus.leader, partner: bonus.partner } : undefined
     }
 
+    // Whether the action an extra action committed the pip to still has a target: a Rival to
+    // battle, or a card to secure. If not, the turn can end without it.
+    canTakeOwed(playerId: string): boolean {
+        const owed = this.turn?.owed
+        if (owed === StandardAction.Battle) {
+            return this.systems.some(
+                (system) =>
+                    shipsOf(system, playerId).fresh + shipsOf(system, playerId).damaged > 0 &&
+                    this.defendersIn(playerId, system.id).length > 0
+            )
+        }
+        if (owed === StandardAction.Secure) {
+            return this.court.some(
+                (slot) => isVox(slot.cardId) || this.canSecure(playerId, slot.cardId)
+            )
+        }
+        return false
+    }
+
     // A spent Weapon lets this turn's pips battle (rule 9.1).
     spendWeapon(playerId: string, token: Resource = Resource.Weapon) {
         assert(
