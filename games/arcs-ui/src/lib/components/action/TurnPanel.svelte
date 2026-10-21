@@ -25,6 +25,20 @@
         [StandardAction.Secure]: 'Choose a Court card to secure.',
         [StandardAction.Battle]: 'Choose where to battle.'
     }
+    // Options grouped under the card or action named before the colon in their labels.
+    const abilityGroups = $derived.by(() => {
+        const groups = new Map<
+            string,
+            { option: (typeof gameSession.abilityOptions)[number]; detail: string }[]
+        >()
+        for (const option of gameSession.abilityOptions) {
+            const [title, ...rest] = option.label.split(': ')
+            const detail = rest.length > 0 ? rest.join(': ') : 'Use'
+            groups.set(title, [...(groups.get(title) ?? []), { option, detail }])
+        }
+        return [...groups].map(([title, options]) => ({ title, options }))
+    })
+
     const movePrompt = $derived(
         gameSession.origin === undefined
             ? 'Choose ships to move.'
@@ -85,6 +99,39 @@
             {/if}
         </div>
     {/if}
+    {#if !intent && (gameSession.abilityOptions.length > 0 || gameSession.farseersDiscards.length > 0)}
+        <details class="abilities">
+            <summary
+                >Card abilities ({gameSession.abilityOptions.length +
+                    gameSession.farseersDiscards.length})</summary
+            >
+            <div class="ability-list">
+                {#each abilityGroups as group (group.title)}
+                    <div class="group">
+                        <span class="group-title">{group.title}</span>
+                        {#each group.options as { option, detail } (option.label)}
+                            <button
+                                type="button"
+                                class="choice"
+                                onclick={() => gameSession.useAbility(option)}>{detail}</button
+                            >
+                        {/each}
+                    </div>
+                {/each}
+                {#each gameSession.farseersDiscards as discards (discards.join())}
+                    <button
+                        type="button"
+                        class="choice"
+                        onclick={() => gameSession.useFarseers(discards)}
+                    >
+                        Farseers: discard {discards.length > 0
+                            ? discards.join(', ')
+                            : 'only Farseers'}, draw {discards.length + 1}
+                    </button>
+                {/each}
+            </div>
+        </details>
+    {/if}
     {#if gameSession.canEndTurn && !gameSession.mustReturnFleet && !intent}
         <button type="button" class="choice end" onclick={() => gameSession.endTurn()}
             >End turn</button
@@ -134,5 +181,36 @@
 
     .end {
         margin-left: auto;
+    }
+
+    .abilities {
+        flex-basis: 100%;
+    }
+
+    .abilities summary {
+        cursor: pointer;
+        font-family: 'Arcs Cinzel', serif;
+        font-weight: 700;
+    }
+
+    .ability-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 220px;
+        margin-top: 6px;
+        overflow: auto;
+    }
+
+    .group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .group-title {
+        min-width: 130px;
+        font-weight: 600;
     }
 </style>

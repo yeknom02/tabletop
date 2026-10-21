@@ -35,15 +35,15 @@
         "winningPlayerIds": [],
         "seed": 3367980177,
         "activePlayerIds": ["p0"],
-        "createdAt": "2026-10-21T18:41:25.389Z",
+        "createdAt": "2026-10-21T18:51:35.037Z",
         "storage": "remote",
         "category": "standard",
-        "startedAt": "2026-10-21T18:41:25.390Z",
+        "startedAt": "2026-10-21T18:51:35.037Z",
         "protectedInformation": true
     },
     "state": {
         "systemVersion": 3,
-        "id": "8ppr_4458itNc9W6IxMwW",
+        "id": "3SbsMsjQgFdqVMCKYGRro",
         "gameId": "scenario-mid-chapter",
         "seed": 3367980177,
         "prng": {

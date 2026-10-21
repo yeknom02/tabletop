@@ -35,15 +35,15 @@
         "winningPlayerIds": [],
         "seed": 3367980177,
         "activePlayerIds": ["p0"],
-        "createdAt": "2026-10-21T18:41:25.376Z",
+        "createdAt": "2026-10-21T18:51:35.022Z",
         "storage": "remote",
         "category": "standard",
-        "startedAt": "2026-10-21T18:41:25.377Z",
+        "startedAt": "2026-10-21T18:51:35.023Z",
         "protectedInformation": true
     },
     "state": {
         "systemVersion": 3,
-        "id": "YfKbWFUyPvhic1ioXAbUk",
+        "id": "Wagwv4jBVobNt-LEAO7FC",
         "gameId": "scenario-battle-ready",
         "seed": 3367980177,
         "prng": {

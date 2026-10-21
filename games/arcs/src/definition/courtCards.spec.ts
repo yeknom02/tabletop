@@ -3,6 +3,7 @@ import { Ambition } from '../components/actionCards.js'
 import { Court } from '../components/courtCards.js'
 import { Resource } from '../components/resources.js'
 import { NewActionName } from '../model/newActionTypes.js'
+import { canTakeNewAction } from '../model/newActions.js'
 import { BuildingKind, TrophyKind } from '../model/pieces.js'
 import { PlayKind } from '../model/round.js'
 import { ActionType } from './actions.js'
@@ -446,6 +447,32 @@ describe('new actions', () => {
             { owner: y, kind: TrophyKind.Agent },
             { owner: y, kind: TrophyKind.Agent }
         ])
+    })
+
+    it('refuses a Pressgang or Execute of no Captives, and choices the action does not read', () => {
+        const { session, players } = holding(
+            Court.PrisonWardens,
+            'construction-2',
+            (state, [a, b]) => {
+                playerIn(state, a).captives = { [b]: 1 }
+            }
+        )
+        const [a, b] = players
+        const state = session.hydrated()
+        expect(canTakeNewAction(state, a, { name: NewActionName.Pressgang })).toBe(false)
+        expect(canTakeNewAction(state, a, { name: NewActionName.Execute, captives: {} })).toBe(
+            false
+        )
+        expect(
+            canTakeNewAction(state, a, {
+                name: NewActionName.Execute,
+                captives: { [b]: 1 },
+                system: '1H'
+            })
+        ).toBe(false)
+        expect(
+            canTakeNewAction(state, a, { name: NewActionName.Execute, captives: { [b]: 1 } })
+        ).toBe(true)
     })
 
     it('Abduct captures the Rival agents on a Court card with fewer than the Weapon icons', () => {

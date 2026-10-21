@@ -6,6 +6,8 @@
     import PlayCardPanel from './action/PlayCardPanel.svelte'
     import TurnPanel from './action/TurnPanel.svelte'
     import BattlePanel from './action/BattlePanel.svelte'
+    import DeclarePanel from './action/DeclarePanel.svelte'
+    import ArchivePanel from './action/ArchivePanel.svelte'
     import WaitingPanel from './action/WaitingPanel.svelte'
 
     const gameSession = getGameSession()
@@ -31,6 +33,10 @@
         <TurnPanel />
     {:else if gameSession.isBattling}
         <BattlePanel />
+    {:else if gameSession.declareStep}
+        <DeclarePanel />
+    {:else if gameSession.archive}
+        <ArchivePanel />
     {:else}
         <WaitingPanel />
     {/if}

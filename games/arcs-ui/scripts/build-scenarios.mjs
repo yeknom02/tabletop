@@ -167,3 +167,32 @@ write(
         return position
     })()
 )
+
+write(
+    'card-abilities',
+    'Card abilities',
+    (() => {
+        const position = leading('aggression-4')
+        const { state } = position
+        const [a, b, c] = [0, 1, 2].map((index) => seat(state, index))
+        const n = cluster(state)
+        ships(state, `${n}A`, a, 3)
+        building(state, `${n}A`, 0, a, 'city')
+        ships(state, `${n}G`, a, 2)
+        ships(state, `${n}G`, b, 1)
+        ships(state, `${n}H`, b, 2)
+        building(state, `${n}H`, 0, b, 'city')
+        a.guildCards = ['BC08', 'BC24', 'BC12']
+        a.lore = ['L02']
+        a.resources = [Resource.Fuel, Resource.Material, Resource.Weapon, null, null, null]
+        a.captives = { [b.playerId]: 1 }
+        b.agents -= 1
+        b.resources = [Resource.Relic, Resource.Fuel, null, null, null, null]
+        b.guildCards = ['BC21']
+        state.court = state.court.filter(
+            (slot) => !['BC08', 'BC24', 'BC12', 'BC21'].includes(slot.cardId)
+        )
+        agents(state, 0, c, 1)
+        return position
+    })()
+)

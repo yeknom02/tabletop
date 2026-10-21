@@ -3,6 +3,26 @@ import { assertExists, type GameAction } from '@tabletop/common'
 import {
     actionCard,
     ActionType,
+    canTakeNewAction,
+    canUseCard,
+    canUseLore,
+    FireRifles,
+    Mythic,
+    NewActions,
+    Ruthless,
+    TakeNewAction,
+    UseCard,
+    UseFarseers,
+    UseLore,
+    BoldInfluence,
+    DeclareStep,
+    Farsee,
+    GainOnDeclaring,
+    GiveGuildCard,
+    KeepLore,
+    leastPowerfulRivals,
+    ResolveConnected,
+    SwapWithRival,
     AssignHits,
     BattleStep,
     BelovedInfluence,
@@ -65,6 +85,7 @@ import {
     type Intent,
     type Payment
 } from './stagedSelection.js'
+import { abilityCandidates, type AbilityOption } from '$lib/utils/abilities.js'
 
 export type HandCardChoice = {
     cardId: string
@@ -566,6 +587,178 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
 
     async belovedInfluence(cardId?: string) {
         await this.applyAction(this.createPlayerAction(BelovedInfluence, { cardId }))
+    }
+
+    // ----- Declaring an ambition, and the Archivist -----
+
+    readonly declaration = $derived(this.gameState.declaration)
+    readonly declareStep = $derived(
+        this.canAct && this.machineState === MachineState.Declaring
+            ? this.declaration?.steps[0]
+            : undefined
+    )
+
+    readonly generousRivals: string[] = $derived(
+        this.declareStep === DeclareStep.Generous
+            ? leastPowerfulRivals(this.gameState, this.myPlayerId())
+            : []
+    )
+
+    async giveGuildCard(cardId: string, to: string) {
+        await this.applyAction(this.createPlayerAction(GiveGuildCard, { cardId, to }))
+    }
+
+    canResolveConnectedWith(vox: VoxChoice): boolean {
+        return this.wouldApply(this.createPlayerAction(ResolveConnected, { vox }))
+    }
+
+    async resolveConnected(vox: VoxChoice) {
+        await this.applyAction(this.createPlayerAction(ResolveConnected, { vox }))
+    }
+
+    // Upstart, Ambitious: each resource that can be gained, with what to discard for it.
+    readonly ambitiousGains: { resource: Resource; discards: Resource[][] }[] = $derived.by(() => {
+        if (this.declareStep !== DeclareStep.Ambitious) return []
+        return Resources.map((resource) => ({
+            resource,
+            discards: this.discardsThatWork((discard) =>
+                this.createPlayerAction(GainOnDeclaring, { resource, discard })
+            )
+        })).filter((option) => option.discards.length > 0)
+    })
+
+    async gainOnDeclaring(resource?: Resource, discard: Resource[] = []) {
+        await this.applyAction(this.createPlayerAction(GainOnDeclaring, { resource, discard }))
+    }
+
+    canBoldInfluence(cardIds: string[]): boolean {
+        return this.wouldApply(this.createPlayerAction(BoldInfluence, { cardIds }))
+    }
+
+    async boldInfluence(cardIds: string[]) {
+        await this.applyAction(this.createPlayerAction(BoldInfluence, { cardIds }))
+    }
+
+    async farsee(rival: string) {
+        await this.applyAction(this.createPlayerAction(Farsee, { rival, revealsInfo: true }))
+    }
+
+    async swapWithRival(give?: string, take?: string) {
+        await this.applyAction(this.createPlayerAction(SwapWithRival, { give, take }))
+    }
+
+    readonly archive = $derived(
+        this.canTake(ActionType.KeepLore) ? this.gameState.archive : undefined
+    )
+
+    async keepLore(cardIds: string[]) {
+        await this.applyAction(this.createPlayerAction(KeepLore, { cardIds }))
+    }
+
+    // ----- Card abilities -----
+
+    // Each card ability the rules allow now, with the payment it would take for a new action.
+    readonly abilityOptions: (AbilityOption & { payment?: Payment })[] = $derived.by(() => {
+        if (!this.isTakingActions) return []
+        const me = this.myPlayerId()
+        const state = this.gameState
+        const candidates = abilityCandidates({
+            state,
+            me,
+            name: (playerId) => this.getPlayerName(playerId)
+        })
+        const seen = new Set<string>()
+        const firstOfEachLabel = (option: AbilityOption) => {
+            if (seen.has(option.label)) return false
+            seen.add(option.label)
+            return true
+        }
+        const allowed = candidates.flatMap((option): (AbilityOption & { payment?: Payment })[] => {
+            switch (option.kind) {
+                case 'card':
+                    return canUseCard(state, me, option.use) ? [option] : []
+                case 'lore':
+                    return canUseLore(state, me, option.use) ? [option] : []
+                case 'new': {
+                    const payment = this.paymentsFor(NewActions[option.choice.name].replaces)[0]
+                    return payment && canTakeNewAction(state, me, option.choice)
+                        ? [{ ...option, payment }]
+                        : []
+                }
+                case 'rifles': {
+                    const payment = this.paymentsFor(StandardAction.Battle)[0]
+                    return payment &&
+                        state.canFireRifles(me, option.system, option.target, option.defender)
+                        ? [{ ...option, payment }]
+                        : []
+                }
+                case 'ruthless':
+                    return state.canRuthless(me, {
+                        ransack: option.ransack,
+                        discard: option.discard
+                    })
+                        ? [option]
+                        : []
+                case 'mythic':
+                    return state.canMythic(me, option.resource) ? [option] : []
+            }
+        })
+        return allowed.filter(firstOfEachLabel)
+    })
+
+    readonly farseersDiscards: string[][] = $derived.by(() => {
+        if (!this.isTakingActions) return []
+        const me = this.myPlayerId()
+        return [[], ...this.myHand.map((cardId) => [cardId])].filter((discards) =>
+            this.gameState.canUseFarseers(me, discards)
+        )
+    })
+
+    async useFarseers(discards: string[]) {
+        await this.applyAction(
+            this.createPlayerAction(UseFarseers, { discards, revealsInfo: true })
+        )
+    }
+
+    async useAbility(option: AbilityOption & { payment?: Payment }) {
+        switch (option.kind) {
+            case 'card':
+                await this.applyAction(this.createPlayerAction(UseCard, option.use))
+                break
+            case 'lore':
+                await this.applyAction(this.createPlayerAction(UseLore, option.use))
+                break
+            case 'new':
+                await this.applyAction(
+                    this.createPlayerAction(TakeNewAction, { ...option.choice, ...option.payment })
+                )
+                break
+            case 'rifles':
+                await this.applyAction(
+                    this.createPlayerAction(FireRifles, {
+                        system: option.system,
+                        target: option.target,
+                        defender: option.defender,
+                        revealsInfo: true,
+                        via: option.payment?.via,
+                        token: option.payment?.token
+                    })
+                )
+                break
+            case 'ruthless':
+                await this.applyAction(
+                    this.createPlayerAction(Ruthless, {
+                        ransack: option.ransack,
+                        discard: option.discard
+                    })
+                )
+                break
+            case 'mythic':
+                await this.applyAction(
+                    this.createPlayerAction(Mythic, { resource: option.resource })
+                )
+                break
+        }
     }
 
     // ----- Helpers -----

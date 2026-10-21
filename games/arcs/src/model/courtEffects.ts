@@ -320,6 +320,7 @@ export function canTakeCourtAction(
         case NewActionName.Pressgang: {
             const returned = Object.values(captives).reduce((sum, count) => sum + count, 0)
             return (
+                returned > 0 &&
                 capturesHeld(state, playerId, captives) &&
                 gains.length === returned &&
                 state.availableGains(gains).length === gains.length &&
@@ -327,7 +328,11 @@ export function canTakeCourtAction(
             )
         }
         case NewActionName.Execute:
-            return discard.length === 0 && capturesHeld(state, playerId, captives)
+            return (
+                discard.length === 0 &&
+                Object.keys(captives).length > 0 &&
+                capturesHeld(state, playerId, captives)
+            )
         case NewActionName.Abduct: {
             const slot = state.court.find((candidate) => candidate.cardId === choice.courtCardId)
             if (!slot) {

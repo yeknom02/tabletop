@@ -76,12 +76,47 @@ export function hasNewAction(
         : state.holds(playerId, cardId)
 }
 
+// The choices each new action reads; any other is refused, so each choice means one thing.
+const NewActionFields: Readonly<Record<NewActionName, readonly (keyof NewActionChoice)[]>> = {
+    [NewActionName.Manufacture]: ['discard'],
+    [NewActionName.Synthesize]: ['discard'],
+    [NewActionName.Pressgang]: ['captives', 'gains', 'discard'],
+    [NewActionName.Execute]: ['captives'],
+    [NewActionName.Abduct]: ['courtCardId'],
+    [NewActionName.Trade]: ['system', 'slot', 'give'],
+    [NewActionName.Summon]: ['system', 'slot'],
+    [NewActionName.Nurture]: ['system', 'slot', 'discard', 'cityType'],
+    [NewActionName.Prune]: ['system', 'slot'],
+    [NewActionName.Guide]: ['system', 'to', 'ships'],
+    [NewActionName.Martyr]: ['system', 'target', 'targetDamaged'],
+    [NewActionName.Annex]: ['system', 'slot']
+}
+
+const ChoiceFields = [
+    'discard',
+    'captives',
+    'gains',
+    'courtCardId',
+    'system',
+    'slot',
+    'give',
+    'cityType',
+    'to',
+    'ships',
+    'target',
+    'targetDamaged'
+] as const satisfies readonly (keyof NewActionChoice)[]
+
 export function canTakeNewAction(
     state: HydratedArcsGameState,
     playerId: string,
     choice: NewActionChoice
 ): boolean {
-    if (!hasNewAction(state, playerId, choice.name)) {
+    const allowed: readonly string[] = NewActionFields[choice.name]
+    if (
+        !hasNewAction(state, playerId, choice.name) ||
+        ChoiceFields.some((field) => !allowed.includes(field) && choice[field] !== undefined)
+    ) {
         return false
     }
     return NewActions[choice.name].lore
