@@ -11,6 +11,8 @@ export enum MachineState {
     TakingActions = 'TakingActions',
     // The active player resolves a battle they started: hits, Ransacks, then raiding.
     Battling = 'Battling',
+    // Farseers: after declaring an ambition, its holder looks at a Rival's hand and may swap.
+    Farseeing = 'Farseeing',
     // The chapter is over: scoring, clean-up and a new deal, all in one System Action.
     EndingChapter = 'EndingChapter',
     EndOfGame = 'EndOfGame'

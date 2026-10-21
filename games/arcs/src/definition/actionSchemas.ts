@@ -22,7 +22,10 @@ import { AssignHits } from '../actions/assignHits.js'
 import { Ransack } from '../actions/ransack.js'
 import { Raid } from '../actions/raid.js'
 import { EndBattle } from '../actions/endBattle.js'
+import { Farsee } from '../actions/farsee.js'
+import { SwapWithRival } from '../actions/swapWithRival.js'
 import { EndTurn } from '../actions/endTurn.js'
+import { DrawActionCard } from '../actions/drawActionCard.js'
 import { DealHands } from '../actions/dealHands.js'
 import { EndChapter } from '../actions/endChapter.js'
 import { ActionType } from './actions.js'
@@ -51,7 +54,10 @@ export const ArcsActionSchemas = {
     [ActionType.Ransack]: Ransack,
     [ActionType.Raid]: Raid,
     [ActionType.EndBattle]: EndBattle,
+    [ActionType.Farsee]: Farsee,
+    [ActionType.SwapWithRival]: SwapWithRival,
     [ActionType.EndTurn]: EndTurn,
     [ActionType.DealHands]: DealHands,
+    [ActionType.DrawActionCard]: DrawActionCard,
     [ActionType.EndChapter]: EndChapter
 } satisfies Record<ActionType, Type.TSchema>

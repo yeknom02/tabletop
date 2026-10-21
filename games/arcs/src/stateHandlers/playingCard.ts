@@ -7,6 +7,7 @@ import { HydratedLeadCard, isLeadCard } from '../actions/leadCard.js'
 import { HydratedFollowCard, isFollowCard } from '../actions/followCard.js'
 import { HydratedPassInitiative, isPassInitiative } from '../actions/passInitiative.js'
 import { EndChapter } from '../actions/endChapter.js'
+import { afterDeclaring } from './farseeing.js'
 
 type PlayingCardAction = HydratedLeadCard | HydratedFollowCard | HydratedPassInitiative
 
@@ -78,7 +79,7 @@ export class PlayingCardStateHandler implements MachineStateHandler<
         if (isPassInitiative(action)) {
             return gameState.everyonePassed() ? endChapter(context) : MachineState.PlayingCard
         }
-        return MachineState.TakingActions
+        return afterDeclaring(gameState)
     }
 }
 

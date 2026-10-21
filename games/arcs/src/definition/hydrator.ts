@@ -23,7 +23,10 @@ import { HydratedAssignHits, isAssignHits } from '../actions/assignHits.js'
 import { HydratedRansack, isRansack } from '../actions/ransack.js'
 import { HydratedRaid, isRaid } from '../actions/raid.js'
 import { HydratedEndBattle, isEndBattle } from '../actions/endBattle.js'
+import { HydratedFarsee, isFarsee } from '../actions/farsee.js'
+import { HydratedSwapWithRival, isSwapWithRival } from '../actions/swapWithRival.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
+import { HydratedDrawActionCard, isDrawActionCard } from '../actions/drawActionCard.js'
 import { HydratedDealHands, isDealHands } from '../actions/dealHands.js'
 import { HydratedEndChapter, isEndChapter } from '../actions/endChapter.js'
 
@@ -99,8 +102,17 @@ export class ArcsHydrator implements GameHydrator<ArcsProjectedState, HydratedAr
             case isEndBattle(data): {
                 return new HydratedEndBattle(data)
             }
+            case isFarsee(data): {
+                return new HydratedFarsee(data)
+            }
+            case isSwapWithRival(data): {
+                return new HydratedSwapWithRival(data)
+            }
             case isEndTurn(data): {
                 return new HydratedEndTurn(data)
+            }
+            case isDrawActionCard(data): {
+                return new HydratedDrawActionCard(data)
             }
             case isDealHands(data): {
                 return new HydratedDealHands(data)

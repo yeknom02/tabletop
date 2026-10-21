@@ -1,5 +1,7 @@
 import { assert, assertExists, type Visibility } from '@tabletop/common'
 import { describe, expect, it } from 'vitest'
+import { Ambition } from '../components/actionCards.js'
+import { Court } from '../components/courtCards.js'
 import { PlayKind } from '../model/round.js'
 import { ArcsGameStateValidator, type ArcsProjectedState } from '../model/gameState.js'
 import { ActionType } from './actions.js'
@@ -100,5 +102,38 @@ describe('the draft', () => {
         const session = startTestGame(3, { leadersAndLore: LeadersAndLore.OneLore })
         const view = project(session, { kind: 'spectator' })
         expect(view.draft).toEqual(session.state.draft)
+    })
+})
+
+describe('Farseers', () => {
+    it('shows the Rival’s hand to the declarer alone, then swaps a card', () => {
+        const session = startTestGame(3, { leadersAndLore: LeadersAndLore.None })
+        const [a, b, c] = session.state.turnManager.turnOrder
+        session.edit((state) => {
+            for (const player of state.players) {
+                if (player.playerId === a) {
+                    player.hand = ['construction-5', 'aggression-2']
+                    player.guildCards = [Court.Farseers]
+                }
+                if (player.playerId === b) player.hand = ['mobilization-6', 'administration-1']
+                player.handCount = player.hand?.length ?? 0
+            }
+        })
+        session.act(a, ActionType.LeadCard, { cardId: 'construction-5', declare: Ambition.Keeper })
+        expect(session.state.machineState).toBe(MachineState.Farseeing)
+        session.act(a, ActionType.Farsee, { rival: b, revealsInfo: true })
+        expect(project(session, { kind: 'player', playerId: a }).farsight?.rivalHand).toEqual([
+            'mobilization-6',
+            'administration-1'
+        ])
+        for (const viewer of [b, c]) {
+            const view = project(session, { kind: 'player', playerId: viewer })
+            expect(view.farsight?.rivalHand).toBeUndefined()
+        }
+        session.act(a, ActionType.SwapWithRival, { give: 'aggression-2', take: 'mobilization-6' })
+        expect(session.hand(a)).toEqual(['mobilization-6'])
+        expect(session.hand(b)).toEqual(['administration-1', 'aggression-2'])
+        expect(session.state.farsight).toBeUndefined()
+        expect(session.state.machineState).toBe(MachineState.TakingActions)
     })
 })

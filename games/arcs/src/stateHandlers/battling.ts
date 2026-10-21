@@ -1,4 +1,9 @@
-import { type HydratedAction, type MachineStateHandler, MachineContext } from '@tabletop/common'
+import {
+    ActionSource,
+    type HydratedAction,
+    type MachineStateHandler,
+    MachineContext
+} from '@tabletop/common'
 import { MachineState } from '../definition/states.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
@@ -8,9 +13,21 @@ import { HydratedReroll, isReroll } from '../actions/reroll.js'
 import { HydratedRansack, isRansack } from '../actions/ransack.js'
 import { HydratedRaid, isRaid } from '../actions/raid.js'
 import { HydratedEndBattle, isEndBattle } from '../actions/endBattle.js'
+import {
+    DrawActionCard,
+    HydratedDrawActionCard,
+    isDrawActionCard
+} from '../actions/drawActionCard.js'
+import { Court } from '../components/courtCards.js'
+import { afterDeclaring } from './farseeing.js'
 
 type BattlingAction =
-    HydratedReroll | HydratedAssignHits | HydratedRansack | HydratedRaid | HydratedEndBattle
+    | HydratedReroll
+    | HydratedAssignHits
+    | HydratedRansack
+    | HydratedRaid
+    | HydratedEndBattle
+    | HydratedDrawActionCard
 
 // The attacker resolves their battle step by step; the turn resumes once it is over.
 export class BattlingStateHandler implements MachineStateHandler<
@@ -22,6 +39,9 @@ export class BattlingStateHandler implements MachineStateHandler<
         context: MachineContext<HydratedArcsGameState>
     ): action is BattlingAction {
         const gameState = context.gameState
+        if (isDrawActionCard(action)) {
+            return action.source === ActionSource.System
+        }
         const playerId = action.playerId ?? ''
         if (isAssignHits(action)) {
             return gameState.canAssignHits(
@@ -35,7 +55,7 @@ export class BattlingStateHandler implements MachineStateHandler<
             return gameState.canReroll(playerId, action.dice)
         }
         if (isRansack(action)) {
-            return gameState.canRansack(playerId, action.cardId)
+            return gameState.canRansack(playerId, action.cardId, action.vox)
         }
         if (isRaid(action)) {
             return gameState.canRaid(
@@ -74,10 +94,13 @@ export class BattlingStateHandler implements MachineStateHandler<
         }
     }
 
-    onAction(
-        _action: BattlingAction,
-        context: MachineContext<HydratedArcsGameState>
-    ): MachineState {
-        return context.gameState.battle ? MachineState.Battling : MachineState.TakingActions
+    onAction(action: BattlingAction, context: MachineContext<HydratedArcsGameState>): MachineState {
+        if (isRansack(action) && action.cardId === Court.CallToAction) {
+            context.addSystemAction(DrawActionCard, {
+                drawer: action.playerId,
+                revealsInfo: true
+            })
+        }
+        return afterDeclaring(context.gameState)
     }
 }

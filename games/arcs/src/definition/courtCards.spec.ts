@@ -487,3 +487,117 @@ describe('new actions', () => {
         expect(state.getPlayerState(b).resourceCount(Resource.Material)).toBe(0)
     })
 })
+
+describe('Vox cards when secured', () => {
+    function securing(cardId: string, setup: BoardSetup = () => {}) {
+        return leadingOnEmptyBoard('aggression-2', (state, players) => {
+            const [a] = players
+            state.court[0] = { cardId, agents: { [a]: 1 } }
+            playerIn(state, a).agents -= 1
+            setup(state, players)
+        })
+    }
+
+    it('take no choices for a Guild card', () => {
+        const { session, players } = securing(Court.RelicFence)
+        expect(() =>
+            session.act(players[0], ActionType.Secure, {
+                cardId: Court.RelicFence,
+                vox: { cluster: 2 }
+            })
+        ).toThrow()
+    })
+
+    it('Mass Uprising places a ship in each system of a cluster', () => {
+        const { session, players } = securing(Court.MassUprising)
+        const [a] = players
+        session.act(a, ActionType.Secure, { cardId: Court.MassUprising, vox: { cluster: 2 } })
+        const state = session.hydrated()
+        for (const id of ['2G', '2A', '2C', '2H'] as const) {
+            expect(state.system(id).ships[a]).toEqual({ fresh: 1, damaged: 0 })
+        }
+        expect(state.courtDiscard).toContain(Court.MassUprising)
+        expect(state.court[0].cardId).not.toBe(Court.MassUprising)
+    })
+
+    it('Populist Demands declares an ambition without the zero marker', () => {
+        const { session, players } = securing(Court.PopulistDemands)
+        session.act(players[0], ActionType.Secure, {
+            cardId: Court.PopulistDemands,
+            vox: { ambition: Ambition.Warlord }
+        })
+        const state = session.hydrated()
+        expect(state.ambitionMarkers.some((marker) => marker.ambition === Ambition.Warlord)).toBe(
+            true
+        )
+        expect(state.leadNumber()).toBe(2)
+    })
+
+    it('Outrage Spreads Outrages everyone', () => {
+        const { session, players } = securing(Court.OutrageSpreads)
+        session.act(players[0], ActionType.Secure, {
+            cardId: Court.OutrageSpreads,
+            vox: { outrage: Resource.Relic }
+        })
+        expect(
+            session.hydrated().players.every((player) => player.outrage.includes(Resource.Relic))
+        ).toBe(true)
+    })
+
+    it('Song of Freedom returns a controlled city and may seize, then rejoins the Court deck', () => {
+        const { session, players } = leadingOnEmptyBoard('construction-2', (state, [a, b]) => {
+            setShips(state, '6H', a, 1)
+            setBuilding(state, '1H', 0, a, BuildingKind.City)
+            setShips(state, '1H', b, 1)
+            state.court[0] = { cardId: Court.SongOfFreedom, agents: { [b]: 1 } }
+            playerIn(state, b).hand = ['aggression-3']
+        })
+        const [a, b] = players
+        session.act(a, ActionType.EndTurn)
+        session.act(b, ActionType.FollowCard, { cardId: 'aggression-3', playKind: PlayKind.Pivot })
+        const deck = session.state.courtDeck.remaining
+        const cities = session.hydrated().getPlayerState(a).citiesOnBoard
+        session.act(b, ActionType.Secure, {
+            cardId: Court.SongOfFreedom,
+            vox: { city: { system: '1H', slot: 0 }, seize: true }
+        })
+        const state = session.hydrated()
+        expect(state.system('1H').slots[0]).toBeNull()
+        expect(state.getPlayerState(a).citiesOnBoard).toBe(cities + 1)
+        expect(state.round.seizedBy).toBe(b)
+        // Back into the deck, and one card drawn to refill the Court.
+        expect(state.courtDeck.remaining).toBe(deck)
+        expect(state.courtDiscard).not.toContain(Court.SongOfFreedom)
+    })
+
+    it('Guild Struggle steals a Guild card and shuffles discarded Guild cards into the deck', () => {
+        const { session, players } = securing(Court.GuildStruggle, (state, [, b]) => {
+            playerIn(state, b).guildCards = [Court.Gatekeepers]
+            state.courtDiscard = [Court.RelicFence, Court.CallToAction]
+        })
+        const [a, b] = players
+        const deck = session.state.courtDeck.remaining
+        session.act(a, ActionType.Secure, {
+            cardId: Court.GuildStruggle,
+            vox: { steal: { playerId: b, cardId: Court.Gatekeepers } }
+        })
+        const state = session.hydrated()
+        expect(state.getPlayerState(a).guildCards).toEqual([Court.Gatekeepers])
+        expect(state.courtDiscard).toEqual([Court.CallToAction, Court.GuildStruggle])
+        // Relic Fence joined the deck, and one card left it to refill the Court.
+        expect(state.courtDeck.remaining).toBe(deck)
+    })
+
+    it('Call to Action draws the bottom action card as a reveal', () => {
+        const { session, players } = securing(Court.CallToAction)
+        const [a] = players
+        const bottom = session.state.actionDiscard.items[0]
+        const processed = session.act(a, ActionType.Secure, { cardId: Court.CallToAction })
+        expect(processed.map((action) => action.type)).toEqual([
+            ActionType.Secure,
+            ActionType.DrawActionCard
+        ])
+        expect(processed[1].revealsInfo).toBe(true)
+        expect(session.hydrated().getPlayerState(a).hand).toEqual([bottom])
+    })
+})

@@ -15,6 +15,7 @@ import { MachineState } from '../definition/states.js'
 import {
     actionCard,
     type ActionCard,
+    ActionCardIdSchema,
     Ambition,
     AmbitionSchema,
     declarableAmbitions,
@@ -74,6 +75,7 @@ import {
     type BuildingHits,
     type ShipHits
 } from './battle.js'
+import { canResolveVox, isVox, resolveVox, type VoxChoice, type VoxResult } from './courtEffects.js'
 import { CardPile, HydratedCardPile } from './piles.js'
 import { ArcsPlayerState, HydratedArcsPlayerState } from './playerState.js'
 import {
@@ -117,6 +119,17 @@ export const DraftState = Type.Object({
     drafter: Type.String()
 })
 
+// Farseers: once its holder declares an ambition, they pick a Rival and see that Rival's hand,
+// which nobody else does, then may swap a card with them.
+export type Farsight = Type.Static<typeof Farsight>
+export const Farsight = Type.Object({
+    playerId: Type.String(),
+    rival: Type.Optional(Type.String()),
+    rivalHand: Type.Optional(
+        Visibility.protect(Type.Array(ActionCardIdSchema), { policy: Visibility.Policy.Owner })
+    )
+})
+
 export type ArcsGameState = Type.Static<typeof ArcsGameState>
 export const ArcsGameState = Type.Object({
     ...Type.Omit(GameState, ['players', 'machineState']).properties,
@@ -141,7 +154,8 @@ export const ArcsGameState = Type.Object({
     round: RoundState,
     turn: Type.Optional(TurnRecord),
     draft: Type.Optional(DraftState),
-    battle: Type.Optional(BattleState)
+    battle: Type.Optional(BattleState),
+    farsight: Type.Optional(Farsight)
 })
 
 export const ArcsGameStateValidator = Compile(ArcsGameState)
@@ -212,6 +226,7 @@ export class HydratedArcsGameState
     declare turn?: TurnRecord
     declare draft?: DraftState
     declare battle?: BattleState
+    declare farsight?: Farsight
 
     constructor(data: ArcsProjectedState) {
         super(data, ArcsProjectedStateValidator)
@@ -546,7 +561,7 @@ export class HydratedArcsGameState
         const player = this.getPlayerState(playerId)
         player.removeFromHand(cardId)
         if (declare !== undefined) {
-            this.declareAmbition(declare)
+            this.declareAmbition(declare, playerId)
         }
         // Secret Order declares Keeper and Empath without the zero marker.
         const secret =
@@ -564,11 +579,15 @@ export class HydratedArcsGameState
         this.startTurn(playerId, actionCard(cardId).pips)
     }
 
-    declareAmbition(ambition: Ambition) {
+    // A player holding Farseers then looks at a Rival's hand.
+    declareAmbition(ambition: Ambition, playerId: string) {
         const marker = this.availableMarker()
         assertExists(marker, 'Every ambition marker is placed')
         this.ambitionMarkers[marker].ambition = ambition
         this.round.declared = true
+        if (this.holds(playerId, Court.Farseers) && this.players.length > 1) {
+            this.farsight = { playerId }
+        }
     }
 
     canSeize(playerId: string): boolean {
@@ -631,7 +650,7 @@ export class HydratedArcsGameState
             `${playerId} cannot play ${cardId}`
         )
         if (declare !== undefined) {
-            this.declareAmbition(declare)
+            this.declareAmbition(declare, playerId)
         }
         const player = this.getPlayerState(playerId)
         player.removeFromHand(cardId)
@@ -1099,7 +1118,7 @@ export class HydratedArcsGameState
     }
 
     // More Loyal agents on the card than each Rival has (rule 7.6.1.1).
-    canSecure(playerId: string, cardId: string): boolean {
+    canSecure(playerId: string, cardId: string, vox?: VoxChoice): boolean {
         const slot = this.court.find((candidate) => candidate.cardId === cardId)
         if (!slot) {
             return false
@@ -1107,22 +1126,33 @@ export class HydratedArcsGameState
         const own = slot.agents[playerId] ?? 0
         return (
             own > 0 &&
-            Object.entries(slot.agents).every(([owner, count]) => owner === playerId || count < own)
+            Object.entries(slot.agents).every(
+                ([owner, count]) => owner === playerId || count < own
+            ) &&
+            this.canChooseWhenSecured(playerId, cardId, vox)
         )
+    }
+
+    // Choices for a Vox card's When Secured action; other cards take none.
+    canChooseWhenSecured(playerId: string, cardId: string, vox?: VoxChoice): boolean {
+        return isVox(cardId) ? canResolveVox(this, playerId, cardId, vox) : vox === undefined
     }
 
     // Takes the card, returning the player's agents and capturing Rivals'. The card's When
     // Secured action is the caller's to resolve; the Court refills from the deck.
-    secure(playerId: string, cardId: string): Record<string, number> {
-        assert(this.canSecure(playerId, cardId), `${playerId} cannot secure ${cardId}`)
-        return this.takeCourtCard(playerId, cardId, 'captives')
+    secure(playerId: string, cardId: string, vox?: VoxChoice): SecuredCard {
+        assert(this.canSecure(playerId, cardId, vox), `${playerId} cannot secure ${cardId}`)
+        return this.takeCourtCard(playerId, cardId, 'captives', vox)
     }
 
+    // Step 1 takes the card and the agents on it, step 2 resolves a Vox card's When Secured action,
+    // step 3 refills the Court (rule 7.6.1).
     takeCourtCard(
         playerId: string,
         cardId: string,
-        rivalAgentsBecome: 'captives' | 'trophies'
-    ): Record<string, number> {
+        rivalAgentsBecome: 'captives' | 'trophies',
+        vox?: VoxChoice
+    ): SecuredCard {
         const slot = this.courtSlot(cardId)
         const player = this.getPlayerState(playerId)
         const taken: Record<string, number> = {}
@@ -1141,13 +1171,14 @@ export class HydratedArcsGameState
         }
         const card = CourtCards.find((candidate) => candidate.id === cardId)
         assertExists(card, `Unknown Court card ${cardId}`)
+        if (this.turn?.prelude) {
+            this.turn.securedInPrelude.push(cardId)
+        }
+        const result: SecuredCard = { taken }
         if (card.kind === 'guild') {
             player.guildCards.push(cardId)
         } else {
-            this.courtDiscard.push(cardId)
-        }
-        if (this.turn?.prelude) {
-            this.turn.securedInPrelude.push(cardId)
+            result.vox = resolveVox(this, playerId, cardId, vox)
         }
         const index = this.court.indexOf(slot)
         if (this.courtDeck.count() > 0) {
@@ -1155,7 +1186,7 @@ export class HydratedArcsGameState
         } else {
             this.court.splice(index, 1)
         }
-        return taken
+        return result
     }
 
     // ----- Battle -----
@@ -1456,19 +1487,20 @@ export class HydratedArcsGameState
             .map((slot) => slot.cardId)
     }
 
-    canRansack(playerId: string, cardId: string): boolean {
+    canRansack(playerId: string, cardId: string, vox?: VoxChoice): boolean {
         const battle = this.battle
         return (
             battle?.step === BattleStep.Ransack &&
             battle.attacker === playerId &&
-            this.ransackableCards().includes(cardId)
+            this.ransackableCards().includes(cardId) &&
+            this.canChooseWhenSecured(playerId, cardId, vox)
         )
     }
 
     // Secures the card; every Rival agent on it becomes the attacker's Trophy.
-    ransack(playerId: string, cardId: string): Record<string, number> {
-        assert(this.canRansack(playerId, cardId), `${playerId} cannot ransack ${cardId}`)
-        const taken = this.takeCourtCard(playerId, cardId, 'trophies')
+    ransack(playerId: string, cardId: string, vox?: VoxChoice): SecuredCard {
+        assert(this.canRansack(playerId, cardId, vox), `${playerId} cannot ransack ${cardId}`)
+        const taken = this.takeCourtCard(playerId, cardId, 'trophies', vox)
         this.currentBattle().ransacks -= 1
         this.advanceBattle()
         return taken
@@ -1555,6 +1587,56 @@ export class HydratedArcsGameState
     endBattle(playerId: string) {
         assert(this.canEndBattle(playerId), `${playerId} has no battle to end`)
         this.battle = undefined
+    }
+
+    // ----- Farseers -----
+
+    canFarsee(playerId: string, rival: string): boolean {
+        const farsight = this.farsight
+        return (
+            farsight?.playerId === playerId &&
+            farsight.rival === undefined &&
+            rival !== playerId &&
+            this.turnManager.turnOrder.includes(rival)
+        )
+    }
+
+    farsee(playerId: string, rival: string) {
+        assert(this.canFarsee(playerId, rival), `${playerId} cannot look at ${rival}'s hand`)
+        this.farsight = {
+            playerId,
+            rival,
+            rivalHand: [...this.getPlayerState(rival).knownHand()]
+        }
+    }
+
+    // Both cards or neither.
+    canSwapWithRival(playerId: string, give?: string, take?: string): boolean {
+        const farsight = this.farsight
+        if (farsight?.playerId !== playerId || farsight.rival === undefined) {
+            return false
+        }
+        if (give === undefined || take === undefined) {
+            return give === take
+        }
+        return (
+            this.getPlayerState(playerId).hasInHand(give) &&
+            this.getPlayerState(farsight.rival).hasInHand(take)
+        )
+    }
+
+    swapWithRival(playerId: string, give?: string, take?: string) {
+        assert(this.canSwapWithRival(playerId, give, take), `${playerId} cannot swap those`)
+        const rival = this.farsight?.rival
+        if (give !== undefined && take !== undefined && rival !== undefined) {
+            const player = this.getPlayerState(playerId)
+            const other = this.getPlayerState(rival)
+            player.removeFromHand(give)
+            other.removeFromHand(take)
+            player.takeIntoHand([take])
+            other.takeIntoHand([give])
+        }
+        this.farsight = undefined
     }
 
     // ----- Court card Prelude actions that draw -----
@@ -1960,6 +2042,8 @@ export type ShipsMoving = { fresh: number; damaged: number }
 export type RaidTarget = { slot?: number; cardId?: string }
 
 export type RaidResult = { resource?: Resource; discarded?: Resource; cardId?: string }
+
+export type SecuredCard = { taken: Record<string, number>; vox?: VoxResult }
 
 export type BattleDamage = {
     attackerShipsDestroyed: number

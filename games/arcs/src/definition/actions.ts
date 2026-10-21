@@ -22,7 +22,10 @@ export enum ActionType {
     Ransack = 'ransack',
     Raid = 'raid',
     EndBattle = 'endBattle',
+    Farsee = 'farsee',
+    SwapWithRival = 'swapWithRival',
     EndTurn = 'endTurn',
     DealHands = 'dealHands',
+    DrawActionCard = 'drawActionCard',
     EndChapter = 'endChapter'
 }

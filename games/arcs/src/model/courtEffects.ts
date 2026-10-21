@@ -1,8 +1,14 @@
 import { assert, assertExists } from '@tabletop/common'
 import * as Type from 'typebox'
-import { actionCard, ActionCardIdSchema, StandardAction, Suit } from '../components/actionCards.js'
+import {
+    actionCard,
+    ActionCardIdSchema,
+    AmbitionSchema,
+    StandardAction,
+    Suit
+} from '../components/actionCards.js'
 import { Court } from '../components/courtCards.js'
-import { isGate, planetOf, SystemIdSchema, type SystemId } from '../components/map.js'
+import { clusterOf, isGate, planetOf, SystemIdSchema, type SystemId } from '../components/map.js'
 import { Resource, ResourceSchema } from '../components/resources.js'
 import { MachineState } from '../definition/states.js'
 import type { HydratedArcsGameState } from './gameState.js'
@@ -502,5 +508,156 @@ export function takeNewAction(
             break
         }
     }
+    return result
+}
+
+// The choices a Vox card's When Secured action takes (base game BC26–31).
+export type VoxChoice = Type.Static<typeof VoxChoice>
+export const VoxChoice = Type.Object({
+    // Mass Uprising: the cluster to place ships in.
+    cluster: Type.Optional(Type.Integer({ minimum: 1, maximum: 6 })),
+    // Populist Demands: the ambition to declare, if any.
+    ambition: Type.Optional(AmbitionSchema),
+    // Outrage Spreads: the Outrage everyone Provokes, if any.
+    outrage: Type.Optional(ResourceSchema),
+    // Song of Freedom: a city the player controls to return to its board, and whether to seize.
+    city: Type.Optional(
+        Type.Object({ system: SystemIdSchema, slot: Type.Integer({ minimum: 0 }) })
+    ),
+    seize: Type.Optional(Type.Boolean()),
+    // Guild Struggle: a Rival's Guild card to steal, if any.
+    steal: Type.Optional(StealTarget)
+})
+
+export type VoxResult = Type.Static<typeof VoxResult>
+export const VoxResult = Type.Object({
+    shipsPlaced: Type.Integer({ minimum: 0 }),
+    cityReturned: Type.Optional(Type.String()),
+    seized: Type.Boolean(),
+    stolen: Type.Optional(Type.String())
+})
+
+const VoxCards: readonly string[] = [
+    Court.MassUprising,
+    Court.PopulistDemands,
+    Court.OutrageSpreads,
+    Court.SongOfFreedom,
+    Court.GuildStruggle,
+    Court.CallToAction
+]
+
+export function isVox(cardId: string): boolean {
+    return VoxCards.includes(cardId)
+}
+
+const VoxFields = ['cluster', 'ambition', 'outrage', 'city', 'seize', 'steal'] as const
+
+export function canResolveVox(
+    state: HydratedArcsGameState,
+    playerId: string,
+    cardId: string,
+    choice: VoxChoice = {}
+): boolean {
+    const only = (...fields: (typeof VoxFields)[number][]) =>
+        VoxFields.every((field) => fields.includes(field) || choice[field] === undefined)
+    switch (cardId) {
+        case Court.MassUprising:
+            return (
+                only('cluster') &&
+                choice.cluster !== undefined &&
+                state.clustersInPlay().some((cluster) => cluster === choice.cluster)
+            )
+        case Court.PopulistDemands:
+            return (
+                only('ambition') &&
+                (choice.ambition === undefined || state.availableMarker() !== undefined)
+            )
+        case Court.OutrageSpreads:
+            return only('outrage')
+        case Court.SongOfFreedom: {
+            if (choice.city === undefined) {
+                return only()
+            }
+            const city = state.system(choice.city.system).slots[choice.city.slot]
+            return (
+                only('city', 'seize') &&
+                city?.kind === BuildingKind.City &&
+                state.controller(choice.city.system) === playerId &&
+                (!choice.seize || state.canSeize(playerId))
+            )
+        }
+        case Court.GuildStruggle:
+            return (
+                only('steal') &&
+                (choice.steal === undefined ||
+                    (choice.steal.cardId !== undefined &&
+                        state.canStealAndGain(playerId, choice.steal)))
+            )
+        default:
+            // Call to Action's draw follows as a System Action; other cards have no choices.
+            return only()
+    }
+}
+
+// Resolves the When Secured action of a card just taken from the Court, and puts the card where
+// it goes: Song of Freedom back into the Court deck, other Vox cards in the Court discard pile.
+export function resolveVox(
+    state: HydratedArcsGameState,
+    playerId: string,
+    cardId: string,
+    choice: VoxChoice = {}
+): VoxResult {
+    assert(canResolveVox(state, playerId, cardId, choice), `${playerId} cannot resolve ${cardId}`)
+    const result: VoxResult = { shipsPlaced: 0, seized: false }
+    switch (cardId) {
+        case Court.MassUprising:
+            for (const system of state.systems) {
+                if (
+                    clusterOf(system.id) === choice.cluster &&
+                    state.placeShipFromSupply(system.id, playerId)
+                ) {
+                    result.shipsPlaced += 1
+                }
+            }
+            break
+        case Court.PopulistDemands:
+            if (choice.ambition !== undefined) {
+                state.declareAmbition(choice.ambition, playerId)
+            }
+            break
+        case Court.OutrageSpreads:
+            if (choice.outrage !== undefined) {
+                for (const player of state.players) {
+                    state.provokeOutrage(player.playerId, choice.outrage)
+                }
+            }
+            break
+        case Court.SongOfFreedom:
+            if (choice.city !== undefined) {
+                const { system, slot } = choice.city
+                const owner = state.building(system, slot).owner
+                state.system(system).slots[slot] = null
+                state.returnPiece(owner, TrophyKind.City)
+                result.cityReturned = owner
+                if (choice.seize) {
+                    state.round.seizedBy = playerId
+                    result.seized = true
+                }
+            }
+            state.courtDeck.addItem(cardId)
+            state.courtDeck.shuffle(state.getProtectedPrng().random)
+            return result
+        case Court.GuildStruggle: {
+            if (choice.steal !== undefined) {
+                result.stolen = state.stealAndGain(playerId, choice.steal).cardId
+            }
+            const guilds = state.courtDiscard.filter((discarded) => !isVox(discarded))
+            state.courtDiscard = state.courtDiscard.filter(isVox)
+            state.courtDeck.putOnTop(guilds)
+            state.courtDeck.shuffle(state.getProtectedPrng().random)
+            break
+        }
+    }
+    state.courtDiscard.push(cardId)
     return result
 }

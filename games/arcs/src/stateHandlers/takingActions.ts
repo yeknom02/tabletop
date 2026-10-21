@@ -1,4 +1,9 @@
-import { type HydratedAction, type MachineStateHandler, MachineContext } from '@tabletop/common'
+import {
+    ActionSource,
+    type HydratedAction,
+    type MachineStateHandler,
+    MachineContext
+} from '@tabletop/common'
 import { MachineState } from '../definition/states.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedArcsGameState } from '../model/gameState.js'
@@ -17,8 +22,15 @@ import { HydratedUseCard, isUseCard } from '../actions/useCard.js'
 import { canTakeNewAction, canUseCard, NewActions } from '../model/courtEffects.js'
 import { HydratedUseFarseers, isUseFarseers } from '../actions/useFarseers.js'
 import { HydratedTakeNewAction, isTakeNewAction } from '../actions/takeNewAction.js'
+import {
+    DrawActionCard,
+    HydratedDrawActionCard,
+    isDrawActionCard
+} from '../actions/drawActionCard.js'
+import { Court } from '../components/courtCards.js'
 import { HydratedEndTurn, isEndTurn } from '../actions/endTurn.js'
 import { endChapter } from './playingCard.js'
+import { afterDeclaring } from './farseeing.js'
 
 type TakingActionsAction =
     | HydratedTax
@@ -33,6 +45,7 @@ type TakingActionsAction =
     | HydratedUseCard
     | HydratedUseFarseers
     | HydratedTakeNewAction
+    | HydratedDrawActionCard
     | HydratedEndTurn
 
 const ActionsByStandard: ReadonlyArray<[StandardAction, ActionType[]]> = [
@@ -54,6 +67,9 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         context: MachineContext<HydratedArcsGameState>
     ): action is TakingActionsAction {
         const gameState = context.gameState
+        if (isDrawActionCard(action)) {
+            return action.source === ActionSource.System
+        }
         const playerId = action.playerId ?? ''
         if (gameState.turn?.playerId !== playerId) {
             return false
@@ -135,7 +151,7 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         return (
             isSecure(action) &&
             gameState.canPay(playerId, StandardAction.Secure, action.via, action.token) &&
-            gameState.canSecure(playerId, action.cardId)
+            gameState.canSecure(playerId, action.cardId, action.vox)
         )
     }
 
@@ -197,10 +213,16 @@ export class TakingActionsStateHandler implements MachineStateHandler<
         context: MachineContext<HydratedArcsGameState>
     ): MachineState {
         if (isBattle(action)) {
-            return context.gameState.battle ? MachineState.Battling : MachineState.TakingActions
+            return afterDeclaring(context.gameState)
+        }
+        if (isSecure(action) && action.cardId === Court.CallToAction) {
+            context.addSystemAction(DrawActionCard, {
+                drawer: action.playerId,
+                revealsInfo: true
+            })
         }
         if (!isEndTurn(action)) {
-            return MachineState.TakingActions
+            return afterDeclaring(context.gameState)
         }
         const gameState = context.gameState
         if (gameState.nextTurnPlayer()) {
