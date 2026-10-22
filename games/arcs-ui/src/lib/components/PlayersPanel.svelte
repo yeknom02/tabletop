@@ -6,7 +6,7 @@
     const gameSession = getGameSession()
 
     const seats = $derived.by(() => {
-        const state = gameSession.gameState
+        const state = gameSession.shownState
         const order = state.turnManager.turnOrder
         const myIndex = order.indexOf(gameSession.myPlayer?.id ?? '')
         const start = Math.max(myIndex, 0)

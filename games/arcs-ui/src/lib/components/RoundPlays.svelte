@@ -12,7 +12,7 @@
     }
 
     const gameSession = getGameSession()
-    const plays = $derived(gameSession.gameState.round.plays)
+    const plays = $derived(gameSession.shownState.round.plays)
 
     function label(play: CardPlay): string {
         const who = gameSession.getPlayerName(play.playerId)
@@ -27,6 +27,12 @@
         {#each plays as play (play.playerId)}
             {@const [suit, number] = play.cardId?.split('-') ?? []}
             <li
+                {@attach gameSession.highlights.attach(`play:${play.playerId}`, (shown) => {
+                    const played = shown.round.plays.find(
+                        (candidate) => candidate.playerId === play.playerId
+                    )
+                    return played ? `${played.kind}:${played.cardId}` : undefined
+                })}
                 class="play"
                 style:--seat={gameSession.colors.getPlayerBgColorValue(play.playerId)}
                 title={label(play)}

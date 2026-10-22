@@ -8,6 +8,7 @@
         slotRaidCost,
         TrophyKind,
         wonAmbitionBonus,
+        type HydratedArcsGameState,
         type HydratedArcsPlayerState
     } from '@tabletop/arcs'
     import {
@@ -29,7 +30,14 @@
     const gameSession = getGameSession()
     const fill = $derived(gameSession.colors.getPlayerBgColorValue(player.id))
     const ink = $derived(gameSession.colors.getPlayerTextColorValue(player.id))
-    const initiative = $derived(gameSession.gameState.initiative === player.id)
+    const initiative = $derived(gameSession.shownState.initiative === player.id)
+    const id = $derived(player.id)
+    const mine = (state: HydratedArcsGameState) => state.getPlayerState(id)
+    const pop = (part: string, signature: (state: HydratedArcsGameState) => unknown) =>
+        gameSession.highlights.attach(`player:${id}:${part}`, (state) => {
+            const shown = signature(state)
+            return shown === undefined ? undefined : JSON.stringify(shown)
+        })
 
     // The board as printed: six resource slots, then the two ambition bonuses. Each city sits on
     // the slots or bonus it covers, and cities leave from the left.
@@ -54,7 +62,7 @@
         slot === HoldingsSlot ? SlotColumns + bonuses.length + 1 : slot + 1
 
     const colorOf = (owner: string): Color | undefined =>
-        gameSession.gameState.players.find((candidate) => candidate.playerId === owner)?.color
+        gameSession.shownState.players.find((candidate) => candidate.playerId === owner)?.color
     const nameOf = (owner: string) =>
         gameSession.game.players.find((candidate) => candidate.id === owner)?.name ?? owner
 
@@ -84,6 +92,19 @@
         )
     }
 
+    type Spoils = { owner: string; kind: TrophyKind; captive: boolean }
+    function spoilCount(seat: HydratedArcsPlayerState, stack: Spoils): number | undefined {
+        const count = stack.captive
+            ? (seat.captives[stack.owner] ?? 0)
+            : seat.trophies.filter(
+                  (trophy) => trophy.owner === stack.owner && trophy.kind === stack.kind
+              ).length
+        return count > 0 ? count : undefined
+    }
+
+    const holds = (seat: HydratedArcsPlayerState, cardId: string) =>
+        seat.leader === cardId || seat.lore.includes(cardId) || seat.guildCards.includes(cardId)
+
     const cards = $derived(
         [playerState.leader, ...playerState.lore, ...playerState.guildCards].filter(
             (cardId) => cardId !== undefined
@@ -95,11 +116,21 @@
     <div class="name" style:background={fill} style:color={ink}>
         <span class="who">
             {#if initiative}
-                <img class="initiative" src={InitiativeArt} alt="" title="Initiative" />
+                <img
+                    class="initiative"
+                    src={InitiativeArt}
+                    alt=""
+                    title="Initiative"
+                    {@attach pop('initiative', (state) =>
+                        state.initiative === id ? true : undefined
+                    )}
+                />
             {/if}
             {player.name}
         </span>
-        <span class="power" title="Power">{playerState.power}</span>
+        <span class="power" title="Power" {@attach pop('power', (state) => mine(state).power)}
+            >{playerState.power}</span
+        >
     </div>
 
     <div
@@ -114,6 +145,7 @@
                 class:closed={!playerState.isSlotOpen(slot)}
                 style:grid-column={slotColumn(slot)}
                 title={resource ?? 'Empty slot'}
+                {@attach pop(`slot:${slot}`, (state) => mine(state).resources[slot] ?? null)}
             >
                 {#if resource}<img src={resourceArt(resource)} alt={resource} />{/if}
             </span>
@@ -150,23 +182,45 @@
     </div>
 
     <div class="supply">
-        <span class="count" title="Cards in hand">
+        <span
+            class="count"
+            title="Cards in hand"
+            {@attach pop('hand', (state) => mine(state).handCount)}
+        >
             <img class="card-back" src={cardBackArt('action')} alt="" />{playerState.handCount}
         </span>
-        <span class="count" title="Ships in supply">
+        <span
+            class="count"
+            title="Ships in supply"
+            {@attach pop('ships', (state) => mine(state).ships)}
+        >
             <img src={shipArt(playerState.color)} alt="" />{playerState.ships}
         </span>
-        <span class="count" title="Agents in supply">
+        <span
+            class="count"
+            title="Agents in supply"
+            {@attach pop('agents', (state) => mine(state).agents)}
+        >
             <img src={agentArt(playerState.color)} alt="" />{playerState.agents}
         </span>
-        <span class="count" title="Starports in supply">
+        <span
+            class="count"
+            title="Starports in supply"
+            {@attach pop('starports', (state) => mine(state).starports)}
+        >
             <img
                 src={buildingArt(playerState.color, BuildingKind.Starport, false)}
                 alt=""
             />{playerState.starports}
         </span>
         {#if playerState.outrage.length > 0}
-            <span class="outrage" title="Outraged: {playerState.outrage.join(', ')}">
+            <span
+                class="outrage"
+                title="Outraged: {playerState.outrage.join(', ')}"
+                {@attach pop('outrage', (state) =>
+                    mine(state).outrage.length > 0 ? mine(state).outrage : undefined
+                )}
+            >
                 {#each playerState.outrage as resource (resource)}
                     <img src={resourceIconArt(resource)} alt="{resource} Outrage" />
                 {/each}
@@ -180,6 +234,9 @@
                 {@const color = colorOf(stack.owner)}
                 <span
                     class="count"
+                    {@attach pop(`spoils:${stack.captive}:${stack.owner}:${stack.kind}`, (state) =>
+                        spoilCount(mine(state), stack)
+                    )}
                     title="{stack.count} {nameOf(stack.owner)} {stack.kind}{stack.count === 1
                         ? ''
                         : 's'} as {stack.captive ? 'Captives' : 'Trophies'}"
@@ -194,7 +251,14 @@
     {#if cards.length > 0}
         <div class="cards">
             {#each cards as cardId (cardId)}
-                <img src={cardArt(cardId)} alt={cardName(cardId)} title={cardName(cardId)} />
+                <img
+                    src={cardArt(cardId)}
+                    alt={cardName(cardId)}
+                    title={cardName(cardId)}
+                    {@attach pop(`card:${cardId}`, (state) =>
+                        holds(mine(state), cardId) ? true : undefined
+                    )}
+                />
             {/each}
         </div>
     {/if}

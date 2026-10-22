@@ -5,7 +5,7 @@
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
 
     const gameSession = getGameSession()
-    const state = $derived(gameSession.gameState)
+    const state = $derived(gameSession.shownState)
     const colorOf = (playerId: string) => state.getPlayerState(playerId).color
 
     const targeted = (cardId: string) =>
@@ -42,7 +42,14 @@
     </header>
     <div class="cards">
         {#each state.court as slot (slot.cardId)}
-            <div class="slot">
+            <div
+                class="slot"
+                {@attach gameSession.highlights.attach(`court:${slot.cardId}`, (shown) =>
+                    shown.court.some((candidate) => candidate.cardId === slot.cardId)
+                        ? 'in'
+                        : undefined
+                )}
+            >
                 {#if targeted(slot.cardId)}
                     <button
                         type="button"
@@ -55,7 +62,18 @@
                 <img class="card" src={cardArt(slot.cardId)} alt={slot.cardId} />
                 <div class="agents">
                     {#each Object.entries(slot.agents) as [owner, count] (owner)}
-                        <span class="agent">
+                        <span
+                            class="agent"
+                            {@attach gameSession.highlights.attach(
+                                `court:${slot.cardId}:${owner}`,
+                                (shown) =>
+                                    String(
+                                        shown.court.find(
+                                            (candidate) => candidate.cardId === slot.cardId
+                                        )?.agents[owner] ?? ''
+                                    ) || undefined
+                            )}
+                        >
                             <img src={agentArt(colorOf(owner))} alt="{count} agents" />
                             {#if count > 1}<span class="count">{count}</span>{/if}
                         </span>

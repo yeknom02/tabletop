@@ -5,7 +5,7 @@
     import { AmbitionNames } from '$lib/utils/cards.js'
 
     const gameSession = getGameSession()
-    const state = $derived(gameSession.gameState)
+    const state = $derived(gameSession.shownState)
 
     const AmbitionMeasures: Record<Ambition, string> = {
         [Ambition.Tycoon]: 'Material and Fuel',
@@ -58,6 +58,12 @@
             <div class="standings">
                 {#each row.standings as entry (entry.playerId)}
                     <span
+                        {@attach gameSession.highlights.attach(
+                            `ambition:${row.ambition}:${entry.playerId}`,
+                            (shown) =>
+                                String(shown.ambitionCount(entry.playerId, row.ambition) || '') ||
+                                undefined
+                        )}
                         class="standing"
                         style:background={gameSession.colors.getPlayerBgColorValue(entry.playerId)}
                         style:color={gameSession.colors.getPlayerTextColorValue(entry.playerId)}
@@ -68,6 +74,10 @@
             <div class="placed">
                 {#each row.markers as marker (marker.index)}
                     <img
+                        {@attach gameSession.highlights.attach(
+                            `marker:${marker.index}`,
+                            (shown) => shown.ambitionMarkers[marker.index].ambition
+                        )}
                         src={ambitionMarkerArt(
                             marker.side.first,
                             marker.side.second,

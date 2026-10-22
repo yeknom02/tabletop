@@ -98,6 +98,7 @@ import {
 import { abilityCandidates, type AbilityOption } from '$lib/utils/abilities.js'
 import { mapPieces, type MapPiece } from '$lib/utils/mapPieces.js'
 import { MapAnimator, type FlightView } from '$lib/animators/mapAnimator.js'
+import { HighlightAnimator } from '$lib/animators/highlightAnimator.js'
 
 export type HandCardChoice = {
     cardId: string
@@ -138,6 +139,13 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
     private transitionPieces: MapPiece[] | undefined = $state()
     readonly mapPieces = $derived(this.transitionPieces ?? this.settledPieces)
     flights: FlightView[] = $state([])
+
+    // The side panels draw the incoming state while a change animates, so what pops is new.
+    private transitionState: HydratedArcsGameState | undefined = $state()
+    readonly shownState: HydratedArcsGameState = $derived(this.transitionState ?? this.gameState)
+    readonly highlights = new HighlightAnimator(
+        (action) => !this.isViewingHistory && action.playerId === this.myPlayer?.id
+    )
 
     readonly mapAnimator = new MapAnimator({
         show: (pieces, flights) => {
@@ -411,7 +419,16 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
         action?: GameAction
         animationContext: AnimationContext
     }) {
-        await this.mapAnimator.onGameStateChange(args)
+        if (args.from) {
+            this.transitionState = args.to
+            args.animationContext.afterAnimations(() => {
+                this.transitionState = undefined
+            })
+        }
+        await Promise.all([
+            this.mapAnimator.onGameStateChange(args),
+            this.highlights.onGameStateChange(args)
+        ])
     }
 
     resetAction() {
