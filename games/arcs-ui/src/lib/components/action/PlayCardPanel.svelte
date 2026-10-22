@@ -114,7 +114,7 @@
         padding: 8px;
         border: 2px solid var(--arcs-gold);
         border-radius: 10px;
-        background: #1c2232;
+        background: var(--arcs-paper);
         box-shadow: 0 10px 24px rgb(0 0 0 / 0.6);
         text-transform: capitalize;
     }

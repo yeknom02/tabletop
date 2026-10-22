@@ -1,6 +1,7 @@
 <script lang="ts">
     import { PlayerName } from '@tabletop/frontend-components'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
+    import RoundPlays from '$lib/components/RoundPlays.svelte'
 
     const gameSession = getGameSession()
     const turnPlayerId = $derived(gameSession.gameState.activePlayerIds[0])
@@ -18,7 +19,10 @@
             <PlayerName playerId={turnPlayerId} possessive={true} /> turn
         {/if}
     </div>
-    <div class="chapter">Chapter {gameSession.gameState.chapter}</div>
+    <div class="middle">
+        <span class="chapter">Chapter {gameSession.gameState.chapter}</span>
+        <RoundPlays />
+    </div>
     {#if gameSession.canUndo}
         <button type="button" class="undo" onclick={() => gameSession.undo()}>Undo</button>
     {:else}
@@ -42,6 +46,12 @@
     .who {
         font-size: 1.15rem;
         color: var(--arcs-gold);
+    }
+
+    .middle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
     .chapter {
