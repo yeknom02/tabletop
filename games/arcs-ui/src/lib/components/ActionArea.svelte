@@ -9,6 +9,7 @@
     import DeclarePanel from './action/DeclarePanel.svelte'
     import ArchivePanel from './action/ArchivePanel.svelte'
     import WaitingPanel from './action/WaitingPanel.svelte'
+    import GameOverPanel from './action/GameOverPanel.svelte'
 
     const gameSession = getGameSession()
 </script>
@@ -22,7 +23,7 @@
     {#if gameSession.isViewingHistory}
         <p class="note">Viewing an earlier position.</p>
     {:else if gameSession.gameState.result}
-        <p class="note">The game is over.</p>
+        <GameOverPanel />
     {:else if gameSession.isDrafting}
         <DraftPanel />
     {:else if gameSession.isMulliganing}

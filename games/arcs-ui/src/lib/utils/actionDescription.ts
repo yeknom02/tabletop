@@ -46,7 +46,7 @@ import {
     PlayKind,
     type Resource
 } from '@tabletop/arcs'
-import { actionCardName, cardName } from './cards.js'
+import { actionCardName, AmbitionNames, cardName } from './cards.js'
 
 type Names = { name: (playerId: string) => string }
 
@@ -75,7 +75,7 @@ export function describeAction(action: GameAction, { name }: Names): string {
     if (isKeepHand(action)) return `${who} kept their hand`
     if (isRedrawHand(action)) return `${who} drew a new hand`
     if (isLeadCard(action)) {
-        return `${who} led ${actionCardName(action.cardId)}${action.declare ? ` and declared ${action.declare}` : ''}`
+        return `${who} led ${actionCardName(action.cardId)}${action.declare ? ` and declared ${AmbitionNames[action.declare]}` : ''}`
     }
     if (isPassInitiative(action)) return `${who} passed the initiative`
     if (isFollowCard(action)) {
@@ -85,7 +85,7 @@ export function describeAction(action: GameAction, { name }: Names): string {
             action.playKind === PlayKind.Copy
                 ? 'copied with'
                 : `${action.playKind === PlayKind.Surpass ? 'surpassed' : 'pivoted'} with`
-        return `${who} ${kind} ${card}${action.declare ? `, declaring ${action.declare}` : ''}`
+        return `${who} ${kind} ${card}${action.declare ? `, declaring ${AmbitionNames[action.declare]}` : ''}`
     }
     if (isSpendWeapon(action)) return `${who} spent a Weapon so their actions may battle`
     if (isTax(action)) {
@@ -229,7 +229,7 @@ export function describeAction(action: GameAction, { name }: Names): string {
     if (isEndChapter(action)) {
         const awards = (action.metadata?.awards ?? []).filter((award) => award.power > 0)
         const scored = awards.map(
-            (award) => `${name(award.playerId)} ${award.power} for ${award.ambition}`
+            (award) => `${name(award.playerId)} ${award.power} for ${AmbitionNames[award.ambition]}`
         )
         return `The chapter ended${withClause(list(scored))}${action.metadata?.gameOver ? '. The game is over' : ''}`
     }

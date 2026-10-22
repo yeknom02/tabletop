@@ -2,17 +2,11 @@
     import { Ambition, LastChapter } from '@tabletop/arcs'
     import { ambitionMarkerArt, PaperTexture } from '$lib/utils/art.js'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
+    import { AmbitionNames } from '$lib/utils/cards.js'
 
     const gameSession = getGameSession()
     const state = $derived(gameSession.gameState)
 
-    const AmbitionNames: Record<Ambition, string> = {
-        [Ambition.Tycoon]: 'Tycoon',
-        [Ambition.Tyrant]: 'Tyrant',
-        [Ambition.Warlord]: 'Warlord',
-        [Ambition.Keeper]: 'Keeper',
-        [Ambition.Empath]: 'Empath'
-    }
     const AmbitionMeasures: Record<Ambition, string> = {
         [Ambition.Tycoon]: 'Material and Fuel',
         [Ambition.Tyrant]: 'Captives',

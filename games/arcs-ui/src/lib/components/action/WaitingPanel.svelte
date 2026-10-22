@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { isEndChapter } from '@tabletop/arcs'
     import { PlayerName } from '@tabletop/frontend-components'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { describeAction } from '$lib/utils/actionDescription.js'
@@ -12,7 +13,7 @@
 
     // What the player who acted last has done in their latest run of actions.
     const latest = $derived.by(() => {
-        const group = turnGroups(gameSession.actions).at(-1)
+        const group = turnGroups(gameSession.actions, isEndChapter).at(-1)
         if (!group) return []
         return group.actions
             .slice(-ShownActions)

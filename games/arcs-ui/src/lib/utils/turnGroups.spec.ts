@@ -32,4 +32,16 @@ describe('turnGroups', () => {
             'a'
         ])
     })
+
+    it('starts a group for a standalone System Action, which the next player does not join', () => {
+        const groups = turnGroups(
+            [action('1', 'a'), action('2'), action('3'), action('4', 'a')],
+            (candidate) => candidate.id === '2'
+        )
+        expect(groups.map((group) => group.actions.map(({ id }) => id))).toEqual([
+            ['1'],
+            ['2', '3'],
+            ['4']
+        ])
+    })
 })

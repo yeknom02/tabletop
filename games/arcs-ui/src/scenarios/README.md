@@ -25,3 +25,21 @@ Trophy and a Captive, Tycoon declared, and agents on three Court cards.
 
 - Look over the board, the ambitions' standings and the player panels.
 - Build: city or starport where you have pieces, or a ship at your starport.
+
+## Chapter end
+
+Chapter 2's last round: the first player has led Aggression 5 and holds no more cards; the other two
+hold one card each. Tycoon and Tyrant are declared. The first player has the most Material and Fuel,
+the second player holds a Captive.
+
+- End the turn, then let each other player Copy with their card and end their turn: the chapter
+  ends, Tycoon and Tyrant are scored, and chapter 3 begins with new hands.
+- The action panel and the History tell how the chapter scored; the History's table shows chapter
+  2's Power from ambitions and everyone's total.
+
+## Last round
+
+The same position in chapter 5, the last.
+
+- Play the round out the same way: the game ends, with the first player winning a tie on Power,
+  broken from the initiative. The action panel names the winner and shows the chapter's scoring.

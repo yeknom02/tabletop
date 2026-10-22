@@ -196,3 +196,40 @@ write(
         return position
     })()
 )
+
+// The round after the first player's lead is the chapter's last: every other player holds one card,
+// and Tycoon and Tyrant are declared.
+function lastRound(chapter) {
+    const position = leading('aggression-5')
+    const { state } = position
+    const [a, b, c] = [0, 1, 2].map((index) => seat(state, index))
+    const [n1, n2] = [0, 1].map((offset) => cluster(state, offset))
+    ships(state, `${n1}A`, a, 3)
+    building(state, `${n1}A`, 0, a, 'city')
+    building(state, `${n1}H`, 0, a, 'city')
+    ships(state, `${n2}C`, b, 4)
+    building(state, `${n2}C`, 0, b, 'city')
+    ships(state, `${n2}G`, c, 3)
+    building(state, `${n2}H`, 0, c, 'starport')
+    a.resources = [Resource.Material, Resource.Material, Resource.Fuel, null, null, null]
+    b.resources = [Resource.Fuel, Resource.Relic, null, null, null, null]
+    c.resources = [Resource.Material, null, null, null, null, null]
+    b.captives = { [a.playerId]: 1 }
+    a.agents -= 1
+    a.hand = []
+    a.handCount = 0
+    for (const player of [b, c]) {
+        player.hand = player.hand.slice(0, 1)
+        player.handCount = 1
+    }
+    state.chapter = chapter
+    state.ambitionMarkers[0].ambition = Ambition.Tycoon
+    state.ambitionMarkers[1].ambition = Ambition.Tyrant
+    a.power = 4 * (chapter - 1)
+    b.power = 4 * (chapter - 1) + 2
+    c.power = 3 * (chapter - 1)
+    return position
+}
+
+write('chapter-end', 'Chapter end', lastRound(2))
+write('last-round', 'Last round', lastRound(5))
