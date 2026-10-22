@@ -37,7 +37,8 @@
     "dependencies": {
         "@tabletop/arcs": "workspace:*",
         "@tabletop/common": "workspace:*",
-        "@tabletop/frontend-components": "workspace:*"
+        "@tabletop/frontend-components": "workspace:*",
+        "gsap": "^3.14.2"
     },
     "devDependencies": {
         "@sveltejs/adapter-static": "^3.0.10",

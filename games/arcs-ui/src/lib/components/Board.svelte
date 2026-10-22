@@ -1,18 +1,13 @@
 <script lang="ts">
     import { MapArt, outOfPlayArt } from '$lib/utils/art.js'
-    import { MapSize, SideColumnWidth, systemLayout } from '$lib/utils/mapLayout.js'
+    import { MapSize, SideColumnWidth } from '$lib/utils/mapLayout.js'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
-    import SystemPieces from '$lib/components/map/SystemPieces.svelte'
+    import MapPieces from '$lib/components/map/MapPieces.svelte'
     import Ambitions from '$lib/components/board/Ambitions.svelte'
     import Court from '$lib/components/board/Court.svelte'
     import Targets from '$lib/components/map/Targets.svelte'
 
     const gameSession = getGameSession()
-    const layouts = $derived(
-        gameSession.gameState.systems
-            .filter((system) => gameSession.gameState.inPlay(system.id))
-            .map((system) => systemLayout(system))
-    )
 </script>
 
 <div
@@ -30,9 +25,7 @@
                 draggable="false"
             />
         {/each}
-        {#each layouts as layout (layout.id)}
-            <SystemPieces {layout} />
-        {/each}
+        <MapPieces />
         <Targets />
     </div>
     <div class="side" style:width="{SideColumnWidth}px">

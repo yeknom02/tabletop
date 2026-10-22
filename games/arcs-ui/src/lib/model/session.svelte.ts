@@ -1,4 +1,4 @@
-import { GameSession } from '@tabletop/frontend-components'
+import { GameSession, type AnimationContext } from '@tabletop/frontend-components'
 import { assertExists, type GameAction } from '@tabletop/common'
 import {
     actionCard,
@@ -96,6 +96,8 @@ import {
     type ShipsChoice
 } from './stagedSelection.js'
 import { abilityCandidates, type AbilityOption } from '$lib/utils/abilities.js'
+import { mapPieces, type MapPiece } from '$lib/utils/mapPieces.js'
+import { MapAnimator, type FlightView } from '$lib/animators/mapAnimator.js'
 
 export type HandCardChoice = {
     cardId: string
@@ -129,6 +131,26 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
     private readonly canAct = $derived(this.isPlayable && !this.isViewingHistory && this.isMyTurn)
 
     private selection: ArcsSelection = $state({})
+
+    // A full-action replay animates several actions while gameState stays frozen, so the map draws
+    // what the animator shows until it settles.
+    private settledPieces: MapPiece[] = $derived(mapPieces(this.gameState))
+    private transitionPieces: MapPiece[] | undefined = $state()
+    readonly mapPieces = $derived(this.transitionPieces ?? this.settledPieces)
+    flights: FlightView[] = $state([])
+
+    readonly mapAnimator = new MapAnimator({
+        show: (pieces, flights) => {
+            this.transitionPieces = pieces
+            this.flights = flights
+        },
+        settle: (pieces) => {
+            this.settledPieces = pieces
+            this.transitionPieces = undefined
+            this.flights = []
+        },
+        isOwnLiveAction: (action) => !this.isViewingHistory && action.playerId === this.myPlayer?.id
+    })
     readonly hasManualSelection = $derived(hasManualArcsSelection(this.selection))
 
     readonly canUndo = $derived(
@@ -381,6 +403,15 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
 
     override beforeNewState() {
         this.resetAction()
+    }
+
+    override async onGameStateChange(args: {
+        to: HydratedArcsGameState
+        from?: HydratedArcsGameState
+        action?: GameAction
+        animationContext: AnimationContext
+    }) {
+        await this.mapAnimator.onGameStateChange(args)
     }
 
     resetAction() {
