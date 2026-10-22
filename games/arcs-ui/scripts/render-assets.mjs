@@ -101,6 +101,10 @@ for (const side of ['front 5-3', 'front 3-2', 'front 2-0', 'back 9-4', 'back 6-3
         kitPieces
     )
 }
+// Raid costs printed under the player board's resource slots.
+for (let keys = 1; keys <= 4; keys++) {
+    render(`asset-keys-${keys}.webp`, `icons/keys-${keys}.webp`, ['-resize', '44x44', ...alpha])
+}
 render('CardAsset-Texture-Frame.png', 'textures/paper.webp', ['-quality', '80'], kit)
 render('CardAsset-Texture-Space.png', 'textures/space.webp', ['-quality', '80'], kit)
 for (const back of ['Action', 'Court', 'Lore']) {

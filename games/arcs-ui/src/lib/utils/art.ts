@@ -58,3 +58,8 @@ export function cardArt(cardId: string): string {
     if (cardId.startsWith('L')) return art(`cards/lore/${cardId}`)
     return art(`cards/action/${cardId}`)
 }
+
+// The raid-cost badge under a resource slot.
+export function keysArt(keys: number): string {
+    return art(`icons/keys-${keys}`)
+}
