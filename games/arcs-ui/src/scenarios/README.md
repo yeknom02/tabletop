@@ -26,6 +26,20 @@ Trophy and a Captive, Tycoon declared, and agents on three Court cards.
 - Look over the board, the ambitions' standings and the player panels.
 - Build: city or starport where you have pieces, or a ship at your starport.
 
+## Card abilities
+
+The first player led Aggression 4. They hold Gatekeepers, Relic Fence and Prison Wardens, and the
+lore Galactic Rifles and Force Beams; their slots hold Fuel, Material and Weapon, and they have a
+Captive of the second player's. In the first cluster in play they have ships and a city at the
+arrow planet, ships at the gate beside the second player's ship, and a starport at the crescent
+planet with 2 ships, where the second player has a fresh and a damaged ship.
+
+- Open Card abilities: each card lists its choices, and only those the rules allow now.
+- Pressgang (Prison Wardens) is paid with Material, which frees a slot, so returning the Captive
+  for any resource needs no discard. A choice that only fits by discarding shows its discards.
+- Guide (Force Beams), crescent planet to its gate: choose how many of each player's fresh and
+  damaged ships go, then Guide. The History tells what moved.
+
 ## Chapter end
 
 Chapter 2's last round: the first player has led Aggression 5 and holds no more cards; the other two

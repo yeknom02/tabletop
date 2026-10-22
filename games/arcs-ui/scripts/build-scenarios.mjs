@@ -183,7 +183,10 @@ write(
         ships(state, `${n}H`, b, 2)
         building(state, `${n}H`, 0, b, 'city')
         a.guildCards = ['BC08', 'BC24', 'BC12']
-        a.lore = ['L02']
+        a.lore = ['L02', 'L16']
+        building(state, `${n}C`, 0, a, 'starport')
+        ships(state, `${n}C`, a, 2)
+        ships(state, `${n}C`, b, 1, 1)
         a.resources = [Resource.Fuel, Resource.Material, Resource.Weapon, null, null, null]
         a.captives = { [b.playerId]: 1 }
         b.agents -= 1

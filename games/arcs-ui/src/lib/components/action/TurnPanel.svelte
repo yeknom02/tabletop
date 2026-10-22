@@ -1,5 +1,7 @@
 <script lang="ts">
+    import { choiceOf } from '$lib/utils/abilities.js'
     import MoveControls from './MoveControls.svelte'
+    import GuideControls from './GuideControls.svelte'
     import { StandardAction } from '@tabletop/arcs'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { resourceIconArt } from '$lib/utils/art.js'
@@ -26,19 +28,39 @@
         [StandardAction.Secure]: 'Choose a Court card to secure.',
         [StandardAction.Battle]: 'Choose where to battle.'
     }
-    // Options grouped under the card or action named before the colon in their labels.
+    type Option = (typeof gameSession.abilityOptions)[number]
+    type Choice = { key: string; detail: string; options: Option[] }
+
+    // Options grouped under the card or action named before the colon in their labels, with the
+    // ways of making room for one choice kept together.
     const abilityGroups = $derived.by(() => {
-        const groups = new Map<
-            string,
-            { option: (typeof gameSession.abilityOptions)[number]; detail: string }[]
-        >()
+        const groups = new Map<string, Map<string, Choice>>()
         for (const option of gameSession.abilityOptions) {
-            const [title, ...rest] = option.label.split(': ')
+            const key = choiceOf(option)
+            const [title, ...rest] = key.split(': ')
             const detail = rest.length > 0 ? rest.join(': ') : 'Use'
-            groups.set(title, [...(groups.get(title) ?? []), { option, detail }])
+            const choices = groups.get(title) ?? new Map<string, Choice>()
+            const choice = choices.get(key) ?? { key, detail, options: [] }
+            choice.options.push(option)
+            choices.set(key, choice)
+            groups.set(title, choices)
         }
-        return [...groups].map(([title, options]) => ({ title, options }))
+        return [...groups].map(([title, choices]) => ({ title, choices: [...choices.values()] }))
     })
+
+    const choiceCount = $derived(
+        abilityGroups.reduce((sum, group) => sum + group.choices.length, 0)
+    )
+
+    // A choice that only fits by discarding shows its discards once picked.
+    const withoutDiscard = (choice: Choice) =>
+        choice.options.find((option) => (option.makesRoom ?? []).length === 0)
+    function pick(choice: Choice) {
+        const plain = withoutDiscard(choice)
+        if (plain) gameSession.useAbility(plain)
+        else if (choice.options.length === 1) gameSession.useAbility(choice.options[0])
+        else gameSession.showDiscardsFor(choice.key)
+    }
 
     const movePrompt = $derived(
         gameSession.firstMove
@@ -63,6 +85,8 @@
     <p class="prompt">
         {#if gameSession.mustReturnFleet}
             You have nothing left on the map. Choose a gate for 3 new ships.
+        {:else if gameSession.guide}
+            Choose ships to guide from {gameSession.guide.system} to {gameSession.guide.to}.
         {:else if intent}
             {intent.action === StandardAction.Move ? movePrompt : Prompts[intent.action]}
         {:else}
@@ -71,12 +95,14 @@
                 : ''}.
         {/if}
     </p>
-    {#if gameSession.sprintPath.length > 0}
+    {#if gameSession.guide}
+        <GuideControls />
+    {:else if gameSession.sprintPath.length > 0}
         <MoveControls sprint />
     {:else if gameSession.path.length > 0 && !gameSession.firstMove}
         <MoveControls />
     {/if}
-    {#if !intent && !gameSession.mustReturnFleet}
+    {#if !intent && !gameSession.guide && !gameSession.mustReturnFleet}
         <div class="offers">
             {#each gameSession.actionOffers as offer (offer.action)}
                 <div class="offer">
@@ -115,22 +141,30 @@
             {/if}
         </div>
     {/if}
-    {#if !intent && (gameSession.abilityOptions.length > 0 || gameSession.farseersDiscards.length > 0)}
+    {#if !intent && !gameSession.guide && (gameSession.abilityOptions.length > 0 || gameSession.farseersDiscards.length > 0)}
         <details class="abilities">
-            <summary
-                >Card abilities ({gameSession.abilityOptions.length +
-                    gameSession.farseersDiscards.length})</summary
-            >
+            <summary>Card abilities ({choiceCount + gameSession.farseersDiscards.length})</summary>
             <div class="ability-list">
                 {#each abilityGroups as group (group.title)}
                     <div class="group">
                         <span class="group-title">{group.title}</span>
-                        {#each group.options as { option, detail } (option.label)}
+                        {#each group.choices as choice (choice.key)}
                             <button
                                 type="button"
                                 class="choice"
-                                onclick={() => gameSession.useAbility(option)}>{detail}</button
+                                class:open={gameSession.makingRoom === choice.key}
+                                onclick={() => pick(choice)}>{choice.detail}</button
                             >
+                            {#if gameSession.makingRoom === choice.key && !withoutDiscard(choice)}
+                                {#each choice.options as option (option.label)}
+                                    <button
+                                        type="button"
+                                        class="choice discard"
+                                        onclick={() => gameSession.useAbility(option)}
+                                        >discard {option.makesRoom?.join(' and ')}</button
+                                    >
+                                {/each}
+                            {/if}
                         {/each}
                     </div>
                 {/each}
@@ -148,7 +182,7 @@
             </div>
         </details>
     {/if}
-    {#if gameSession.canEndTurn && !gameSession.mustReturnFleet && !intent}
+    {#if gameSession.canEndTurn && !gameSession.mustReturnFleet && !intent && !gameSession.guide}
         <button type="button" class="choice end" onclick={() => gameSession.endTurn()}
             >End turn</button
         >
@@ -228,5 +262,13 @@
     .group-title {
         min-width: 130px;
         font-weight: 600;
+    }
+
+    .choice.open {
+        background: rgb(184 145 63 / 0.4);
+    }
+
+    .choice.discard {
+        font-style: italic;
     }
 </style>

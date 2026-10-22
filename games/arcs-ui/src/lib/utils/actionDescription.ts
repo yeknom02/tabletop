@@ -46,7 +46,7 @@ import {
     PlayKind,
     type Resource
 } from '@tabletop/arcs'
-import { actionCardName, AmbitionNames, cardName } from './cards.js'
+import { actionCardName, AmbitionNames, cardName, NewActionNames } from './cards.js'
 
 type Names = { name: (playerId: string) => string }
 
@@ -222,7 +222,19 @@ export function describeAction(action: GameAction, { name }: Names): string {
         return `${who} used ${cardName(action.cardId)}${action.clear ? ' to clear Outrage' : ''}`
     if (isTakeNewAction(action)) {
         const result = action.metadata
-        return `${who} took ${action.name}${paidWith(action.via, action.token)}${withClause(result ? gainedText(result.gained, result.discarded) : '')}`
+        const guided = Object.values(action.ships ?? {}).reduce(
+            (sum, ships) => sum + ships.fresh + ships.damaged,
+            0
+        )
+        const moved =
+            guided > 0 && action.system && action.to
+                ? `moving ${guided} ship${guided === 1 ? '' : 's'} from ${action.system} to ${action.to}`
+                : ''
+        return `${who} used ${NewActionNames[action.name]}${paidWith(action.via, action.token)}${withClause(
+            [moved, result ? gainedText(result.gained, result.discarded) : '']
+                .filter(Boolean)
+                .join(', ')
+        )}`
     }
     if (isRuthless(action))
         return `${who} hit the building to go again (Ruthless)${action.metadata?.destroyed ? ', destroying it' : ''}`

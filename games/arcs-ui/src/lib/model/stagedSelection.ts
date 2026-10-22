@@ -29,6 +29,10 @@ export type ArcsSelectionValues = {
     sprintPath: SystemId[]
     target: BoardTarget
     courtCard: string
+    // Guide: the systems ships move between, before choosing which ships.
+    guide: { system: SystemId; to: SystemId }
+    // An ability choice that needs a discard to fit, showing its discards.
+    makingRoom: string
 }
 
 export type ArcsSelection = StagedSelectionState<ArcsSelectionValues>
@@ -42,7 +46,9 @@ export const ArcsStageOrder = [
     'sprintOrigin',
     'sprintPath',
     'target',
-    'courtCard'
+    'courtCard',
+    'guide',
+    'makingRoom'
 ] as const satisfies readonly (keyof ArcsSelectionValues)[]
 type MissingStages = Exclude<keyof ArcsSelectionValues, (typeof ArcsStageOrder)[number]>
 const stageCoverage: MissingStages extends never ? true : never = true
@@ -96,6 +102,17 @@ export function chooseTarget(selection: ArcsSelection, target: BoardTarget): Arc
 
 export function chooseCourtCard(selection: ArcsSelection, cardId: string): ArcsSelection {
     return setArcsSelection(selection, 'courtCard', cardId)
+}
+
+export function chooseGuide(
+    selection: ArcsSelection,
+    guide: ArcsSelectionValues['guide']
+): ArcsSelection {
+    return setArcsSelection(selection, 'guide', guide)
+}
+
+export function chooseMakingRoom(selection: ArcsSelection, choice: string): ArcsSelection {
+    return setArcsSelection(selection, 'makingRoom', choice)
 }
 
 export function hasManualArcsSelection(selection: ArcsSelection): boolean {

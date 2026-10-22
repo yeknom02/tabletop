@@ -37,15 +37,15 @@
   "activePlayerIds": [
    "p0"
   ],
-  "createdAt": "2026-10-22T02:21:22.940Z",
+  "createdAt": "2026-10-22T02:29:36.600Z",
   "storage": "remote",
   "category": "standard",
-  "startedAt": "2026-10-22T02:21:22.940Z",
+  "startedAt": "2026-10-22T02:29:36.600Z",
   "protectedInformation": true
  },
  "state": {
   "systemVersion": 3,
-  "id": "S3S8fXXDTme1yoC8uuXAT",
+  "id": "J3kBK7xlUzySwvhNY0dTH",
   "gameId": "scenario-card-abilities",
   "seed": 3367980177,
   "prng": {
@@ -78,8 +78,8 @@
     "handCount": 5,
     "power": 0,
     "citiesOnBoard": 4,
-    "starports": 5,
-    "ships": 10,
+    "starports": 4,
+    "ships": 8,
     "agents": 10,
     "resources": [
      "fuel",
@@ -100,7 +100,8 @@
      "BC12"
     ],
     "lore": [
-     "L02"
+     "L02",
+     "L16"
     ]
    },
    {
@@ -118,7 +119,7 @@
     "power": 0,
     "citiesOnBoard": 4,
     "starports": 5,
-    "ships": 12,
+    "ships": 10,
     "agents": 9,
     "resources": [
      "relic",
@@ -225,9 +226,22 @@
    },
    {
     "id": "1C",
-    "ships": {},
+    "ships": {
+     "p0": {
+      "fresh": 2,
+      "damaged": 0
+     },
+     "p2": {
+      "fresh": 1,
+      "damaged": 1
+     }
+    },
     "slots": [
-     null
+     {
+      "owner": "p0",
+      "kind": "starport",
+      "damaged": false
+     }
     ],
     "extraBuildings": []
    },

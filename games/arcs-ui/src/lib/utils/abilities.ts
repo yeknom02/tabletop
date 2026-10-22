@@ -3,6 +3,7 @@ import {
     BuildingKind,
     NewActionName,
     hasNewAction,
+    newActionReads,
     Resources,
     shipsOf,
     type CardUse,
@@ -13,36 +14,29 @@ import {
     type StealTarget,
     type SystemId
 } from '@tabletop/arcs'
-import { cardName } from './cards.js'
+import { cardName, NewActionNames } from './cards.js'
 
 // A choice a card ability could be used with; the session keeps those the rules allow.
-export type AbilityOption =
+// `makesRoom` is what the choice discards to fit what it gains; `label` without it is `choiceOf`.
+export type AbilityOption = { makesRoom?: Resource[] } & (
     | { kind: 'card'; label: string; use: CardUse }
     | { kind: 'lore'; label: string; use: LoreUse }
     | { kind: 'new'; label: string; choice: NewActionChoice }
+    // Guide moves any mix of ships, chosen once the systems are; `probe` is one move it allows.
+    | { kind: 'guide'; label: string; system: SystemId; to: SystemId; probe: NewActionChoice }
     | { kind: 'rifles'; label: string; system: SystemId; target: SystemId; defender: string }
     | { kind: 'ruthless'; label: string; ransack?: string; discard: Resource[] }
     | { kind: 'mythic'; label: string; resource: Resource }
+)
+
+export function choiceOf(option: AbilityOption): string {
+    return option.label.slice(0, option.label.length - withDiscards(option.makesRoom).length)
+}
 
 type Context = {
     state: HydratedArcsGameState
     me: string
     name: (playerId: string) => string
-}
-
-const NewActionLabels: Record<NewActionName, string> = {
-    [NewActionName.Manufacture]: 'Manufacture',
-    [NewActionName.Synthesize]: 'Synthesize',
-    [NewActionName.Pressgang]: 'Pressgang',
-    [NewActionName.Execute]: 'Execute',
-    [NewActionName.Abduct]: 'Abduct',
-    [NewActionName.Trade]: 'Trade',
-    [NewActionName.Summon]: 'Summon',
-    [NewActionName.Nurture]: 'Nurture',
-    [NewActionName.Prune]: 'Prune',
-    [NewActionName.Guide]: 'Guide',
-    [NewActionName.Martyr]: 'Martyr',
-    [NewActionName.Annex]: 'Annex'
 }
 
 function systemsInPlay(state: HydratedArcsGameState): SystemId[] {
@@ -95,7 +89,9 @@ function courtCardOptions(context: Context): AbilityOption[] {
     const plays = state.round.plays.flatMap((play) => (play.cardId ? [play.cardId] : []))
     return player.guildCards.flatMap((cardId) => {
         const title = cardName(cardId)
-        const uses: { use: CardUse; label: string }[] = [{ use: { cardId }, label: title }]
+        const uses: { use: CardUse; label: string; makesRoom?: Resource[] }[] = [
+            { use: { cardId }, label: title }
+        ]
         for (const system of systemsInPlay(state)) {
             uses.push({ use: { cardId, system }, label: `${title}: ${system}` })
         }
@@ -103,7 +99,8 @@ function courtCardOptions(context: Context): AbilityOption[] {
             for (const discard of DiscardChoices) {
                 uses.push({
                     use: { cardId, steal: [target], discard },
-                    label: `${title}: steal ${label}${withDiscards(discard)}`
+                    label: `${title}: steal ${label}${withDiscards(discard)}`,
+                    makesRoom: discard
                 })
             }
         }
@@ -124,7 +121,12 @@ function courtCardOptions(context: Context): AbilityOption[] {
                 })
             }
         }
-        return uses.map(({ use, label }) => ({ kind: 'card' as const, label, use }))
+        return uses.map(({ use, label, makesRoom }) => ({
+            kind: 'card' as const,
+            label,
+            use,
+            makesRoom
+        }))
     })
 }
 
@@ -175,13 +177,20 @@ function newActionOptions(context: Context): AbilityOption[] {
     return Object.values(NewActionName)
         .filter((actionName) => hasNewAction(state, me, actionName))
         .flatMap((actionName) => {
-            const title = NewActionLabels[actionName]
-            const choices: { choice: NewActionChoice; label: string }[] = []
-            const add = (choice: Omit<NewActionChoice, 'name'>, label: string) =>
-                choices.push({ choice: { name: actionName, ...choice }, label: `${title}${label}` })
-            for (const discard of DiscardChoices) {
-                add({ discard }, withDiscards(discard))
+            const title = NewActionNames[actionName]
+            const choices: { choice: NewActionChoice; label: string; makesRoom?: Resource[] }[] = []
+            const discards = newActionReads(actionName, 'discard') ? DiscardChoices : [undefined]
+            const add = (choice: Omit<NewActionChoice, 'name'>, label: string) => {
+                for (const discard of discards) {
+                    choices.push({
+                        choice: { name: actionName, ...choice, ...(discard ? { discard } : {}) },
+                        label: `${title}${label}${withDiscards(discard)}`,
+                        makesRoom: discard
+                    })
+                }
             }
+            if (actionName === NewActionName.Guide) return guideOptions(context, title)
+            add({}, '')
             for (const [owner, count] of Object.entries(player.captives)) {
                 add({ captives: { [owner]: count } }, `: ${count} of ${name(owner)}'s agents`)
                 for (const gain of Resources) {
@@ -213,17 +222,29 @@ function newActionOptions(context: Context): AbilityOption[] {
                     }
                 }
                 add({ system }, `: ${system}`)
-                for (const to of state.adjacent(system)) {
-                    for (const [owner, ships] of Object.entries(state.system(system).ships)) {
-                        add(
-                            { system, to, ships: { [owner]: ships } },
-                            `: ${name(owner)}'s ships from ${system} to ${to}`
-                        )
-                    }
-                }
             }
-            return choices.map(({ choice, label }) => ({ kind: 'new' as const, label, choice }))
+            return choices.map(({ choice, label, makesRoom }) => ({
+                kind: 'new' as const,
+                label,
+                choice,
+                makesRoom
+            }))
         })
+}
+
+function guideOptions(context: Context, title: string): AbilityOption[] {
+    const { state } = context
+    return systemsInPlay(state).flatMap((system) =>
+        state.adjacent(system).flatMap((to) =>
+            Object.entries(state.system(system).ships).map(([owner, ships]) => ({
+                kind: 'guide' as const,
+                label: `${title}: ${system} to ${to}`,
+                system,
+                to,
+                probe: { name: NewActionName.Guide, system, to, ships: { [owner]: ships } }
+            }))
+        )
+    )
 }
 
 function rifleOptions(context: Context): AbilityOption[] {
@@ -252,11 +273,13 @@ function followUpOptions(context: Context): AbilityOption[] {
         {
             kind: 'ruthless' as const,
             label: `Ruthless: hit it to go again${withDiscards(discard)}`,
-            discard: discard ?? []
+            discard: discard ?? [],
+            makesRoom: discard
         },
         ...state.court.map((slot) => ({
             kind: 'ruthless' as const,
             label: `Ruthless: destroy it, Ransack ${cardName(slot.cardId)}${withDiscards(discard)}`,
+            makesRoom: discard,
             ransack: slot.cardId,
             discard: discard ?? []
         }))

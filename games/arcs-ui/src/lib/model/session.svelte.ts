@@ -8,6 +8,7 @@ import {
     canUseLore,
     FireRifles,
     Mythic,
+    NewActionName,
     NewActions,
     Ruthless,
     TakeNewAction,
@@ -77,6 +78,8 @@ import {
 import {
     chooseCourtCard,
     chooseFirstMove,
+    chooseGuide,
+    chooseMakingRoom,
     chooseHandCard,
     chooseIntent,
     chooseOrigin,
@@ -153,6 +156,8 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
     readonly sprintPath: SystemId[] = $derived(this.selection.sprintPath?.value ?? [])
     readonly target: BoardTarget | undefined = $derived(this.selection.target?.value)
     readonly chosenCourtCard: string | undefined = $derived(this.selection.courtCard?.value)
+    readonly guide = $derived(this.selection.guide?.value)
+    readonly makingRoom: string | undefined = $derived(this.selection.makingRoom?.value)
 
     readonly handChoices: HandCardChoice[] = $derived.by(() => {
         if (!this.isPlayingCard) return []
@@ -408,6 +413,10 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
 
     chooseMoveStep(system: SystemId) {
         this.selection = choosePath(this.selection, [...this.path, system])
+    }
+
+    showDiscardsFor(choice: string) {
+        this.selection = chooseMakingRoom(this.selection, choice)
     }
 
     chooseSprintOrigin(system: SystemId) {
@@ -758,6 +767,18 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
             seen.add(option.label)
             return true
         }
+        // Paid actions are checked as the logic checks them: once paid for, which can free a slot.
+        const paid = new Map<StandardAction, { payment: Payment; state: HydratedArcsGameState }>()
+        const paidFor = (standard: StandardAction) => {
+            if (!paid.has(standard)) {
+                const payment = this.paymentsFor(standard)[0]
+                if (!payment) return undefined
+                const copy = new HydratedArcsGameState(structuredClone(state.dehydrate()))
+                copy.pay(me, standard, payment.via, payment.token, payment.bonus ?? false)
+                paid.set(standard, { payment, state: copy })
+            }
+            return paid.get(standard)
+        }
         const allowed = candidates.flatMap((option): (AbilityOption & { payment?: Payment })[] => {
             switch (option.kind) {
                 case 'card':
@@ -765,16 +786,27 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
                 case 'lore':
                     return canUseLore(state, me, option.use) ? [option] : []
                 case 'new': {
-                    const payment = this.paymentsFor(NewActions[option.choice.name].replaces)[0]
-                    return payment && canTakeNewAction(state, me, option.choice)
-                        ? [{ ...option, payment }]
+                    const paying = paidFor(NewActions[option.choice.name].replaces)
+                    return paying && canTakeNewAction(paying.state, me, option.choice)
+                        ? [{ ...option, payment: paying.payment }]
+                        : []
+                }
+                case 'guide': {
+                    const paying = paidFor(NewActions[option.probe.name].replaces)
+                    return paying && canTakeNewAction(paying.state, me, option.probe)
+                        ? [{ ...option, payment: paying.payment }]
                         : []
                 }
                 case 'rifles': {
-                    const payment = this.paymentsFor(StandardAction.Battle)[0]
-                    return payment &&
-                        state.canFireRifles(me, option.system, option.target, option.defender)
-                        ? [{ ...option, payment }]
+                    const paying = paidFor(StandardAction.Battle)
+                    return paying &&
+                        paying.state.canFireRifles(
+                            me,
+                            option.system,
+                            option.target,
+                            option.defender
+                        )
+                        ? [{ ...option, payment: paying.payment }]
                         : []
                 }
                 case 'ruthless':
@@ -799,6 +831,24 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
         )
     })
 
+    // Guide's ships, by owner, between the systems chosen.
+    private guideAction(ships: Record<string, ShipsMoving>) {
+        const guide = this.guide
+        assertExists(guide, 'Guide has its systems chosen')
+        const choice = { name: NewActionName.Guide, ...guide, ships: $state.snapshot(ships) }
+        const payment = this.paymentsFor(NewActions[NewActionName.Guide].replaces)[0]
+        assertExists(payment, 'Guide can be paid for')
+        return this.createPlayerAction(TakeNewAction, { ...choice, ...payment })
+    }
+
+    canGuide(ships: Record<string, ShipsMoving>): boolean {
+        return this.guide !== undefined && this.wouldApply(this.guideAction(ships))
+    }
+
+    async takeGuide(ships: Record<string, ShipsMoving>) {
+        await this.applyAction(this.guideAction(ships))
+    }
+
     async useFarseers(discards: string[]) {
         await this.applyAction(
             this.createPlayerAction(UseFarseers, { discards, revealsInfo: true })
@@ -817,6 +867,12 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
                 await this.applyAction(
                     this.createPlayerAction(TakeNewAction, { ...option.choice, ...option.payment })
                 )
+                break
+            case 'guide':
+                this.selection = chooseGuide(this.selection, {
+                    system: option.system,
+                    to: option.to
+                })
                 break
             case 'rifles':
                 await this.applyAction(

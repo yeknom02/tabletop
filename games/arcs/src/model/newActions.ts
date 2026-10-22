@@ -92,6 +92,10 @@ const NewActionFields: Readonly<Record<NewActionName, readonly (keyof NewActionC
     [NewActionName.Annex]: ['system', 'slot']
 }
 
+export function newActionReads(name: NewActionName, field: keyof NewActionChoice): boolean {
+    return NewActionFields[name].includes(field)
+}
+
 const ChoiceFields = [
     'discard',
     'captives',

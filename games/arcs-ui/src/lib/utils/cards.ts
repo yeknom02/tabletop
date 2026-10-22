@@ -1,4 +1,4 @@
-import { Ambition, CourtCards, LeaderCards, LoreCards } from '@tabletop/arcs'
+import { Ambition, CourtCards, LeaderCards, LoreCards, NewActionName } from '@tabletop/arcs'
 
 export function cardName(cardId: string): string {
     return (
@@ -19,4 +19,19 @@ export const AmbitionNames: Readonly<Record<Ambition, string>> = {
     [Ambition.Warlord]: 'Warlord',
     [Ambition.Keeper]: 'Keeper',
     [Ambition.Empath]: 'Empath'
+}
+
+export const NewActionNames: Readonly<Record<NewActionName, string>> = {
+    [NewActionName.Manufacture]: 'Manufacture',
+    [NewActionName.Synthesize]: 'Synthesize',
+    [NewActionName.Pressgang]: 'Pressgang',
+    [NewActionName.Execute]: 'Execute',
+    [NewActionName.Abduct]: 'Abduct',
+    [NewActionName.Trade]: 'Trade',
+    [NewActionName.Summon]: 'Summon',
+    [NewActionName.Nurture]: 'Nurture',
+    [NewActionName.Prune]: 'Prune',
+    [NewActionName.Guide]: 'Guide',
+    [NewActionName.Martyr]: 'Martyr',
+    [NewActionName.Annex]: 'Annex'
 }
