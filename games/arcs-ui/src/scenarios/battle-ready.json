@@ -37,15 +37,15 @@
   "activePlayerIds": [
    "p0"
   ],
-  "createdAt": "2026-10-22T02:14:32.421Z",
+  "createdAt": "2026-10-22T02:21:22.921Z",
   "storage": "remote",
   "category": "standard",
-  "startedAt": "2026-10-22T02:14:32.422Z",
+  "startedAt": "2026-10-22T02:21:22.921Z",
   "protectedInformation": true
  },
  "state": {
   "systemVersion": 3,
-  "id": "x_cKaR8G_rt0utufILetm",
+  "id": "VSX4GBCq9oIbO5VXtGQKO",
   "gameId": "scenario-battle-ready",
   "seed": 3367980177,
   "prng": {

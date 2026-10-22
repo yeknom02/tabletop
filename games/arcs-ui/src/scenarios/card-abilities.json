@@ -37,15 +37,15 @@
   "activePlayerIds": [
    "p0"
   ],
-  "createdAt": "2026-10-22T02:14:32.439Z",
+  "createdAt": "2026-10-22T02:21:22.940Z",
   "storage": "remote",
   "category": "standard",
-  "startedAt": "2026-10-22T02:14:32.439Z",
+  "startedAt": "2026-10-22T02:21:22.940Z",
   "protectedInformation": true
  },
  "state": {
   "systemVersion": 3,
-  "id": "f-5b_hl1hjVT7SYF6PN8b",
+  "id": "S3S8fXXDTme1yoC8uuXAT",
   "gameId": "scenario-card-abilities",
   "seed": 3367980177,
   "prng": {

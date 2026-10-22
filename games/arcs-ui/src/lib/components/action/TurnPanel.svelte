@@ -1,4 +1,5 @@
 <script lang="ts">
+    import MoveControls from './MoveControls.svelte'
     import { StandardAction } from '@tabletop/arcs'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { resourceIconArt } from '$lib/utils/art.js'
@@ -40,11 +41,21 @@
     })
 
     const movePrompt = $derived(
-        gameSession.origin === undefined
-            ? 'Choose ships to move.'
-            : gameSession.path.length === 0
-              ? 'Choose where they go.'
-              : 'Choose how many go, or keep going.'
+        gameSession.firstMove
+            ? gameSession.sprintOrigin === undefined
+                ? 'Choose where the sprint starts.'
+                : gameSession.sprintPath.length === 0
+                  ? 'Choose where they sprint.'
+                  : gameSession.sprintSteps.length > 0
+                    ? 'Choose how many sprint, or keep going.'
+                    : 'Choose how many sprint.'
+            : gameSession.origin === undefined
+              ? 'Choose ships to move.'
+              : gameSession.path.length === 0
+                ? 'Choose where they go.'
+                : gameSession.moveSteps.length > 0
+                  ? 'Choose how many go, or keep going.'
+                  : 'Choose how many go.'
     )
 </script>
 
@@ -60,6 +71,11 @@
                 : ''}.
         {/if}
     </p>
+    {#if gameSession.sprintPath.length > 0}
+        <MoveControls sprint />
+    {:else if gameSession.path.length > 0 && !gameSession.firstMove}
+        <MoveControls />
+    {/if}
     {#if !intent && !gameSession.mustReturnFleet}
         <div class="offers">
             {#each gameSession.actionOffers as offer (offer.action)}

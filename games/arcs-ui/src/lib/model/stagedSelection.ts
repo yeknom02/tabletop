@@ -1,4 +1,4 @@
-import type { Resource, StandardAction, SystemId } from '@tabletop/arcs'
+import type { Resource, ShipsMoving, StandardAction, SystemId } from '@tabletop/arcs'
 import {
     hasManualStagedSelection,
     popHighestManualStagedSelection,
@@ -12,6 +12,9 @@ export type Payment = { via?: Resource; token?: Resource; bonus?: boolean }
 
 export type Intent = { action: StandardAction; payment: Payment }
 
+// Ships moving, and those left behind in the systems passed through on the way.
+export type ShipsChoice = { fresh: number; damaged: number; dropOffs: ShipsMoving[] }
+
 // Where a board choice was made, so its follow-up popup can open beside it.
 export type BoardTarget = { system: SystemId; slot?: number }
 
@@ -20,6 +23,10 @@ export type ArcsSelectionValues = {
     intent: Intent
     origin: SystemId
     path: SystemId[]
+    // Sprinter Drives: the move made first, then where the second move starts and goes.
+    firstMove: ShipsChoice
+    sprintOrigin: SystemId
+    sprintPath: SystemId[]
     target: BoardTarget
     courtCard: string
 }
@@ -31,6 +38,9 @@ export const ArcsStageOrder = [
     'intent',
     'origin',
     'path',
+    'firstMove',
+    'sprintOrigin',
+    'sprintPath',
     'target',
     'courtCard'
 ] as const satisfies readonly (keyof ArcsSelectionValues)[]
@@ -66,6 +76,18 @@ export function chooseOrigin(selection: ArcsSelection, system: SystemId): ArcsSe
 
 export function choosePath(selection: ArcsSelection, path: SystemId[]): ArcsSelection {
     return setArcsSelection(selection, 'path', path)
+}
+
+export function chooseFirstMove(selection: ArcsSelection, move: ShipsChoice): ArcsSelection {
+    return setArcsSelection(selection, 'firstMove', move)
+}
+
+export function chooseSprintOrigin(selection: ArcsSelection, system: SystemId): ArcsSelection {
+    return setArcsSelection(selection, 'sprintOrigin', system)
+}
+
+export function chooseSprintPath(selection: ArcsSelection, path: SystemId[]): ArcsSelection {
+    return setArcsSelection(selection, 'sprintPath', path)
 }
 
 export function chooseTarget(selection: ArcsSelection, target: BoardTarget): ArcsSelection {

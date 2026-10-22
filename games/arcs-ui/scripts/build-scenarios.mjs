@@ -233,3 +233,20 @@ function lastRound(chapter) {
 
 write('chapter-end', 'Chapter end', lastRound(2))
 write('last-round', 'Last round', lastRound(5))
+
+write(
+    'catapult',
+    'Catapult',
+    (() => {
+        const position = leading('mobilization-4')
+        const { state } = position
+        const [a, b] = [0, 1].map((index) => seat(state, index))
+        const [n1, n2] = [0, 1].map((offset) => cluster(state, offset))
+        ships(state, `${n1}A`, a, 4, 1)
+        building(state, `${n1}A`, 0, a, 'starport')
+        ships(state, `${n2}C`, b, 2)
+        building(state, `${n2}C`, 0, b, 'city')
+        a.lore = ['L03']
+        return position
+    })()
+)

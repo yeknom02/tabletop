@@ -37,15 +37,15 @@
   "activePlayerIds": [
    "p0"
   ],
-  "createdAt": "2026-10-22T02:14:32.434Z",
+  "createdAt": "2026-10-22T02:21:22.934Z",
   "storage": "remote",
   "category": "standard",
-  "startedAt": "2026-10-22T02:14:32.434Z",
+  "startedAt": "2026-10-22T02:21:22.934Z",
   "protectedInformation": true
  },
  "state": {
   "systemVersion": 3,
-  "id": "kKRpotxfGz8ppHRRYf7jy",
+  "id": "3d4Hxl4ybJBx5PT8YizAQ",
   "gameId": "scenario-mid-chapter",
   "seed": 3367980177,
   "prng": {

@@ -5,7 +5,6 @@
     import { systemLayout, BuildingSize } from '$lib/utils/mapLayout.js'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import type { SlotTarget } from '$lib/model/session.svelte.js'
-    import MovePicker from './MovePicker.svelte'
     import BattlePicker from './BattlePicker.svelte'
 
     const gameSession = getGameSession()
@@ -69,6 +68,16 @@
             at: anchorOf(system),
             onclick: () => gameSession.chooseMoveStep(system)
         })),
+        ...gameSession.sprintOrigins.map((system) => ({
+            system,
+            at: anchorOf(system),
+            onclick: () => gameSession.chooseSprintOrigin(system)
+        })),
+        ...gameSession.sprintSteps.map((system) => ({
+            system,
+            at: anchorOf(system),
+            onclick: () => gameSession.chooseSprintStep(system)
+        })),
         ...gameSession.battleTargets.map((system) => ({
             system,
             at: anchorOf(system),
@@ -82,8 +91,14 @@
     ])
 
     const marked: { system: SystemId; at: Point }[] = $derived(
-        [gameSession.origin, ...gameSession.path]
+        [
+            gameSession.origin,
+            ...gameSession.path,
+            gameSession.sprintOrigin,
+            ...gameSession.sprintPath
+        ]
             .filter((system): system is SystemId => system !== undefined)
+            .filter((system, index, systems) => systems.indexOf(system) === index)
             .map((system) => ({ system, at: anchorOf(system) }))
     )
 
@@ -106,7 +121,6 @@
             ? target.system
             : undefined
     )
-    const moveEnd = $derived(gameSession.path.at(-1))
     const discardLabel = (discard: string[]) => `Discard ${discard.join(' and ')}`
 </script>
 
@@ -137,22 +151,6 @@
         onclick={ring.onclick}
     ></button>
 {/each}
-{#if moveEnd}
-    <span
-        id="arcs-move-end"
-        class="anchor"
-        style:left="{anchorOf(moveEnd).x}px"
-        style:top="{anchorOf(moveEnd).y}px"
-    ></span>
-    <Floater
-        reference="#arcs-move-end"
-        placement="right"
-        offset={60}
-        onClose={() => gameSession.undo()}
-    >
-        <MovePicker />
-    </Floater>
-{/if}
 {#if taxTarget}
     <Floater
         reference="#arcs-slot-{taxTarget.system}-{taxTarget.slot}"
@@ -235,12 +233,6 @@
         border: 6px dashed rgb(255 255 255 / 0.85);
         border-radius: 50%;
         pointer-events: none;
-    }
-
-    .anchor {
-        position: absolute;
-        width: 1px;
-        height: 1px;
     }
 
     .picker {

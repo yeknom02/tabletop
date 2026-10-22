@@ -111,7 +111,16 @@ export function describeAction(action: GameAction, { name }: Names): string {
             ([capturer, agents]) =>
                 `${name(capturer)} captured ${agents} agent${agents === 1 ? '' : 's'}`
         )
-        return `${who} moved ${count} ship${count === 1 ? '' : 's'} from ${action.from} to ${action.path[action.path.length - 1]}${paidWith(action.via, action.token)}${withClause(list(captured))}`
+        const left = action.dropOffs.flatMap((drop, step) => {
+            const dropped = drop.fresh + drop.damaged
+            return dropped > 0 ? [`leaving ${dropped} at ${action.path[step]}`] : []
+        })
+        const sprint = action.sprint
+            ? [
+                  `then ${action.sprint.fresh} sprinted from ${action.sprint.from} to ${action.sprint.path[action.sprint.path.length - 1]}`
+              ]
+            : []
+        return `${who} moved ${count} ship${count === 1 ? '' : 's'} from ${action.from} to ${action.path[action.path.length - 1]}${paidWith(action.via, action.token)}${withClause(list([...left, ...sprint, ...captured]))}`
     }
     if (isRepair(action)) {
         return `${who} repaired a ${action.slot === undefined ? 'ship' : 'building'} in ${action.system}${paidWith(action.via, action.token)}`

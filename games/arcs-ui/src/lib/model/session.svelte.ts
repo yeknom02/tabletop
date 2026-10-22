@@ -66,24 +66,31 @@ import {
     SpendWeapon,
     StandardAction,
     Tax,
-    type HydratedArcsGameState,
+    HydratedArcsGameState,
+    Lore,
+    type ShipsMoving,
+    type Sprint,
     type ArcsProjectedState,
     type SystemId,
     type VoxChoice
 } from '@tabletop/arcs'
 import {
     chooseCourtCard,
+    chooseFirstMove,
     chooseHandCard,
     chooseIntent,
     chooseOrigin,
     choosePath,
+    chooseSprintOrigin,
+    chooseSprintPath,
     chooseTarget,
     hasManualArcsSelection,
     popArcsSelection,
     type ArcsSelection,
     type BoardTarget,
     type Intent,
-    type Payment
+    type Payment,
+    type ShipsChoice
 } from './stagedSelection.js'
 import { abilityCandidates, type AbilityOption } from '$lib/utils/abilities.js'
 
@@ -141,6 +148,9 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
     readonly intent: Intent | undefined = $derived(this.selection.intent?.value)
     readonly origin: SystemId | undefined = $derived(this.selection.origin?.value)
     readonly path: SystemId[] = $derived(this.selection.path?.value ?? [])
+    readonly firstMove: ShipsChoice | undefined = $derived(this.selection.firstMove?.value)
+    readonly sprintOrigin: SystemId | undefined = $derived(this.selection.sprintOrigin?.value)
+    readonly sprintPath: SystemId[] = $derived(this.selection.sprintPath?.value ?? [])
     readonly target: BoardTarget | undefined = $derived(this.selection.target?.value)
     readonly chosenCourtCard: string | undefined = $derived(this.selection.courtCard?.value)
 
@@ -294,12 +304,50 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
 
     readonly moveSteps: SystemId[] = $derived.by(() => {
         const origin = this.origin
-        if (!this.intentFor(StandardAction.Move) || !origin) return []
+        if (!this.intentFor(StandardAction.Move) || !origin || this.firstMove) return []
         const last = this.path.at(-1) ?? origin
         if (this.path.length > 0 && !isGate(last)) return []
         return this.gameState
             .adjacent(last)
             .filter((next) => next !== origin && this.canMoveAlong(origin, [...this.path, next]))
+    })
+
+    // Sprinter Drives: after the first move, where its fresh ships stopped, then their next steps.
+    readonly sprintArrivals: Record<string, number> = $derived(
+        this.firstMove
+            ? HydratedArcsGameState.freshArrivals(
+                  this.path,
+                  this.firstMove,
+                  this.firstMove.dropOffs
+              )
+            : {}
+    )
+
+    readonly sprintOrigins: SystemId[] = $derived.by(() => {
+        const origin = this.origin
+        if (!origin || !this.firstMove || this.sprintOrigin) return []
+        return this.path.filter(
+            (system, index) =>
+                this.path.indexOf(system) === index &&
+                (this.sprintArrivals[system] ?? 0) > 0 &&
+                this.gameState
+                    .adjacent(system)
+                    .some((next) => this.wouldApply(this.sprintAction(system, [next], 1)))
+        )
+    })
+
+    readonly sprintSteps: SystemId[] = $derived.by(() => {
+        const from = this.sprintOrigin
+        if (!from) return []
+        const last = this.sprintPath.at(-1) ?? from
+        if (this.sprintPath.length > 0 && !isGate(last)) return []
+        return this.gameState
+            .adjacent(last)
+            .filter(
+                (next) =>
+                    next !== from &&
+                    this.wouldApply(this.sprintAction(from, [...this.sprintPath, next], 1))
+            )
     })
 
     readonly battleTargets: SystemId[] = $derived.by(() => {
@@ -360,6 +408,14 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
 
     chooseMoveStep(system: SystemId) {
         this.selection = choosePath(this.selection, [...this.path, system])
+    }
+
+    chooseSprintOrigin(system: SystemId) {
+        this.selection = chooseSprintOrigin(this.selection, system)
+    }
+
+    chooseSprintStep(system: SystemId) {
+        this.selection = chooseSprintPath(this.selection, [...this.sprintPath, system])
     }
 
     chooseTarget(target: BoardTarget) {
@@ -463,19 +519,48 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
         await this.applyAction(this.createPlayerAction(Secure, { cardId, vox, ...intent.payment }))
     }
 
-    canMoveShips(fresh: number, damaged: number): boolean {
+    canMoveShips(move: ShipsChoice): boolean {
         const origin = this.origin
         return (
             origin !== undefined &&
             this.path.length > 0 &&
-            this.wouldApply(this.moveAction(origin, this.path, fresh, damaged))
+            this.wouldApply(this.moveAction(origin, this.path, move))
         )
     }
 
-    async moveShips(fresh: number, damaged: number) {
+    async moveShips(move: ShipsChoice) {
         const origin = this.origin
         assertExists(origin, 'A move has an origin')
-        await this.applyAction(this.moveAction(origin, this.path, fresh, damaged))
+        await this.applyAction(this.moveAction(origin, this.path, move))
+    }
+
+    // Sprinter Drives: some of the fresh ships may move once more after this move.
+    canSprintAfter(move: ShipsChoice): boolean {
+        const me = this.myPlayerId()
+        return (
+            move.fresh > 0 &&
+            this.gameState.hasLore(me, Lore.SprinterDrives) &&
+            this.canMoveShips(move)
+        )
+    }
+
+    sprintAfter(move: ShipsChoice) {
+        this.selection = chooseFirstMove(this.selection, move)
+    }
+
+    canSprint(fresh: number, dropOffs: ShipsMoving[]): boolean {
+        const from = this.sprintOrigin
+        return (
+            from !== undefined &&
+            this.sprintPath.length > 0 &&
+            this.wouldApply(this.sprintAction(from, this.sprintPath, fresh, dropOffs))
+        )
+    }
+
+    async sprint(fresh: number, dropOffs: ShipsMoving[]) {
+        const from = this.sprintOrigin
+        assertExists(from, 'A sprint has an origin')
+        await this.applyAction(this.sprintAction(from, this.sprintPath, fresh, dropOffs))
     }
 
     canBattle(system: SystemId, defender: string, dice: BattleDice, railgun?: RailgunHit): boolean {
@@ -834,21 +919,39 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
     private canMoveAlong(origin: SystemId, path: SystemId[]): boolean {
         const ships = shipsOf(this.gameState.system(origin), this.myPlayerId())
         return (
-            (ships.fresh > 0 && this.wouldApply(this.moveAction(origin, path, 1, 0))) ||
-            (ships.damaged > 0 && this.wouldApply(this.moveAction(origin, path, 0, 1)))
+            (ships.fresh > 0 &&
+                this.wouldApply(this.moveAction(origin, path, shipsChoice(path, 1, 0)))) ||
+            (ships.damaged > 0 &&
+                this.wouldApply(this.moveAction(origin, path, shipsChoice(path, 0, 1))))
         )
     }
 
-    private moveAction(origin: SystemId, path: SystemId[], fresh: number, damaged: number) {
+    private moveAction(origin: SystemId, path: SystemId[], move: ShipsChoice, sprint?: Sprint) {
         const intent = this.requireIntent(StandardAction.Move)
         return this.createPlayerAction(MoveShips, {
             from: origin,
             path,
-            fresh,
-            damaged,
-            dropOffs: path.slice(1).map(() => ({ fresh: 0, damaged: 0 })),
+            fresh: move.fresh,
+            damaged: move.damaged,
+            // Choices kept in reactive state arrive as proxies, which can't be cloned.
+            dropOffs: $state.snapshot(move.dropOffs),
+            ...(sprint ? { sprint: $state.snapshot(sprint) } : {}),
             ...intent.payment
         })
+    }
+
+    // The first move, with fresh ships moving on from `from` along `path`.
+    private sprintAction(
+        from: SystemId,
+        path: SystemId[],
+        fresh: number,
+        dropOffs: ShipsMoving[] = noDropOffs(path)
+    ) {
+        const origin = this.origin
+        const move = this.firstMove
+        assertExists(origin, 'A sprint follows a move')
+        assertExists(move, 'A sprint follows a move')
+        return this.moveAction(origin, this.path, move, { from, path, fresh, dropOffs })
     }
 
     private battleAction(
@@ -874,4 +977,13 @@ export class ArcsGameSession extends GameSession<ArcsProjectedState, HydratedArc
             ArcsRuntime.hydrator.hydrateAction(action).apply(copy)
         )
     }
+}
+
+// Nothing left behind in the systems a path passes through.
+export function noDropOffs(path: readonly SystemId[]): ShipsMoving[] {
+    return path.slice(1).map(() => ({ fresh: 0, damaged: 0 }))
+}
+
+function shipsChoice(path: readonly SystemId[], fresh: number, damaged: number): ShipsChoice {
+    return { fresh, damaged, dropOffs: noDropOffs(path) }
 }

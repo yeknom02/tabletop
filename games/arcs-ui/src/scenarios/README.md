@@ -43,3 +43,15 @@ The same position in chapter 5, the last.
 
 - Play the round out the same way: the game ends, with the first player winning a tie on Power,
   broken from the initiative. The action panel names the winner and shows the chapter's scoring.
+
+## Catapult
+
+The first player led Mobilization 4 and holds Sprinter Drives. They have a starport with 4 fresh
+ships and a damaged one at the first cluster's arrow planet; the second cluster's crescent planet has
+the third player's city.
+
+- Choose Move, the arrow planet, then its gate, the next gate and that cluster's arrow planet: the
+  action panel offers the ships to move and how many to leave at each gate passed through.
+- Leave a fresh ship at the first gate and move: it stays there, and the rest arrive.
+- Instead choose Move, then sprint: pick where the fresh ships stopped, then a neighbouring system,
+  and Sprint: they move once more, and the History tells both moves.
