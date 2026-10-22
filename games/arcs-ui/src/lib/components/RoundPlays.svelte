@@ -89,4 +89,20 @@
         letter-spacing: 0.03em;
         text-transform: capitalize;
     }
+
+    @media (max-width: 640px) {
+        .kind {
+            display: none;
+        }
+
+        .play {
+            padding-right: 2px;
+        }
+
+        .card {
+            width: 16px;
+            height: 22px;
+            font-size: 0.8rem;
+        }
+    }
 </style>

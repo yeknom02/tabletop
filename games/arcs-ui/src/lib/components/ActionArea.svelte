@@ -66,6 +66,15 @@
         background: rgb(184 145 63 / 0.35);
     }
 
+    @media (max-width: 640px) {
+        .panel {
+            margin: 0 4px 6px;
+            padding: 6px 10px 8px;
+            border-width: 2px;
+            font-size: 0.9rem;
+        }
+    }
+
     .settling {
         pointer-events: none;
     }

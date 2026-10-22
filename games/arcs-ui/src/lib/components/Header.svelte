@@ -71,13 +71,33 @@
         background: rgb(216 178 94 / 0.15);
     }
 
+    .who {
+        white-space: nowrap;
+    }
+
     @media (max-width: 640px) {
         .header {
-            height: 36px;
+            gap: 6px;
+            height: 32px;
+            padding: 0 6px;
+            letter-spacing: 0.02em;
         }
 
         .who {
-            font-size: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .middle {
+            gap: 6px;
+        }
+
+        .chapter {
+            font-size: 0.75rem;
+        }
+
+        .undo {
+            padding: 2px 10px;
+            font-size: 0.8rem;
         }
     }
 </style>

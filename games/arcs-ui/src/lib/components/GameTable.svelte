@@ -64,7 +64,12 @@
                 <ActionArea />
             </div>
             <div class="relative grow-0 overflow-hidden" style="flex:1;">
-                <ScalingWrapper justify="center" controls="bottom-left" expandable>
+                <ScalingWrapper
+                    justify="center"
+                    controls="bottom-left"
+                    expandable
+                    coverBelowScale={0.2}
+                >
                     <Board />
                 </ScalingWrapper>
             </div>
