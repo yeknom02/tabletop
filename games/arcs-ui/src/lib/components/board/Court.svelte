@@ -1,18 +1,37 @@
 <script lang="ts">
     import { Floater } from '@tabletop/frontend-components'
     import { agentArt, cardArt, cardBackArt } from '$lib/utils/art.js'
+    import { cardName } from '$lib/utils/cards.js'
     import VoxPicker from './VoxPicker.svelte'
+    import CardViewer from '$lib/components/CardViewer.svelte'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
 
     const gameSession = getGameSession()
-    const state = $derived(gameSession.shownState)
-    const colorOf = (playerId: string) => state.getPlayerState(playerId).color
+    const game = $derived(gameSession.shownState)
+    const colorOf = (playerId: string) => game.getPlayerState(playerId).color
 
     const targeted = (cardId: string) =>
         gameSession.influenceTargets.includes(cardId) ||
         gameSession.secureTargets.includes(cardId) ||
         gameSession.ransackTargets.includes(cardId) ||
         gameSession.belovedTargets.includes(cardId)
+
+    const verb = (cardId: string) =>
+        gameSession.influenceTargets.includes(cardId) || gameSession.belovedTargets.includes(cardId)
+            ? 'Influence'
+            : gameSession.ransackTargets.includes(cardId)
+              ? 'Ransack'
+              : 'Secure'
+
+    let viewing: string | undefined = $state()
+    const viewed = $derived(
+        viewing && game.court.some((slot) => slot.cardId === viewing) ? viewing : undefined
+    )
+
+    function chooseViewed(cardId: string) {
+        viewing = undefined
+        chooseCard(cardId)
+    }
 
     function chooseCard(cardId: string) {
         if (gameSession.influenceTargets.includes(cardId)) {
@@ -37,11 +56,11 @@
         <h2>The Court</h2>
         <span class="deck">
             <img src={cardBackArt('court')} alt="Court deck" />
-            {state.courtDeck.remaining}
+            {game.courtDeck.remaining}
         </span>
     </header>
     <div class="cards">
-        {#each state.court as slot (slot.cardId)}
+        {#each game.court as slot (slot.cardId)}
             <div
                 class="slot"
                 {@attach gameSession.highlights.attach(`court:${slot.cardId}`, (shown) =>
@@ -51,15 +70,17 @@
                 )}
             >
                 {#if targeted(slot.cardId)}
-                    <button
-                        type="button"
-                        id="arcs-court-{slot.cardId}"
-                        class="target"
-                        aria-label="Choose {slot.cardId}"
-                        onclick={() => chooseCard(slot.cardId)}
-                    ></button>
+                    <div class="target"></div>
                 {/if}
-                <img class="card" src={cardArt(slot.cardId)} alt={slot.cardId} />
+                <button
+                    type="button"
+                    id="arcs-court-{slot.cardId}"
+                    class="view"
+                    aria-label="View {cardName(slot.cardId)}"
+                    onclick={() => (viewing = slot.cardId)}
+                >
+                    <img class="card" src={cardArt(slot.cardId)} alt={cardName(slot.cardId)} />
+                </button>
                 <div class="agents">
                     {#each Object.entries(slot.agents) as [owner, count] (owner)}
                         <span
@@ -83,6 +104,22 @@
         {/each}
     </div>
 </section>
+{#if viewed}
+    <CardViewer
+        cardId={viewed}
+        cards={game.court.map((slot) => slot.cardId)}
+        onview={(next) => (viewing = next)}
+        onclose={() => (viewing = undefined)}
+    >
+        {#snippet actions()}
+            {#if targeted(viewed)}
+                <button type="button" class="choice" onclick={() => chooseViewed(viewed)}
+                    >{verb(viewed)}</button
+                >
+            {/if}
+        {/snippet}
+    </CardViewer>
+{/if}
 {#if gameSession.chosenCourtCard}
     <Floater
         reference="#arcs-court-{gameSession.chosenCourtCard}"
@@ -151,11 +188,13 @@
         border: 8px solid rgb(255 214 120 / 0.95);
         border-radius: 20px;
         box-shadow: 0 0 30px rgb(255 214 120 / 0.85);
-        cursor: pointer;
+        pointer-events: none;
     }
 
-    .target:hover {
-        background: rgb(255 214 120 / 0.15);
+    .view {
+        display: block;
+        width: 100%;
+        cursor: zoom-in;
     }
 
     .card {

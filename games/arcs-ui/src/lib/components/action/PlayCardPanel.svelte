@@ -17,17 +17,21 @@
     }
     const playable = (choice: (typeof gameSession.handChoices)[number]) =>
         choice.lead || choice.follow.length > 0
+    let handHidden = $state(false)
 </script>
 
 <div class="row">
     <p class="prompt">{leading ? 'Lead a card, or pass the initiative.' : 'Play a card.'}</p>
+    <button type="button" class="choice view-toggle" onclick={() => (handHidden = !handHidden)}
+        >{handHidden ? 'Show hand' : 'Hide'}</button
+    >
     {#if gameSession.canPassInitiative}
         <button type="button" class="choice" onclick={() => gameSession.passInitiative()}
             >Pass the initiative</button
         >
     {/if}
 </div>
-<div class="hand">
+<div class="hand" hidden={handHidden}>
     {#each gameSession.handChoices as choice (choice.cardId)}
         <button
             type="button"
@@ -41,7 +45,7 @@
         </button>
     {/each}
 </div>
-{#if chosen}
+{#if chosen && !handHidden}
     <Floater
         reference="#arcs-hand-{chosen.cardId}"
         placement="bottom"
@@ -83,11 +87,19 @@
         gap: 8px;
     }
 
+    .prompt {
+        margin-right: auto;
+    }
+
     .hand {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
         margin-top: 8px;
+    }
+
+    .hand[hidden] {
+        display: none;
     }
 
     .card img {

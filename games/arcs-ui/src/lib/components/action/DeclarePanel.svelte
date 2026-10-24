@@ -4,6 +4,7 @@
     import { cardArt, resourceIconArt } from '$lib/utils/art.js'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import VoxPicker from '$lib/components/board/VoxPicker.svelte'
+    import CardViewer from '$lib/components/CardViewer.svelte'
 
     const gameSession = getGameSession()
     const step = $derived(gameSession.declareStep)
@@ -17,6 +18,18 @@
         boldCards = boldCards.includes(cardId)
             ? boldCards.filter((other) => other !== cardId)
             : [...boldCards, cardId]
+    }
+    let viewingBold: string | undefined = $state()
+    const viewedBold = $derived(
+        step === DeclareStep.Bold &&
+            viewingBold &&
+            gameSession.gameState.court.some((slot) => slot.cardId === viewingBold)
+            ? viewingBold
+            : undefined
+    )
+    const toggleViewedBold = (cardId: string) => {
+        viewingBold = undefined
+        toggleBold(cardId)
     }
 
     let give: string | undefined = $state()
@@ -77,7 +90,7 @@
                 class="card-button"
                 class:on={boldCards.includes(slot.cardId)}
                 aria-pressed={boldCards.includes(slot.cardId)}
-                onclick={() => toggleBold(slot.cardId)}
+                onclick={() => (viewingBold = slot.cardId)}
             >
                 <img class="card" src={cardArt(slot.cardId)} alt={slot.cardId} />
             </button>
@@ -139,6 +152,21 @@
             >Don't swap</button
         >
     </div>
+{/if}
+
+{#if viewedBold}
+    <CardViewer
+        cardId={viewedBold}
+        cards={gameSession.gameState.court.map((slot) => slot.cardId)}
+        onview={(next) => (viewingBold = next)}
+        onclose={() => (viewingBold = undefined)}
+    >
+        {#snippet actions()}
+            <button type="button" class="choice" onclick={() => toggleViewedBold(viewedBold)}
+                >{boldCards.includes(viewedBold) ? "Don't influence" : 'Influence'}</button
+            >
+        {/snippet}
+    </CardViewer>
 {/if}
 
 <style>

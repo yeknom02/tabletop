@@ -1,6 +1,7 @@
 <script lang="ts">
     import { cardArt } from '$lib/utils/art.js'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
+    import CardViewer from '$lib/components/CardViewer.svelte'
 
     const gameSession = getGameSession()
     let kept: string[] = $state([])
@@ -8,6 +9,14 @@
         kept = kept.includes(cardId)
             ? kept.filter((other) => other !== cardId)
             : [...kept, cardId].slice(-2)
+    }
+    let viewing: string | undefined = $state()
+    const viewed = $derived(
+        viewing && gameSession.archive?.cards.includes(viewing) ? viewing : undefined
+    )
+    const toggleViewed = (cardId: string) => {
+        viewing = undefined
+        toggle(cardId)
     }
 </script>
 
@@ -19,7 +28,7 @@
             class="card-button"
             class:on={kept.includes(cardId)}
             aria-pressed={kept.includes(cardId)}
-            onclick={() => toggle(cardId)}
+            onclick={() => (viewing = cardId)}
         >
             <img src={cardArt(cardId)} alt={cardId} />
         </button>
@@ -31,6 +40,21 @@
         onclick={() => gameSession.keepLore(kept)}>Keep these</button
     >
 </div>
+
+{#if viewed}
+    <CardViewer
+        cardId={viewed}
+        cards={gameSession.archive?.cards ?? []}
+        onview={(next) => (viewing = next)}
+        onclose={() => (viewing = undefined)}
+    >
+        {#snippet actions()}
+            <button type="button" class="choice" onclick={() => toggleViewed(viewed)}
+                >{kept.includes(viewed) ? "Don't keep" : 'Keep'}</button
+            >
+        {/snippet}
+    </CardViewer>
+{/if}
 
 <style>
     .row {

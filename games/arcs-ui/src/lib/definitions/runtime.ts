@@ -11,11 +11,11 @@ import GameTable from '../components/GameTable.svelte'
 import { ArcsGameSession } from '$lib/model/session.svelte.js'
 import '../../app.css'
 
-// The four colours of the plastic pieces, as the HRF art paints them.
+// The four player colours, close to the printed pieces' (blue is their teal).
 const arcsPlayerColorPalette: PlayerColorPalette = {
     [Color.Red]: { fill: '#c8352b', text: '#ffffff', contrast: '#ffffff' },
     [Color.Yellow]: { fill: '#e8b630', text: '#000000', contrast: '#000000' },
-    [Color.Blue]: { fill: '#2f6fc2', text: '#ffffff', contrast: '#ffffff' },
+    [Color.Blue]: { fill: '#0f91a8', text: '#000000', contrast: '#000000' },
     [Color.White]: { fill: '#e9e4d8', text: '#000000', contrast: '#000000' }
 }
 

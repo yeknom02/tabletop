@@ -79,6 +79,10 @@
         pointer-events: none;
     }
 
+    .settling :global(.view-toggle) {
+        pointer-events: auto;
+    }
+
     .note {
         color: var(--arcs-muted);
     }

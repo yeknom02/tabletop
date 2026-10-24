@@ -25,6 +25,7 @@
     } from '$lib/utils/art.js'
     import { cardName } from '$lib/utils/cards.js'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
+    import CardViewer from './CardViewer.svelte'
 
     let { player, playerState }: { player: Player; playerState: HydratedArcsPlayerState } = $props()
     const gameSession = getGameSession()
@@ -110,6 +111,8 @@
             (cardId) => cardId !== undefined
         )
     )
+    let viewing: string | undefined = $state()
+    const viewed = $derived(viewing && cards.includes(viewing) ? viewing : undefined)
 </script>
 
 <div class="seat" style:--seat={fill}>
@@ -251,16 +254,31 @@
     {#if cards.length > 0}
         <div class="cards">
             {#each cards as cardId (cardId)}
-                <img
-                    src={cardArt(cardId)}
-                    alt={cardName(cardId)}
-                    title={cardName(cardId)}
-                    {@attach pop(`card:${cardId}`, (state) =>
-                        holds(mine(state), cardId) ? true : undefined
-                    )}
-                />
+                <button
+                    type="button"
+                    class="view"
+                    aria-label="View {cardName(cardId)}"
+                    onclick={() => (viewing = cardId)}
+                >
+                    <img
+                        src={cardArt(cardId)}
+                        alt={cardName(cardId)}
+                        title={cardName(cardId)}
+                        {@attach pop(`card:${cardId}`, (state) =>
+                            holds(mine(state), cardId) ? true : undefined
+                        )}
+                    />
+                </button>
             {/each}
         </div>
+    {/if}
+    {#if viewed}
+        <CardViewer
+            cardId={viewed}
+            {cards}
+            onview={(next) => (viewing = next)}
+            onclose={() => (viewing = undefined)}
+        />
     {/if}
 </div>
 
@@ -445,6 +463,10 @@
         flex-wrap: wrap;
         gap: 4px;
         padding: 6px 10px 0;
+    }
+
+    .view {
+        cursor: zoom-in;
     }
 
     .cards img {

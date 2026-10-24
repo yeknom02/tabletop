@@ -1,6 +1,14 @@
 <script lang="ts">
-    import { Ambition, LastChapter } from '@tabletop/arcs'
-    import { ambitionMarkerArt, PaperTexture } from '$lib/utils/art.js'
+    import { Color } from '@tabletop/common'
+    import { Ambition, BuildingKind, LastChapter, Resource } from '@tabletop/arcs'
+    import {
+        agentArt,
+        ambitionMarkerArt,
+        buildingArt,
+        PaperTexture,
+        resourceIconArt,
+        shipArt
+    } from '$lib/utils/art.js'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { AmbitionNames } from '$lib/utils/cards.js'
 
@@ -13,6 +21,18 @@
         [Ambition.Warlord]: 'Trophies',
         [Ambition.Keeper]: 'Relics',
         [Ambition.Empath]: 'Psionics'
+    }
+
+    // What the printed board's track shows each ambition counting.
+    const AmbitionIcons: Record<Ambition, string[]> = {
+        [Ambition.Tycoon]: [resourceIconArt(Resource.Material), resourceIconArt(Resource.Fuel)],
+        [Ambition.Tyrant]: [agentArt(Color.White)],
+        [Ambition.Warlord]: [
+            shipArt(Color.White),
+            buildingArt(Color.White, BuildingKind.City, false)
+        ],
+        [Ambition.Keeper]: [resourceIconArt(Resource.Relic)],
+        [Ambition.Empath]: [resourceIconArt(Resource.Psionic)]
     }
 
     const markers = $derived(
@@ -53,7 +73,14 @@
         <div class="row" class:declared={row.markers.length > 0}>
             <div class="title">
                 <span class="name">{AmbitionNames[row.ambition]}</span>
-                <span class="measure">{AmbitionMeasures[row.ambition]}</span>
+                <span class="measure"
+                    >{AmbitionMeasures[row.ambition]}
+                    <span class="icons">
+                        {#each AmbitionIcons[row.ambition] as icon (icon)}
+                            <img src={icon} alt="" />
+                        {/each}
+                    </span>
+                </span>
             </div>
             <div class="standings">
                 {#each row.standings as entry (entry.playerId)}
@@ -156,6 +183,20 @@
     .measure {
         font-size: 24px;
         opacity: 0.7;
+    }
+
+    .icons {
+        display: inline-flex;
+        gap: 4px;
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+
+    .icons img {
+        height: 34px;
+        filter: grayscale(1) sepia(0.7) brightness(0.62) contrast(1.4);
+        mix-blend-mode: multiply;
+        opacity: 0.85;
     }
 
     .standings {
