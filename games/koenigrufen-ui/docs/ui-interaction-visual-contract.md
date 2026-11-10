@@ -46,16 +46,19 @@
 - **Trigger:** it is the viewing player's turn to bid, or to name the contract after “Mein Spiel”.
 - **Bidding row:** the action area offers only **Bid ▾**, **Mein Spiel** (forehand's opening turn, with its meaning in a small line below) and **Pass** (when passing is allowed). **Mein Spiel** and **Pass** act at once.
 - **Menu:** **Bid ▾** opens the biddable contracts in a menu under the button row, across the action area. It covers the top of the table but stops above the player's hand, so the hand stays in view; only when less than 160px is left does it run over the hand. A tap or click outside, **✕** or Escape closes it; choosing a contract closes it and bids. Naming after “Mein Spiel” uses the same menu behind **Name contract ▾**, already open when the turn starts. The menu follows its button on resize and scroll, and each opening starts with no contract previewed.
-- **Display:** each contract button shows its value per opponent in a gold badge, or the win and loss values when they differ (Sechserdreier `2/−4`).
+- **Display:** each contract button shows its value per opponent in a gold badge, or the win and loss values when they differ (Sechserdreier `4/−8`). Besserrufer is offered once per bird ("Besserrufer Uhu"), its badge the game plus the bird's announced value (Pagat 3, Uhu 5, Kakadu 7, Quapil 9), placed among the contracts by that value, and its summary names the bird it announces.
 - **Summary:** pointing at a contract with a mouse, or focusing it from the keyboard, shows what it takes in a line below the menu's buttons. The line keeps the last contract shown, and its height is reserved so the menu does not jump while pointing.
 - **Phones:** below 640px the buttons, badges and summary line are smaller (every choice button in the action area, not only contracts).
 - **Touch:** without hover, the first tap on a contract outlines it and shows its summary, and a tap on the outlined contract bids it. A tap's own enter and focus events never count as a preview.
+- **Highest bid:** while bidding goes on, every player sees a "Highest bid:" line under the action panel naming the holder, the contract with its value and the menu's summary. It is absent until someone bids.
 
 ### Announcing
 
 - **Trigger:** it is the viewing player's turn in the announcements, after the talon is settled (every contract but Trischaken).
-- **Display:** one row of toggle buttons for the bonuses the player may announce for their side, each with its announced value in a gold badge (doubled in Solo contracts; Valat as the game times eight), and one row per word for the doubles on offer, labelled Kontra, Re or Sub, whose buttons name only what they raise ("Game", "Game with Anna", "Trull"; the full "Kontra declarer’s Trull" is their accessible name and tooltip). Chosen buttons are filled and outlined. The confirm button reads **Pass** while nothing is chosen and **Announce** once something is. A Besserrufer declarer's first turn asks for a bird, and the button stays disabled until one is chosen.
+- **Display:** one row of toggle buttons for the bonuses the player may announce for their side, each with its announced value in a gold badge (doubled in Solo contracts; Valat as the game times eight), and one row per word for the doubles on offer, labelled Kontra, Re or Sub, whose buttons name only what they raise ("Game", "Game with Anna", "Trull"; the full "Kontra declarer’s Trull" is their accessible name and tooltip). Chosen buttons are filled and outlined. The confirm button reads **Pass** while nothing is chosen and **Announce** once something is. A Besserrufer's bird, named with the bid, is already announced when the round opens.
+- **Bonus summary:** pointing at a bonus with a mouse, or focusing it from the keyboard, shows what it takes and its unannounced worth in a line below the choices, styled and reserved like the contract summary. Without hover, a tap toggles the bonus and shows its summary. The line keeps the last bonus shown and is absent when no bonus can be announced.
 - **Phones:** below 640px the rows flow together into one wrapping line of smaller buttons, the labels inline, so the choices usually fit in three lines.
+- **Contract line:** during announcements every player sees a "Contract:" line under the action panel naming the declarer's contract with its value and the same summary as the bid menu, so bonuses and Kontras are weighed against it.
 - **Everyone:** during announcements and play, an "Announced:" line under the action panel lists what has been said so far (Kontras on the game, then bonuses, with the defenders' marked and each bonus's Re or Sub).
 - **Play:** a card that an announced bird of the player's side needs (Pagat, Uhu, Kakadu, Quapil) is not offered before its trick, unless nothing else may be played.
 
@@ -121,7 +124,7 @@
 
 - **Meaning:** the bonuses and doubles chosen so far for this announcement turn, one staged-selection stage per choice, all `manual`.
 - **Producer:** the session (`toggleAnnouncement`).
-- **Consumers:** the action panel (filled buttons, **Pass** or **Announce**, the Besserrufer bird requirement).
+- **Consumers:** the action panel (filled buttons, **Pass** or **Announce**).
 - **Lifetime:** cleared whenever a new state is presented. Undo pops the latest choice before any action undo.
 - **Validity:** the session keeps only choices still on offer to the viewing player.
 

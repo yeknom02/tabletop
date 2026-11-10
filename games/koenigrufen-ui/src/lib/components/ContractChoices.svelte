@@ -1,76 +1,60 @@
 <script lang="ts">
-    import { MediaQuery } from 'svelte/reactivity'
-    import { Contracts, type Contract } from '@tabletop/koenigrufen'
-    import { contractHeading, contractSummary, contractValue } from '$lib/utils/contractText.js'
+    import type { BidChoice } from '@tabletop/koenigrufen'
+    import {
+        bidHeading,
+        bidKey,
+        bidName,
+        bidValueText,
+        contractSummary
+    } from '$lib/utils/contractText.js'
+    import { ChoicePreview } from '$lib/utils/choicePreview.svelte.js'
+    import ChoiceSummary from './ChoiceSummary.svelte'
 
     let {
-        contracts,
+        choices,
         onchoose
     }: {
-        contracts: readonly Contract[]
-        onchoose: (contract: Contract) => void
+        choices: readonly BidChoice[]
+        onchoose: (choice: BidChoice) => void
     } = $props()
 
     // Without hover, the first tap shows the summary and a second tap on it chooses.
-    const noHover = new MediaQuery('hover: none')
-    let previewed: Contract | undefined = $state()
-    const shown = $derived(
-        previewed !== undefined && contracts.includes(previewed) ? previewed : undefined
-    )
+    const preview = new ChoicePreview<string>()
+    const shownKey = $derived(preview.shownAmong(choices.map(bidKey)))
+    const shown = $derived(choices.find((choice) => bidKey(choice) === shownKey))
 
-    // A tap also enters and focuses the button before its click, which must not count as a preview.
-    function previewOnHover(event: PointerEvent, contract: Contract) {
-        if (event.pointerType === 'mouse') {
-            previewed = contract
-        }
-    }
-
-    function previewOnKeyboardFocus(event: FocusEvent, contract: Contract) {
-        if (
-            event.currentTarget instanceof HTMLElement &&
-            event.currentTarget.matches(':focus-visible')
-        ) {
-            previewed = contract
-        }
-    }
-
-    function choose(contract: Contract) {
-        if (noHover.current && shown !== contract) {
-            previewed = contract
+    function choose(choice: BidChoice) {
+        if (preview.noHover.current && shownKey !== bidKey(choice)) {
+            preview.previewed = bidKey(choice)
             return
         }
-        onchoose(contract)
+        onchoose(choice)
     }
 </script>
 
 <div class="choices">
-    {#each contracts as contract (contract)}
-        {@const definition = Contracts[contract]}
+    {#each choices as choice (bidKey(choice))}
+        {@const key = bidKey(choice)}
         <button
             type="button"
             class="choice contract"
-            class:previewed={shown === contract}
-            onpointerenter={(event) => previewOnHover(event, contract)}
-            onfocus={(event) => previewOnKeyboardFocus(event, contract)}
-            onclick={() => choose(contract)}
+            class:previewed={shownKey === key}
+            onpointerenter={(event) => preview.showOnHover(event, key)}
+            onfocus={(event) => preview.showOnKeyboardFocus(event, key)}
+            onclick={() => choose(choice)}
         >
-            <span>{definition.name}</span>
-            <span class="value" title="Points from each opponent">{contractValue(definition)}</span>
+            <span>{bidName(choice)}</span>
+            <span class="value" title="Points from each opponent">{bidValueText(choice)}</span>
         </button>
     {/each}
 </div>
-<p class="summary" aria-live="polite">
-    {#if shown}
-        <strong>{contractHeading(shown)}:</strong>
-        {contractSummary(shown)}
-    {:else}
-        <span class="hint">
-            {noHover.current
-                ? 'Tap a contract to see what it takes, then tap it again to choose it.'
-                : 'Point at a contract to see what it takes.'}
-        </span>
-    {/if}
-</p>
+<ChoiceSummary
+    heading={shown ? bidHeading(shown) : undefined}
+    summary={shown ? contractSummary(shown) : undefined}
+    hint={preview.noHover.current
+        ? 'Tap a contract to see what it takes, then tap it again to choose it.'
+        : 'Point at a contract to see what it takes.'}
+/>
 
 <style>
     .contract {
@@ -100,18 +84,6 @@
         gap: 6px;
     }
 
-    .summary {
-        min-height: 3.6em;
-        font-size: 0.85rem;
-        line-height: 1.3;
-        opacity: 0.9;
-    }
-
-    .hint {
-        opacity: 0.7;
-        font-style: italic;
-    }
-
     @media (max-width: 640px) {
         .choices {
             gap: 4px;
@@ -124,11 +96,6 @@
         .value {
             min-width: 1.4em;
             padding: 0 4px;
-        }
-
-        .summary {
-            min-height: 3.9em;
-            font-size: 0.75rem;
         }
     }
 </style>
