@@ -1,8 +1,10 @@
 # T3 Code in the devcontainer
 
 The image installs T3 with pnpm. `T3_VERSION` in `.devcontainer/Dockerfile`
-pins the version; update it and rebuild to upgrade. `post-start.sh` starts
-`t3 serve /workspace` as the `node` user, listening on loopback port 3773.
+pins the version; update it and rebuild to upgrade. The T3 mobile app refuses
+servers older than the version it expects, so keep the pin current.
+`post-start.sh` starts `t3 serve /workspace` as the `node` user, listening on
+loopback port 3773, in its own session so it outlives the startup command.
 Repeated startup calls leave the running server alone.
 
 T3 runs its agents inside the container, so sign in to Claude Code (`claude`)

@@ -23,7 +23,9 @@ if (echo > /dev/tcp/127.0.0.1/3773) 2>/dev/null; then
 fi
 
 umask 077
-nohup t3 serve /workspace --host 127.0.0.1 --port 3773 --base-dir "${T3_HOME}" \
+# setsid puts T3 in its own session. Without it the server stays in the
+# postStartCommand session and dies when that command finishes.
+setsid nohup t3 serve /workspace --host 127.0.0.1 --port 3773 --base-dir "${T3_HOME}" \
     >>"${T3_LOG}" 2>&1 < /dev/null &
 t3_pid=$!
 
