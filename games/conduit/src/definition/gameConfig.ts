@@ -24,13 +24,21 @@ export enum MarketDeal {
     Shuffled = 'shuffled'
 }
 
+export enum ExtraCubeCost {
+    // Extra cubes on a new station are free (rules v0.8.1).
+    Free = 'free',
+    // The first extra cube costs $1, the second $2, and so on, paid to the bank.
+    Rising = 'rising'
+}
+
 // Number settings accept any digit so bot studies can try values the option list doesn't offer.
 export const ConduitGameConfig = Type.Object({
     cubesPerRound: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
     routeTarget: Type.Optional(Type.Enum(RouteTarget)),
     startPlayer: Type.Optional(Type.Enum(StartPlayerRule)),
     minimumBids: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
-    marketDeal: Type.Optional(Type.Enum(MarketDeal))
+    marketDeal: Type.Optional(Type.Enum(MarketDeal)),
+    extraCubeCost: Type.Optional(Type.Enum(ExtraCubeCost))
 })
 
 // The designer is playtesting how many cubes move from reserve to supply each round.
@@ -74,4 +82,13 @@ export function cubesPerRound(config: { cubesPerRound?: unknown }): number {
 
 export function minimumBidsOf(config: { minimumBids?: unknown }): number {
     return typeof config.minimumBids === 'string' ? Number(config.minimumBids) : DefaultMinimumBids
+}
+
+export function extraCubeCostOf(config: { extraCubeCost?: unknown }): ExtraCubeCost {
+    return config.extraCubeCost === ExtraCubeCost.Rising ? ExtraCubeCost.Rising : ExtraCubeCost.Free
+}
+
+// What a player pays for this many extra cubes on one new station.
+export function extraCubesPrice(extraCubes: number, cost: ExtraCubeCost): number {
+    return cost === ExtraCubeCost.Rising ? (extraCubes * (extraCubes + 1)) / 2 : 0
 }

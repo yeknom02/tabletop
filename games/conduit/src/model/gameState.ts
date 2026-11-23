@@ -307,7 +307,14 @@ export class HydratedConduitGameState
         return offer !== undefined && this.getPlayerState(playerId).cash >= offer.price
     }
 
-    placeTile(playerId: string, cell: OffsetCoordinates, rotation: number, extraCubes: number) {
+    // Extra cubes are free unless the variant being tested charges for them (extraCubesPrice).
+    placeTile(
+        playerId: string,
+        cell: OffsetCoordinates,
+        rotation: number,
+        extraCubes: number,
+        extraPrice = 0
+    ) {
         const placement = this.pendingPlacement()
         assertExists(placement, 'A tile is waiting to be placed')
         assert(placement.playerId === playerId, `Player ${playerId} is not placing the tile`)
@@ -317,7 +324,10 @@ export class HydratedConduitGameState
 
         const station: PlacedStation = { cell, ...face, cubes: 0 }
         if (placement.faceUp) {
-            this.getPlayerState(playerId).takeFromSupply(extraCubes)
+            const player = this.getPlayerState(playerId)
+            assert(player.cash >= extraPrice, 'The player cannot pay for the extra cubes')
+            player.pay(extraPrice)
+            player.takeFromSupply(extraCubes)
             station.ownerId = playerId
             station.cubes = 1 + extraCubes
         }

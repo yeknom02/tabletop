@@ -13,7 +13,10 @@ export class PlacingStateHandler implements MachineStateHandler<
         action: HydratedAction,
         context: MachineContext<HydratedConduitGameState>
     ): action is HydratedPlaceTile {
-        return isPlaceTile(action) && HydratedPlaceTile.canPlaceTile(context.gameState, action)
+        return (
+            isPlaceTile(action) &&
+            HydratedPlaceTile.canPlaceTile(context.gameState, action, context.gameConfig)
+        )
     }
 
     validActionsForPlayer(

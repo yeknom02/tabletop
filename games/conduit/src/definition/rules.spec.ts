@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { assertExists } from '@tabletop/common'
 import { MachineState } from './states.js'
-import { StartPlayerRule } from './gameConfig.js'
+import { ExtraCubeCost, StartPlayerRule } from './gameConfig.js'
 import { isBuyTile } from '../actions/buyTile.js'
 import { isPayRevenue } from '../actions/payRevenue.js'
+import { isPlaceTile } from '../actions/placeTile.js'
 import { isLoseInfrastructure } from '../actions/loseInfrastructure.js'
 import { StationLetter, stationTile } from '../components/tiles.js'
 import { type ConduitProjectedState, Rounds } from '../model/gameState.js'
@@ -214,6 +215,32 @@ describe('offers', () => {
         const { cell, rotation } = firstLegalPlacement(session)
         const supply = player(session.state, 'p0').supply
         expect(() => session.place(cell, rotation, supply + 1)).toThrow()
+    })
+
+    it('charges $1, then $2, and so on for extra cubes in the rising-cost variant', () => {
+        const session = startTestGame(3, { extraCubeCost: ExtraCubeCost.Rising })
+        bidAround(session)
+        setOfferTrack(session, ['p0'])
+        session.buy()
+        const cash = player(session.state, 'p0').cash
+        placeAnywhere(session, 2)
+        expect(player(session.state, 'p0').cash).toBe(cash - 3)
+        const placed = session.actions.at(-1)
+        expect(isPlaceTile(placed) && placed.metadata?.extraPrice).toBe(3)
+    })
+
+    it('refuses extra cubes the player cannot pay for in the rising-cost variant', () => {
+        const session = startTestGame(3, { extraCubeCost: ExtraCubeCost.Rising })
+        bidAround(session)
+        setOfferTrack(session, ['p0'])
+        session.buy()
+        session.edit((draft) => {
+            player(draft, 'p0').cash = 2
+        })
+        const { cell, rotation } = firstLegalPlacement(session)
+        expect(() => session.place(cell, rotation, 2)).toThrow()
+        session.place(cell, rotation, 1)
+        expect(player(session.state, 'p0').cash).toBe(1)
     })
 
     it('pays a dollar per pass, taking an unbroken run of the passer’s cubes together', () => {
