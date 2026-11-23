@@ -2,6 +2,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
+import { marketDealOf, routeTargetOf, startPlayerRuleOf } from '../../src/index.js'
 
 // Plays a study: every seed with every rotation of the lineup (when --rotate), so each bot sits in
 // every seat on the same deals. Writes run.json and games-*.jsonl under the runs folder.
@@ -12,7 +13,9 @@ const { values } = parseArgs({
         games: { type: 'string', default: '100' },
         'seed-start': { type: 'string', default: '1' },
         cubes: { type: 'string', default: '2' },
-        route: { type: 'string', default: 'next' },
+        route: { type: 'string', default: 'same' },
+        'min-bids': { type: 'string', default: '2' },
+        deal: { type: 'string', default: 'cycle' },
         start: { type: 'string', default: 'clockwise' },
         rotate: { type: 'boolean', default: false },
         workers: { type: 'string', default: '12' },
@@ -20,6 +23,10 @@ const { values } = parseArgs({
     }
 })
 if (!values.name || !values.lineup) throw Error('--name and --lineup are required')
+if (routeTargetOf({ routeTarget: values.route }) !== values.route) throw Error('--route: same|next')
+if (marketDealOf({ marketDeal: values.deal }) !== values.deal) throw Error('--deal: cycle|shuffled')
+if (startPlayerRuleOf({ startPlayer: values.start }) !== values.start)
+    throw Error('--start: clockwise|richest')
 
 const RunsRoot = '/workspace/tmp/conduit/runs'
 const dir = join(RunsRoot, values.name)
@@ -50,6 +57,8 @@ writeFileSync(
             cubesPerRound: Number(values.cubes),
             routeTarget: values.route,
             startPlayer: values.start,
+            minimumBids: Number(values['min-bids']),
+            marketDeal: values.deal,
             commit: git(['rev-parse', 'HEAD']),
             dirty: git(['status', '--porcelain', '--', 'games/conduit']) !== '',
             startedAt: new Date().toISOString()
@@ -68,7 +77,9 @@ const runs = Array.from({ length: workers }, (_, worker) => {
         variant: {
             cubesPerRound: Number(values.cubes),
             routeTarget: values.route,
-            startPlayer: values.start
+            startPlayer: values.start,
+            minimumBids: Number(values['min-bids']),
+            marketDeal: values.deal
         }
     }
     return new Promise<void>((resolve, reject) => {

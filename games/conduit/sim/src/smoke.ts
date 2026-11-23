@@ -1,16 +1,19 @@
 import { makeBot } from './bots/catalog.js'
 import { playGame } from './game.js'
-import { RouteTarget, StartPlayerRule } from '../../src/index.js'
+import { marketDealOf, routeTargetOf, StartPlayerRule } from '../../src/index.js'
 
-const lineup = (process.argv[2] ?? 'balanced,balanced,balanced,balanced').split(',')
+const lineup =
+    (process.argv[2] ?? 'balanced,balanced,balanced,balanced').match(/[^,{]+(?:\{[^}]*\})?/g) ?? []
 const started = Date.now()
 const record = playGame({
     seed: 1,
     bots: lineup.map(makeBot),
     variant: {
         cubesPerRound: 2,
-        routeTarget: RouteTarget.NextLetter,
-        startPlayer: StartPlayerRule.Clockwise
+        routeTarget: routeTargetOf({ routeTarget: process.argv[3] }),
+        startPlayer: StartPlayerRule.Clockwise,
+        minimumBids: 2,
+        marketDeal: marketDealOf({ marketDeal: process.argv[4] })
     }
 })
 console.log(

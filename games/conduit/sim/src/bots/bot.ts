@@ -1,5 +1,10 @@
 import type { OffsetCoordinates, RandomFunction } from '@tabletop/common'
-import { ActionType, type HydratedConduitGameState, type RouteTarget } from '../../../src/index.js'
+import {
+    ActionType,
+    type HydratedConduitGameState,
+    type MarketDeal,
+    type RouteTarget
+} from '../../../src/index.js'
 
 export type Decision =
     | { type: ActionType.PlaceBid; slot: number }
@@ -23,6 +28,7 @@ export interface BotContext {
     random: RandomFunction
     cubesPerRound: number
     routeTarget: RouteTarget
+    marketDeal: MarketDeal
 }
 
 export interface Bot {

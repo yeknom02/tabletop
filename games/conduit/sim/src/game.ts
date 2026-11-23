@@ -14,11 +14,13 @@ import {
     isBuyTile,
     isLoseInfrastructure,
     isPassTile,
+    isFillMarket,
     isPayRevenue,
     isPlaceBid,
     isPlaceTile,
     MachineState,
     stationTile,
+    type MarketDeal,
     type RouteTarget,
     type StartPlayerRule
 } from '../../src/index.js'
@@ -34,7 +36,11 @@ export type GameRecord = {
     cubesPerRound: number
     routeTarget: RouteTarget
     startPlayer: StartPlayerRule
+    minimumBids: number
+    marketDeal: MarketDeal
     bots: string[]
+    // The letters dealt to each round's market, in order.
+    markets: string[][]
     finalCash: number[]
     finalSupply: number[]
     winners: number[]
@@ -55,6 +61,8 @@ export type Variant = {
     cubesPerRound: number
     routeTarget: RouteTarget
     startPlayer: StartPlayerRule
+    minimumBids: number
+    marketDeal: MarketDeal
 }
 
 export function playGame({
@@ -66,7 +74,7 @@ export function playGame({
     bots: Bot[]
     variant: Variant
 }): GameRecord {
-    const { cubesPerRound, routeTarget, startPlayer } = variant
+    const { cubesPerRound, routeTarget, startPlayer, minimumBids, marketDeal } = variant
     const players = bots.length
     const playerIds = bots.map((_, seat) => `s${seat}`)
     const engine = new GameEngine(ConduitRuntime)
@@ -79,7 +87,9 @@ export function playGame({
                 ...defaultGameConfig(ConduitInfo.configurator?.options ?? []),
                 cubesPerRound: String(cubesPerRound),
                 routeTarget,
-                startPlayer
+                startPlayer,
+                minimumBids: String(minimumBids),
+                marketDeal
             }),
             players: playerIds.map((id) => ({
                 id,
@@ -101,7 +111,10 @@ export function playGame({
         cubesPerRound,
         routeTarget,
         startPlayer,
+        minimumBids,
+        marketDeal,
         bots: bots.map((bot) => bot.name),
+        markets: [],
         finalCash: [],
         finalSupply: [],
         winners: [],
@@ -117,6 +130,12 @@ export function playGame({
         revenues: [],
         steps: 0
     }
+    // The first market is dealt during setup, not by an action.
+    record.markets.push(
+        state.market.flatMap((slot) =>
+            slot.tileId === undefined ? [] : [stationTile(slot.tileId).letter]
+        )
+    )
     const seatValues = (pick: (player: { cash: number; supply: number }) => number) =>
         playerIds.map((id) =>
             pick(state.players.find((player) => player.playerId === id) ?? { cash: 0, supply: 0 })
@@ -127,6 +146,9 @@ export function playGame({
     const observe = (actions: GameAction[]) => {
         const hydrated = ConduitRuntime.hydrator.hydrateState(structuredClone(state))
         for (const action of actions) {
+            if (isFillMarket(action) && action.metadata) {
+                record.markets.push(action.metadata.tileIds.map((id) => stationTile(id).letter))
+            }
             if (isPlaceBid(action)) record.bids[seatOf(action.playerId)] += 1
             if (isPassTile(action)) record.passes[seatOf(action.playerId)] += 1
             if (isPayRevenue(action) && action.metadata) {
@@ -164,7 +186,8 @@ export function playGame({
             playerId,
             random,
             cubesPerRound,
-            routeTarget
+            routeTarget,
+            marketDeal
         })
         if (hydrated.machineState === MachineState.Offering) {
             const offer = hydrated.currentOffer()

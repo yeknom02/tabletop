@@ -1,76 +1,81 @@
-// Counts the legal cells at each placement under the printed rule, and the final board shape.
+// Counts the legal cells at each placement, and the final grid's shape.
+// Usage: tsx sim/src/analyze/placementCells.ts <players> <games>
 import { playGame } from '../game.js'
 import { makeBot } from '../bots/catalog.js'
 import type { Bot } from '../bots/bot.js'
-import { MachineState } from '../../../src/index.js'
+import {
+    MachineState,
+    MarketDeal,
+    RouteTarget,
+    StartPlayerRule,
+    type HydratedConduitGameState
+} from '../../../src/index.js'
 
 const players = Number(process.argv[2] ?? 4)
 const games = Number(process.argv[3] ?? 200)
 const cellCounts: number[][] = []
 const shapes: string[] = []
-let lastState: any
-function wrap(bot: Bot): Bot {
+let lastState: HydratedConduitGameState | undefined
+
+function counting(bot: Bot): Bot {
     return {
         name: bot.name,
         decide(context) {
             const { state } = context
             lastState = state
-            if (state.machineState === MachineState.Placing) {
-                const pending = state.pendingPlacement()
-                if (pending) {
-                    const cells = state
-                        .grid()
-                        .legalPlacements(pending.tileId, pending.faceUp).length
-                    const index = state.board.stations.length - 4
-                    ;(cellCounts[index] ??= []).push(cells)
-                }
+            const pending = state.pendingPlacement()
+            if (state.machineState === MachineState.Placing && pending) {
+                const cells = state.grid().legalPlacements(pending.tileId, pending.faceUp).length
+                ;(cellCounts[state.board.stations.length - 4] ??= []).push(cells)
             }
             return bot.decide(context)
         }
     }
 }
+
 for (let seed = 1; seed <= games; seed++) {
-    const bots = Array.from({ length: players }, () => wrap(makeBot('stacker{margin=3}')))
     playGame({
         seed,
-        bots,
-        variant: { cubesPerRound: 2, routeTarget: 'next' as any, startPlayer: 'clockwise' as any }
+        bots: Array.from({ length: players }, () => counting(makeBot('stacker{margin=3}'))),
+        variant: {
+            cubesPerRound: 2,
+            routeTarget: RouteTarget.SameLetter,
+            startPlayer: StartPlayerRule.Clockwise,
+            minimumBids: 2,
+            marketDeal: MarketDeal.Cycle
+        }
     })
-    const cols = lastState.board.stations.map((s: any) => s.cell.col)
-    const rows = lastState.board.stations.map((s: any) => s.cell.row)
-    const w = Math.max(...cols, 0) - Math.min(...cols, 0) + 1
-    const h = Math.max(...rows, 0) - Math.min(...rows, 0) + 1
+    const stations = lastState?.board.stations ?? []
+    const span = (values: number[]) => Math.max(...values, 0) - Math.min(...values, 0) + 1
+    const w = span(stations.map((station) => station.cell.col))
+    const h = span(stations.map((station) => station.cell.row))
     shapes.push(`${Math.min(w, h)}x${Math.max(w, h)}`)
 }
+
 const all = cellCounts.flat()
-const pct = (n: number) => ((100 * n) / all.length).toFixed(0) + '%'
+const share = (keep: (count: number) => boolean) =>
+    `${((100 * all.filter(keep).length) / all.length).toFixed(0)}%`
 console.log(`${players}p, ${games} games, ${all.length} placements`)
 console.log(
-    'cells offered: 1 =',
-    pct(all.filter((c) => c === 1).length),
-    ' 2 =',
-    pct(all.filter((c) => c === 2).length),
-    ' 3-4 =',
-    pct(all.filter((c) => c >= 3 && c <= 4).length),
-    ' 5+ =',
-    pct(all.filter((c) => c >= 5).length)
+    `cells offered: 1 = ${share((c) => c === 1)}, 2 = ${share((c) => c === 2)},`,
+    `3-4 = ${share((c) => c >= 3 && c <= 4)}, 5+ = ${share((c) => c >= 5)}`
 )
 console.log(
-    'by placement #:',
+    'by placement (average cells / share with one):',
     cellCounts
-        .map(
-            (c, i) =>
-                `${i + 1}:${(c.reduce((a, b) => a + b, 0) / c.length).toFixed(1)}/${Math.round((100 * c.filter((x) => x === 1).length) / c.length)}%`
-        )
+        .map((counts, index) => {
+            const average = counts.reduce((a, b) => a + b, 0) / counts.length
+            const single = Math.round((100 * counts.filter((c) => c === 1).length) / counts.length)
+            return `${index + 1}:${average.toFixed(1)}/${single}%`
+        })
         .join(' ')
 )
 const tally = new Map<string, number>()
-for (const s of shapes) tally.set(s, (tally.get(s) ?? 0) + 1)
+for (const shape of shapes) tally.set(shape, (tally.get(shape) ?? 0) + 1)
 console.log(
-    'final board:',
+    'final grid:',
     [...tally]
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 6)
-        .map(([s, n]) => `${s} ${n}`)
+        .map(([shape, count]) => `${shape} ${count}`)
         .join(', ')
 )

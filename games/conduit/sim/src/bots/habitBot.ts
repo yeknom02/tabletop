@@ -2,11 +2,22 @@ import { assertExists } from '@tabletop/common'
 import {
     ActionType,
     MachineState,
+    MarketDeal,
     RouteTarget,
+    Rounds,
     type HydratedConduitGameState
 } from '../../../src/index.js'
 import { type Bot, type BotContext, noteOf } from './bot.js'
-import { letterOf, placementEffects, type PlacementEffect } from './evaluate.js'
+import {
+    destinationLetter,
+    letterOf,
+    nextMarketChance,
+    placementEffects,
+    type PlacementEffect
+} from './evaluate.js'
+
+// What a two-station route pays: the usual first route a new destination gives.
+const ShortRoutePay = 3
 
 // Each habit is one knob, so a study can switch one off and see what it was doing.
 export type Habits = {
@@ -27,6 +38,10 @@ export type Habits = {
     block: number
     focus?: string
     focusBonus: number
+    // Weight on the chance that a tile with no route now gets a destination later: the chance a
+    // tile of the letter it needs turns up (this market or the next), times how often such a tile
+    // would actually connect. 0 is the myopic bot.
+    prospect: number
     // Random noise on the bid choice, so bots are not all identical.
     jitter: number
 }
@@ -42,13 +57,15 @@ export const BalancedHabits: Habits = {
     want: 1,
     block: 0.3,
     focusBonus: 0,
+    prospect: 0,
     jitter: 0.5
 }
 
 type TileView = { best?: PlacementEffect; perPayout: number }
 
 export class HabitBot implements Bot {
-    private routeTarget = RouteTarget.NextLetter
+    private routeTarget = RouteTarget.SameLetter
+    private marketDeal = MarketDeal.Cycle
 
     constructor(
         readonly name: string,
@@ -58,6 +75,7 @@ export class HabitBot implements Bot {
     decide(context: BotContext) {
         const { state } = context
         this.routeTarget = context.routeTarget
+        this.marketDeal = context.marketDeal
         switch (state.machineState) {
             case MachineState.Bidding:
                 return this.bid(context)
@@ -102,11 +120,39 @@ export class HabitBot implements Bot {
         habits: Habits
     ): number {
         const view = this.tileView(state, tileId, playerId)
-        return this.expectedValue(
-            view.perPayout,
-            this.plannedCubes(state, playerId, habits),
-            habits.discount
+        const cubes = this.plannedCubes(state, playerId, habits)
+        if (view.perPayout > 0 || habits.prospect === 0) {
+            return this.expectedValue(view.perPayout, cubes, habits.discount)
+        }
+        return this.prospectValue(state, tileId, cubes, habits)
+    }
+
+    // A station with no route yet earns once a tile of the letter it needs arrives and connects.
+    // Another such tile still in this market can arrive before this round's payout; each later
+    // market is a fresh chance, until the fifth round's market has been dealt.
+    private prospectValue(
+        state: HydratedConduitGameState,
+        tileId: number,
+        cubes: number,
+        habits: Habits
+    ): number {
+        const needed = destinationLetter(tileId, this.routeTarget)
+        const inMarket = state.market.some(
+            (slot) =>
+                slot.tileId !== undefined &&
+                slot.tileId !== tileId &&
+                letterOf(slot.tileId) === needed
         )
+        const perMarket = nextMarketChance(state, needed, this.marketDeal)
+        const marketsLeft = Math.max(0, Rounds - state.round)
+        let missing = inMarket ? 0 : 1
+        let total = 0
+        for (let payout = 0; payout < cubes; payout++) {
+            if (payout > 0 && payout <= marketsLeft) missing *= 1 - perMarket
+            total += habits.discount ** payout * ShortRoutePay * (1 - missing)
+        }
+        const focused = habits.focus === letterOf(tileId) ? 1 + habits.focusBonus : 1
+        return habits.prospect * total * focused
     }
 
     private bid({ state, playerId, random }: BotContext) {
