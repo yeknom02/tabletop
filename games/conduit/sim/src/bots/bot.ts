@@ -1,5 +1,5 @@
 import type { OffsetCoordinates, RandomFunction } from '@tabletop/common'
-import { ActionType, type HydratedConduitGameState } from '../../../src/index.js'
+import { ActionType, type HydratedConduitGameState, type RouteTarget } from '../../../src/index.js'
 
 export type Decision =
     | { type: ActionType.PlaceBid; slot: number }
@@ -22,6 +22,7 @@ export interface BotContext {
     playerId: string
     random: RandomFunction
     cubesPerRound: number
+    routeTarget: RouteTarget
 }
 
 export interface Bot {

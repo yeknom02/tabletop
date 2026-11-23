@@ -18,7 +18,9 @@ import {
     isPlaceBid,
     isPlaceTile,
     MachineState,
-    stationTile
+    stationTile,
+    type RouteTarget,
+    type StartPlayerRule
 } from '../../src/index.js'
 import type { Bot, DecisionNote } from './bots/bot.js'
 
@@ -30,6 +32,8 @@ export type GameRecord = {
     seed: number
     players: number
     cubesPerRound: number
+    routeTarget: RouteTarget
+    startPlayer: StartPlayerRule
     bots: string[]
     finalCash: number[]
     finalSupply: number[]
@@ -47,15 +51,22 @@ export type GameRecord = {
     steps: number
 }
 
+export type Variant = {
+    cubesPerRound: number
+    routeTarget: RouteTarget
+    startPlayer: StartPlayerRule
+}
+
 export function playGame({
     seed,
     bots,
-    cubesPerRound
+    variant
 }: {
     seed: number
     bots: Bot[]
-    cubesPerRound: number
+    variant: Variant
 }): GameRecord {
+    const { cubesPerRound, routeTarget, startPlayer } = variant
     const players = bots.length
     const playerIds = bots.map((_, seat) => `s${seat}`)
     const engine = new GameEngine(ConduitRuntime)
@@ -66,7 +77,9 @@ export function playGame({
             ownerId: 'sim',
             config: normalizeGameConfig({
                 ...defaultGameConfig(ConduitInfo.configurator?.options ?? []),
-                cubesPerRound: String(cubesPerRound)
+                cubesPerRound: String(cubesPerRound),
+                routeTarget,
+                startPlayer
             }),
             players: playerIds.map((id) => ({
                 id,
@@ -86,6 +99,8 @@ export function playGame({
         seed,
         players,
         cubesPerRound,
+        routeTarget,
+        startPlayer,
         bots: bots.map((bot) => bot.name),
         finalCash: [],
         finalSupply: [],
@@ -148,7 +163,8 @@ export function playGame({
             state: hydrated,
             playerId,
             random,
-            cubesPerRound
+            cubesPerRound,
+            routeTarget
         })
         if (hydrated.machineState === MachineState.Offering) {
             const offer = hydrated.currentOffer()

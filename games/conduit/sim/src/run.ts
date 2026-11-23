@@ -12,6 +12,8 @@ const { values } = parseArgs({
         games: { type: 'string', default: '100' },
         'seed-start': { type: 'string', default: '1' },
         cubes: { type: 'string', default: '2' },
+        route: { type: 'string', default: 'next' },
+        start: { type: 'string', default: 'clockwise' },
         rotate: { type: 'boolean', default: false },
         workers: { type: 'string', default: '12' },
         purpose: { type: 'string', default: '' }
@@ -45,6 +47,8 @@ writeFileSync(
             seeds: [seeds[0], seeds.at(-1)],
             gamesPerSeed: lineups.length,
             cubesPerRound: Number(values.cubes),
+            routeTarget: values.route,
+            startPlayer: values.start,
             commit: git(['rev-parse', 'HEAD']),
             dirty: git(['status', '--porcelain', '--', 'games/conduit']) !== '',
             startedAt: new Date().toISOString()
@@ -60,7 +64,11 @@ const runs = Array.from({ length: workers }, (_, worker) => {
         out: join(dir, `games-${worker}.jsonl`),
         lineups,
         seeds: seeds.filter((_, index) => index % workers === worker),
-        cubesPerRound: Number(values.cubes)
+        variant: {
+            cubesPerRound: Number(values.cubes),
+            routeTarget: values.route,
+            startPlayer: values.start
+        }
     }
     return new Promise<void>((resolve, reject) => {
         const child = spawn(

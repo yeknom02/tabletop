@@ -1,0 +1,12 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "rootDir": "..",
+        "noEmit": true,
+        "types": ["node"],
+        "typeRoots": ["../../../node_modules/.pnpm/@types+node@24.19.2/node_modules/@types"],
+        "target": "es2022"
+    },
+    "include": ["./src", "../src"],
+    "exclude": ["../esm"]
+}

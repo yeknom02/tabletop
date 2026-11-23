@@ -1,5 +1,10 @@
 import { assertExists } from '@tabletop/common'
-import { ActionType, MachineState, type HydratedConduitGameState } from '../../../src/index.js'
+import {
+    ActionType,
+    MachineState,
+    RouteTarget,
+    type HydratedConduitGameState
+} from '../../../src/index.js'
 import { type Bot, type BotContext, noteOf } from './bot.js'
 import { letterOf, placementEffects, type PlacementEffect } from './evaluate.js'
 
@@ -43,6 +48,8 @@ export const BalancedHabits: Habits = {
 type TileView = { best?: PlacementEffect; perPayout: number }
 
 export class HabitBot implements Bot {
+    private routeTarget = RouteTarget.NextLetter
+
     constructor(
         readonly name: string,
         private readonly habits: Habits
@@ -50,6 +57,7 @@ export class HabitBot implements Bot {
 
     decide(context: BotContext) {
         const { state } = context
+        this.routeTarget = context.routeTarget
         switch (state.machineState) {
             case MachineState.Bidding:
                 return this.bid(context)
@@ -64,7 +72,7 @@ export class HabitBot implements Bot {
 
     // What one payout of the tile would be worth to a player at its best spot now.
     private tileView(state: HydratedConduitGameState, tileId: number, playerId: string): TileView {
-        const effects = placementEffects(state, tileId, true, playerId)
+        const effects = placementEffects(state, tileId, true, playerId, this.routeTarget)
         let best: PlacementEffect | undefined
         for (const effect of effects) {
             if (!best || (effect.gain.get(playerId) ?? 0) > (best.gain.get(playerId) ?? 0)) {
@@ -158,7 +166,8 @@ export class HabitBot implements Bot {
             state,
             placement.tileId,
             placement.faceUp,
-            placement.faceUp ? playerId : undefined
+            placement.faceUp ? playerId : undefined,
+            this.routeTarget
         )
         const scored = effects.map((effect) => {
             let others = 0
