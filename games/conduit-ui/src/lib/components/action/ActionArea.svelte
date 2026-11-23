@@ -1,0 +1,166 @@
+<script lang="ts">
+    import { MachineState, stationTile } from '@tabletop/conduit'
+    import { getGameSession } from '$lib/model/sessionContext.svelte.js'
+    import { describeAction } from '$lib/utils/historyEntries.js'
+    import { MinimumBidsPerPlayer } from '@tabletop/conduit'
+
+    const gameSession = getGameSession()
+    const state = $derived(gameSession.gameState)
+    const name = (playerId: string) => gameSession.getPlayerName(playerId)
+    const activeId = $derived(state.activePlayerIds[0])
+    const letterOf = (tileId: number) => stationTile(tileId).letter
+
+    const standings = $derived(
+        [...state.players].sort((a, b) => b.cash - a.cash || b.supply - a.supply)
+    )
+    const myBids = $derived(gameSession.myPlayer ? state.bidsBy(gameSession.myPlayer.id) : 0)
+</script>
+
+<section class="card" class:settling={gameSession.busy} aria-label="Actions">
+    {#if gameSession.isViewingHistory}
+        <p class="prompt">
+            {gameSession.currentAction
+                ? (describeAction(gameSession.currentAction, name) ?? 'Setup')
+                : 'Setup'}
+        </p>
+    {:else if state.result}
+        <p class="prompt">
+            {state.winningPlayerIds.map(name).join(' and ')}
+            {state.winningPlayerIds.length === 1 ? 'wins' : 'share the win'}
+        </p>
+        <ol class="standings">
+            {#each standings as seat (seat.playerId)}
+                <li>
+                    <span>{name(seat.playerId)}</span><span>${seat.cash}</span><span class="detail"
+                        >{seat.supply} in supply</span
+                    >
+                </li>
+            {/each}
+        </ol>
+    {:else if gameSession.isBidding}
+        <p class="prompt">Bid on a tile</p>
+        <p class="detail">
+            Bids {myBids} of {MinimumBidsPerPlayer} · {gameSession.mySupply} in supply
+        </p>
+    {:else if gameSession.isOffered && gameSession.offer}
+        {@const offer = gameSession.offer}
+        <p class="prompt">Buy the {letterOf(offer.tileId)} tile for ${offer.price}?</p>
+        <div class="buttons">
+            <button
+                type="button"
+                class="choice buy"
+                disabled={!gameSession.canBuy}
+                onclick={() => gameSession.buyTile()}>Buy ${offer.price}</button
+            >
+            <button type="button" class="choice" onclick={() => gameSession.passTile()}
+                >Pass +$1</button
+            >
+        </div>
+        {#if !gameSession.canBuy}
+            <p class="detail">You can't afford it</p>
+        {/if}
+    {:else if gameSession.placement}
+        {@const placement = gameSession.placement}
+        <p class="prompt">
+            {placement.faceUp
+                ? `Place your ${letterOf(placement.tileId)} tile`
+                : `Place the ${letterOf(placement.tileId)} tile face down`}
+        </p>
+        {#if !placement.faceUp}
+            <p class="detail">Nobody bought it</p>
+        {/if}
+    {:else if state.machineState === MachineState.Bidding && activeId}
+        <p class="prompt">{name(activeId)} is bidding</p>
+    {:else if state.machineState === MachineState.Offering && gameSession.offer}
+        <p class="prompt">
+            {name(gameSession.offer.playerId)} may buy the {letterOf(gameSession.offer.tileId)} tile for
+            ${gameSession.offer.price}
+        </p>
+    {:else if state.machineState === MachineState.Placing && gameSession.pendingPlacement}
+        <p class="prompt">
+            {name(gameSession.pendingPlacement.playerId)} is placing the {letterOf(
+                gameSession.pendingPlacement.tileId
+            )} tile
+        </p>
+    {:else}
+        <p class="prompt">Paying revenue</p>
+    {/if}
+</section>
+
+<style>
+    .card {
+        margin: 0 8px 8px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: var(--conduit-panel);
+        box-shadow: inset 0 0 0 1px var(--conduit-line);
+    }
+
+    .settling {
+        pointer-events: none;
+    }
+
+    .prompt {
+        font-size: 18px;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .detail {
+        margin-top: 2px;
+        font-size: 14px;
+        color: var(--conduit-muted);
+    }
+
+    .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .choice {
+        padding: 6px 16px;
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--conduit-ink);
+        background: var(--conduit-panel-raised);
+        box-shadow: inset 0 0 0 1px var(--conduit-line);
+    }
+
+    .choice.buy {
+        color: var(--conduit-accent-ink);
+        background: var(--conduit-accent);
+        box-shadow: none;
+    }
+
+    .choice:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .standings {
+        margin-top: 8px;
+        display: grid;
+        gap: 2px;
+        font-size: 15px;
+    }
+
+    .standings li {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 12px;
+        align-items: baseline;
+    }
+
+    @media (max-width: 639px) {
+        .card {
+            padding: 8px 10px;
+        }
+
+        .prompt {
+            font-size: 16px;
+        }
+    }
+</style>
