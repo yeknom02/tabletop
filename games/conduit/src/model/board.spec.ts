@@ -9,7 +9,7 @@ import {
     terminalAt,
     Terminal
 } from '../components/tiles.js'
-import { Grid, isPermanentCell, type PlacedStation } from './board.js'
+import { Grid, type PlacedStation } from './board.js'
 import { revenueFor, stationEarnings } from './gameState.js'
 import { RouteTarget, RouteToll } from '../definition/gameConfig.js'
 
@@ -102,11 +102,6 @@ describe('connections', () => {
         expect(closed).not.toContainEqual({ cell: { col: -1, row: -1 }, side: Side.East })
         expect(closed).toHaveLength(5)
     })
-
-    it('makes only the tiles beside the Central Station permanent', () => {
-        expect(isPermanentCell({ col: 0, row: -1 })).toBe(true)
-        expect(isPermanentCell({ col: 1, row: -1 })).toBe(false)
-    })
 })
 
 describe('legal placements', () => {
@@ -163,8 +158,8 @@ describe('legal placements', () => {
 })
 
 describe('routes', () => {
-    it('runs to an adjacent station of the same letter, counting both ends', () => {
-        const stations = [...negativeCross(), station(StationLetter.A, { col: 1, row: -1 })]
+    it('runs to an adjacent station of the next letter, D to A, counting both ends', () => {
+        const stations = [...negativeCross(), station(StationLetter.D, { col: 1, row: -1 })]
         const route = new Grid({ stations }).bestRoute({ col: 1, row: -1 })
         expect(route?.cells).toEqual([
             { col: 1, row: -1 },
@@ -182,7 +177,7 @@ describe('routes', () => {
     it('takes the better-paying of two equally short routes', () => {
         const stations = [
             ...negativeCross(),
-            station(StationLetter.A, { col: 10, row: 10 }),
+            station(StationLetter.D, { col: 10, row: 10 }),
             station(StationLetter.C, { col: 11, row: 10 }),
             station(StationLetter.C, { col: 10, row: 11 }, { faceUp: false }),
             station(StationLetter.A, { col: 11, row: 11 })
@@ -195,7 +190,7 @@ describe('routes', () => {
     it('takes the shortest route even when a longer one pays more', () => {
         const stations = [
             ...negativeCross(),
-            station(StationLetter.A, { col: 10, row: 10 }),
+            station(StationLetter.D, { col: 10, row: 10 }),
             station(StationLetter.C, { col: 11, row: 10 }, { faceUp: false }),
             station(StationLetter.A, { col: 12, row: 10 }),
             station(StationLetter.C, { col: 10, row: 11 }),
@@ -209,10 +204,23 @@ describe('routes', () => {
         expect(route?.stations).toBe(2)
     })
 
+    it('passes as few of the owner’s own stations as it can among the best routes', () => {
+        const stations = [
+            ...negativeCross(),
+            station(StationLetter.D, { col: 10, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+            station(StationLetter.C, { col: 11, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+            station(StationLetter.C, { col: 10, row: 11 }, { ownerId: 'bea', cubes: 1 }),
+            station(StationLetter.A, { col: 11, row: 11 })
+        ]
+        const route = new Grid({ stations }).bestRoute({ col: 10, row: 10 })
+        expect(route?.cells[1]).toEqual({ col: 10, row: 11 })
+        expect(route?.stations).toBe(3)
+    })
+
     it('stops at a closed connection', () => {
         const stations = [
             ...negativeCross(),
-            station(StationLetter.A, { col: 10, row: 10 }),
+            station(StationLetter.D, { col: 10, row: 10 }),
             station(StationLetter.A, { col: 11, row: 10 }, { positive: [Side.West] })
         ]
         expect(new Grid({ stations }).bestRoute({ col: 10, row: 10 })).toBeUndefined()
@@ -221,14 +229,14 @@ describe('routes', () => {
     it('ends only at a face-up station', () => {
         const stations = [
             ...negativeCross(),
-            station(StationLetter.A, { col: 10, row: 10 }),
+            station(StationLetter.D, { col: 10, row: 10 }),
             station(StationLetter.A, { col: 11, row: 10 }, { faceUp: false })
         ]
         expect(new Grid({ stations }).bestRoute({ col: 10, row: 10 })).toBeUndefined()
     })
 })
 
-describe('the next-letter route variant (rules v0.8b)', () => {
+describe('next letter against same letter', () => {
     it('runs to a station of the next letter, not the same one', () => {
         const stations = [
             ...negativeCross(),
@@ -243,15 +251,9 @@ describe('the next-letter route variant (rules v0.8b)', () => {
         expect(same?.cells.at(-1)).toEqual({ col: 12, row: 10 })
         expect(same?.stations).toBe(3)
     })
-
-    it('runs from D back to A', () => {
-        const stations = [...negativeCross(), station(StationLetter.D, { col: 1, row: -1 })]
-        const route = new Grid({ stations }).bestRoute({ col: 1, row: -1 }, RouteTarget.NextLetter)
-        expect(route?.cells.at(-1)).toEqual({ col: 0, row: -1 })
-    })
 })
 
-describe('the route-toll variant', () => {
+describe('route tolls', () => {
     // Cal's B runs through Bea's A and a face-down tile to Dee's B (the designer's example).
     const stations = [
         ...negativeCross(),
@@ -304,7 +306,7 @@ describe('the route-toll variant', () => {
         expect(cal.tolls).toEqual([{ playerId: 'dee', amount: 1 }])
     })
 
-    it('pays no tolls under the printed rules', () => {
+    it('pays no tolls in the no-toll variant (rules v0.8.1)', () => {
         expect(earned(RouteToll.None)['cal B']).toEqual({ amount: 4, tolls: [] })
     })
 })

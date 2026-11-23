@@ -17,8 +17,14 @@ import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { MachineState } from '../definition/states.js'
 import { BaseLetters, type BaseLetter, StationLetter } from '../components/tiles.js'
-import { RouteTarget, RouteToll, StartPlayerRule } from '../definition/gameConfig.js'
-import { Board, Grid, isPermanentCell, type PlacedStation, type Route } from './board.js'
+import {
+    MarketSize,
+    marketTiles,
+    RouteTarget,
+    RouteToll,
+    StartPlayerRule
+} from '../definition/gameConfig.js'
+import { Board, Grid, type PlacedStation, type Route } from './board.js'
 import { ConduitPlayerState, HydratedConduitPlayerState } from './playerState.js'
 
 export const Rounds = 5
@@ -160,11 +166,12 @@ export class HydratedConduitGameState
         return new Grid(this.board)
     }
 
-    // The market holds one more tile than there are players, drawn from the stacks in letter order,
-    // carrying on from where the last fill stopped, or from the top of the one shuffled stack.
-    fillMarket(): number[] {
+    // The market is drawn from the stacks in letter order, carrying on from where the last fill
+    // stopped, or from the top of the one shuffled stack.
+    fillMarket(size: MarketSize = MarketSize.SmallFirst): number[] {
         this.roundManager.startRound(this.actionCount)
-        const tileIds = Array.from({ length: this.players.length + 1 }, () => this.drawNextTile())
+        const count = marketTiles(size, this.players.length, this.round)
+        const tileIds = Array.from({ length: count }, () => this.drawNextTile())
         this.market = tileIds.map((tileId) => ({ tileId, bids: [] }))
         return tileIds
     }
@@ -365,11 +372,11 @@ export class HydratedConduitGameState
         }))
     }
 
-    // Stations left without cubes flip face down, except the permanent tiles beside the Central
-    // Station. Returns the tiles flipped.
+    // Stations left without cubes flip face down, the setup cross included, so the cross flips at
+    // the end of round 1 (rules v0.8.2). Returns the tiles flipped.
     loseInfrastructure(): number[] {
         const flipped = this.board.stations.filter(
-            (station) => station.faceUp && station.cubes === 0 && !isPermanentCell(station.cell)
+            (station) => station.faceUp && station.cubes === 0
         )
         for (const station of flipped) {
             station.faceUp = false

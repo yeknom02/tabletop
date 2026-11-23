@@ -104,7 +104,7 @@ describe('the shuffled-market variant', () => {
     it('deals from one hidden stack of every tile left after setup', () => {
         const session = startTestGame(4, { marketDeal: MarketDeal.Shuffled })
         const state = session.state
-        expect(state.deck?.remaining).toBe(60 - 5)
+        expect(state.deck?.remaining).toBe(60 - 4)
         for (const letter of BaseLetters) {
             expect(state.stacks[letter].remaining).toBe(0)
         }
@@ -113,7 +113,7 @@ describe('the shuffled-market variant', () => {
             { kind: 'player', playerId: 'p0' },
             { config: {} }
         )
-        expect(view.deck).toEqual({ items: [], remaining: 55 })
+        expect(view.deck).toEqual({ items: [], remaining: 56 })
     })
 
     it('refills the one stack with exactly the unseen tiles for exploration', () => {

@@ -14,7 +14,7 @@ function rotations(playerIds: string[]): string[][] {
 
 // No option changes setup or who acts first, so the default configuration covers every setup.
 describe.each([3, 4, 5])('Conduit tournaments with %i players', (count) => {
-    it('seats players in their assigned order and changes nothing else', () => {
+    it('seats players in their assigned order and changes nothing but starting cash', () => {
         const game = createGame(count)
         const uninitialized = engine.generateUninitializedState(game, TestMasterSeed)
         const initialize = (playerIds?: string[]) =>
@@ -29,7 +29,17 @@ describe.each([3, 4, 5])('Conduit tournaments with %i players', (count) => {
         for (const order of rotations([...normal.turnManager.turnOrder].reverse())) {
             const assigned = initialize(order)
             expect(assigned.turnManager.turnOrder).toEqual(order)
-            expect({ ...assigned, turnManager: normal.turnManager }).toEqual(normal)
+            // Starting cash follows the seat: $5 for the Start Player, $1 more each clockwise.
+            const cashBySeat = order.map(
+                (playerId) => assigned.players.find((player) => player.playerId === playerId)?.cash
+            )
+            expect(cashBySeat).toEqual(order.map((_, seat) => 5 + seat))
+            const withoutCash = (state: typeof normal) => ({
+                ...state,
+                turnManager: normal.turnManager,
+                players: state.players.map((player) => ({ ...player, cash: 0 }))
+            })
+            expect(withoutCash(assigned)).toEqual(withoutCash(normal))
             assert(ConduitGameStateValidator.Check(assigned), 'Setup must be canonical')
 
             const { initialState, startedGame } = engine.startGame(game, {

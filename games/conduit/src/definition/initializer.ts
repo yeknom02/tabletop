@@ -22,7 +22,7 @@ import { newPlayerState } from '../model/playerState.js'
 import { CentralCell, neighborCell, type PlacedStation } from '../model/board.js'
 import { BaseLetters, Side, StationLetter, tileIdsOfLetter } from '../components/tiles.js'
 import { MachineState } from './states.js'
-import { MarketDeal, marketDealOf, startingCashOf } from './gameConfig.js'
+import { MarketDeal, marketDealOf, marketSizeOf, startingCashFor } from './gameConfig.js'
 import { ConduitColors } from './colors.js'
 
 // One tile from each of the A-D stacks forms a cross around the Central Station: A to the North,
@@ -52,9 +52,16 @@ export class ConduitGameInitializer
         const colors = structuredClone(ConduitColors)
         shuffle(colors, prng.random)
         const players = game.players.map((player, index) =>
-            newPlayerState(player.id, colors[index], startingCashOf(game.config))
+            newPlayerState(player.id, colors[index])
         )
         const turnManager = HydratedTurnManager.generate(players, prng.random, assignment)
+        // The Start Player starts with $5 and each player clockwise with $1 more (rules v0.8.2).
+        for (const player of players) {
+            player.cash = startingCashFor(
+                game.config,
+                turnManager.turnOrder.indexOf(player.playerId)
+            )
+        }
         const stacks = this.shuffleStacks(protectedPrng)
         const stations = SetupCross.map(({ letter, side }): PlacedStation => {
             const stack = new HydratedStationStack(stacks[letter])
@@ -86,7 +93,7 @@ export class ConduitGameInitializer
             board: { stations }
         })
         const hydrated = new HydratedConduitGameState(conduitState)
-        hydrated.fillMarket()
+        hydrated.fillMarket(marketSizeOf(game.config))
         return hydrated
     }
 

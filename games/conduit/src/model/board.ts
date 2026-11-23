@@ -48,6 +48,18 @@ export interface Route {
     stations: number
 }
 
+// The best way found to reach a cell: stations passed (both ends included) and how many of them the
+// route's owner owns.
+interface RouteStep {
+    stations: number
+    own: number
+    previous?: OffsetCoordinates
+}
+
+function isBetterStep(a: RouteStep, b: RouteStep): boolean {
+    return a.stations > b.stations || (a.stations === b.stations && a.own < b.own)
+}
+
 export interface ClosedConnection {
     cell: OffsetCoordinates
     side: Side
@@ -72,12 +84,6 @@ export function neighborCell(cell: OffsetCoordinates, side: Side): OffsetCoordin
 
 function cellKey(cell: OffsetCoordinates): string {
     return `${cell.col},${cell.row}`
-}
-
-// The tiles beside the Central Station are placed at setup and never flip (designer ruling), so a
-// route always has somewhere to end.
-export function isPermanentCell(cell: OffsetCoordinates): boolean {
-    return SidesClockwise.some((side) => sameCoordinates(neighborCell(CentralCell, side), cell))
 }
 
 export function terminalOf(face: TileFace, side: Side): Terminal | undefined {
@@ -151,12 +157,13 @@ export class Grid {
         )
     }
 
-    // The shortest route through open connections to another face-up station of the same letter
-    // (rules v0.8.1; the next letter in the older rule, kept for bot studies). Among
-    // equally short routes the one through the most face-up stations pays best (designer ruling).
+    // The shortest route through open connections to another face-up station of the next letter,
+    // D back to A (rules v0.8.2; the same letter in v0.8.1, kept for bot studies). Among equally
+    // short routes the owner must take the one through the most face-up stations, then the one
+    // through the fewest of their own (rules v0.8.2).
     bestRoute(
         from: OffsetCoordinates,
-        routeTarget: RouteTarget = RouteTarget.SameLetter
+        routeTarget: RouteTarget = RouteTarget.NextLetter
     ): Route | undefined {
         const start = this.stationAt(from)
         if (!start || !start.faceUp) {
@@ -164,16 +171,14 @@ export class Grid {
         }
         const letter = stationTile(start.tileId).letter
         const target = routeTarget === RouteTarget.SameLetter ? letter : nextLetter(letter)
-        const best = new Map<string, { stations: number; previous?: OffsetCoordinates }>([
-            [cellKey(from), { stations: 1 }]
-        ])
+        const best = new Map<string, RouteStep>([[cellKey(from), { stations: 1, own: 1 }]])
         let layer: OffsetCoordinates[] = [from]
         while (layer.length > 0) {
-            const next = this.nextLayer(layer, best)
+            const next = this.nextLayer(layer, best, start.ownerId)
             const ends = next.filter((cell) => this.isStationOf(cell, target))
             if (ends.length > 0) {
                 const end = ends.reduce((leader, cell) =>
-                    this.stationsTo(cell, best) > this.stationsTo(leader, best) ? cell : leader
+                    isBetterStep(this.stepTo(cell, best), this.stepTo(leader, best)) ? cell : leader
                 )
                 return this.traceRoute(end, best)
             }
@@ -184,7 +189,8 @@ export class Grid {
 
     private nextLayer(
         layer: OffsetCoordinates[],
-        best: Map<string, { stations: number; previous?: OffsetCoordinates }>
+        best: Map<string, RouteStep>,
+        ownerId: string | undefined
     ): OffsetCoordinates[] {
         const reached = new Map<string, OffsetCoordinates>()
         for (const cell of layer) {
@@ -199,10 +205,19 @@ export class Grid {
                 if (best.has(key) && !reached.has(key)) {
                     continue
                 }
-                const stations = this.stationsTo(cell, best) + (this.isFaceUp(neighbor) ? 1 : 0)
+                const here = this.stepTo(cell, best)
+                const station = this.stationAt(neighbor)
+                const faceUp = station?.faceUp === true
+                const step: RouteStep = {
+                    stations: here.stations + (faceUp ? 1 : 0),
+                    own:
+                        here.own +
+                        (faceUp && ownerId !== undefined && station?.ownerId === ownerId ? 1 : 0),
+                    previous: cell
+                }
                 const known = best.get(key)
-                if (!known || stations > known.stations) {
-                    best.set(key, { stations, previous: cell })
+                if (!known || isBetterStep(step, known)) {
+                    best.set(key, step)
                 }
                 reached.set(key, neighbor)
             }
@@ -210,24 +225,18 @@ export class Grid {
         return [...reached.values()]
     }
 
-    private stationsTo(
-        cell: OffsetCoordinates,
-        best: Map<string, { stations: number; previous?: OffsetCoordinates }>
-    ): number {
-        return best.get(cellKey(cell))?.stations ?? 0
+    private stepTo(cell: OffsetCoordinates, best: Map<string, RouteStep>): RouteStep {
+        return best.get(cellKey(cell)) ?? { stations: 0, own: 0 }
     }
 
-    private traceRoute(
-        end: OffsetCoordinates,
-        best: Map<string, { stations: number; previous?: OffsetCoordinates }>
-    ): Route {
+    private traceRoute(end: OffsetCoordinates, best: Map<string, RouteStep>): Route {
         const cells: OffsetCoordinates[] = []
         let cell: OffsetCoordinates | undefined = end
         while (cell) {
             cells.unshift(cell)
             cell = best.get(cellKey(cell))?.previous
         }
-        return { cells, stations: this.stationsTo(end, best) }
+        return { cells, stations: this.stepTo(end, best).stations }
     }
 
     private isFaceUp(cell: OffsetCoordinates): boolean {

@@ -47,7 +47,8 @@ describe.each([3, 4, 5])('random games with %i players', (count) => {
         playToEnd(session, seed)
         const state = session.hydrated()
         expect(state.round).toBe(Rounds)
-        expect(state.deck?.remaining).toBe(60 - 5 * (count + 1))
+        // Round 1 deals one tile per player, later rounds one more than that.
+        expect(state.deck?.remaining).toBe(60 - 5 * (count + 1) + 1)
     })
 
     it('is deterministic for a seed', () => {

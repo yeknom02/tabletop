@@ -1,7 +1,8 @@
 import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
-import { GameAction, HydratableAction } from '@tabletop/common'
+import { GameAction, HydratableAction, type MachineContext } from '@tabletop/common'
 import { ActionType } from '../definition/actions.js'
+import { marketSizeOf } from '../definition/gameConfig.js'
 import { HydratedConduitGameState } from '../model/gameState.js'
 
 export type MarketFilled = Type.Static<typeof MarketFilled>
@@ -38,8 +39,8 @@ export class HydratedFillMarket extends HydratableAction<typeof FillMarket> impl
         super(data, FillMarketValidator)
     }
 
-    apply(state: HydratedConduitGameState) {
-        const tileIds = state.fillMarket()
+    apply(state: HydratedConduitGameState, context?: MachineContext) {
+        const tileIds = state.fillMarket(marketSizeOf(context?.gameConfig ?? {}))
         this.metadata = { round: state.round, tileIds }
     }
 }

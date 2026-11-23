@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { assertExists } from '@tabletop/common'
 import { MachineState } from './states.js'
-import { ExtraCubeCost, StartPlayerRule } from './gameConfig.js'
+import { ExtraCubeCost, MarketSize, StartPlayerRule } from './gameConfig.js'
 import { isBuyTile } from '../actions/buyTile.js'
 import { isPayRevenue } from '../actions/payRevenue.js'
 import { isPlaceTile } from '../actions/placeTile.js'
@@ -88,29 +88,50 @@ describe('setup', () => {
             { col: 0, row: 1 },
             { col: -1, row: 0 }
         ])
-        expect(letters(state.market.map((slot) => slot.tileId))).toEqual(['A', 'B', 'C', 'D', 'A'])
-        expect(state.nextLetter).toBe(StationLetter.B)
-        expect(state.stacks.A.remaining).toBe(13)
+        expect(letters(state.market.map((slot) => slot.tileId))).toEqual(['A', 'B', 'C', 'D'])
+        expect(state.nextLetter).toBe(StationLetter.A)
+        expect(state.stacks.A.remaining).toBe(14)
         expect(state.stacks.B.remaining).toBe(14)
-        for (const seat of state.players) {
-            expect([seat.cash, seat.supply, seat.reserve]).toEqual([5, 5, 10])
-        }
+        // The Start Player starts with $5 and each player clockwise with $1 more.
+        expect(
+            state.turnManager.turnOrder.map((playerId) => {
+                const seat = player(state, playerId)
+                return [seat.cash, seat.supply, seat.reserve]
+            })
+        ).toEqual([
+            [5, 5, 10],
+            [6, 5, 10],
+            [7, 5, 10],
+            [8, 5, 10]
+        ])
         expect(state.machineState).toBe(MachineState.Bidding)
         expect(state.activePlayerIds).toEqual([state.turnManager.turnOrder[0]])
     })
 
     it('carries the next market on from where the last one stopped', () => {
         const state = startTestGame(4).hydrated()
-        expect(letters(state.fillMarket())).toEqual(['B', 'C', 'D', 'A', 'B'])
+        expect(letters(state.fillMarket())).toEqual(['A', 'B', 'C', 'D', 'A'])
     })
 
-    it('puts one more tile than players in the market', () => {
-        expect(startTestGame(3).state.market).toHaveLength(4)
-        expect(startTestGame(5).state.market).toHaveLength(6)
+    it('puts one tile per player in the first market and one more after that', () => {
+        expect(startTestGame(3).state.market).toHaveLength(3)
+        expect(startTestGame(5).state.market).toHaveLength(5)
+        expect(startTestGame(5).hydrated().fillMarket()).toHaveLength(6)
+    })
+
+    it('sizes the market by the variant being tested', () => {
+        const plusOne = { marketSize: MarketSize.PlusOne }
+        expect(startTestGame(3, plusOne).state.market).toHaveLength(4)
+        const players = startTestGame(3, { marketSize: MarketSize.Players }).hydrated()
+        expect(players.market).toHaveLength(3)
+        expect(players.fillMarket(MarketSize.Players)).toHaveLength(3)
     })
 })
 
 describe('bidding', () => {
+    // Four tiles for three players, so a tile can be left without a bid.
+    const PlusOneMarket = { marketSize: MarketSize.PlusOne }
+
     it('goes clockwise from the Start Player, one cube from supply at a time', () => {
         const session = startTestGame(3)
         const order = session.state.turnManager.turnOrder
@@ -124,20 +145,20 @@ describe('bidding', () => {
     })
 
     it('ends once every player has two bids and every tile has a bid', () => {
-        const session = startTestGame(3)
+        const session = startTestGame(3, PlusOneMarket)
         bidAround(session)
         expect(session.state.market.map((slot) => slot.bids.length)).toEqual([2, 2, 1, 1])
         expect(session.state.machineState).toBe(MachineState.Offering)
     })
 
     it('asks for three bids each in the older minimum (rules v0.8b)', () => {
-        const session = startTestGame(3, { minimumBids: '3' })
+        const session = startTestGame(3, { marketSize: MarketSize.PlusOne, minimumBids: '3' })
         bidAround(session)
         expect(session.state.market.map((slot) => slot.bids.length)).toEqual([3, 2, 2, 2])
     })
 
     it('goes on past two bids while a tile has none', () => {
-        const session = startTestGame(3)
+        const session = startTestGame(3, PlusOneMarket)
         for (let bid = 0; bid < 6; bid++) {
             session.bid(bid % 3)
         }
@@ -147,7 +168,7 @@ describe('bidding', () => {
     })
 
     it('skips a player with an empty supply, who is then done bidding', () => {
-        const session = startTestGame(3)
+        const session = startTestGame(3, PlusOneMarket)
         const [first, second, third] = session.state.turnManager.turnOrder
         session.edit((draft) => {
             player(draft, second).supply = 0
@@ -229,10 +250,13 @@ describe('offers', () => {
         expect(isPlaceTile(placed) && placed.metadata?.extraPrice).toBe(3)
     })
 
-    it('starts players with the configured cash in the starting-cash variant', () => {
-        const session = startTestGame(3, { startingCash: '10' })
-        expect(session.state.players.map((seat) => seat.cash)).toEqual([10, 10, 10])
-        expect(startTestGame(3).state.players.map((seat) => seat.cash)).toEqual([5, 5, 5])
+    it('starts players with the configured cash in the starting-cash variants', () => {
+        const cashBySeat = (state: ConduitProjectedState) =>
+            state.turnManager.turnOrder.map((playerId) => player(state, playerId).cash)
+        expect(cashBySeat(startTestGame(3).state)).toEqual([5, 6, 7])
+        expect(cashBySeat(startTestGame(3, { startingCash: '10' }).state)).toEqual([10, 11, 12])
+        const flat = startTestGame(3, { startingCash: '5', startingCashStep: '0' })
+        expect(cashBySeat(flat.state)).toEqual([5, 5, 5])
     })
 
     it('refuses extra cubes the player cannot pay for in the rising-cost variant', () => {
@@ -310,11 +334,9 @@ describe('revenue and infrastructure loss', () => {
         expect(paid?.metadata).toMatchObject({ revenues: [{ playerId: 'p0' }] })
     })
 
-    it('flips stations left without cubes but never the permanent cross', () => {
+    it('flips stations left without cubes, the setup cross included', () => {
         const session = roundWithOneStation()
-        const owned = session.state.board.stations.slice(4).find((station) => station.faceUp)
-        expect(owned).toBeUndefined()
-        expect(session.state.board.stations.slice(0, 4).every((s) => s.faceUp)).toBe(true)
+        expect(session.state.board.stations.some((station) => station.faceUp)).toBe(false)
         const lost = session.actions.find(isLoseInfrastructure)
         expect(lost?.metadata).toMatchObject({ roundEnded: true })
     })
@@ -329,10 +351,10 @@ describe('revenue and infrastructure loss', () => {
         expect(session.activePlayerId()).toBe(second)
         expect(player(session.state, first).reserve).toBe(8)
         expect(letters(session.state.market.map((slot) => slot.tileId))).toEqual([
+            'D',
             'A',
             'B',
-            'C',
-            'D'
+            'C'
         ])
     })
 
