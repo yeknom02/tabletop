@@ -20,6 +20,7 @@ import {
     isPlaceTile,
     MachineState,
     stationTile,
+    type ExtraCubeCost,
     type MarketDeal,
     type RouteTarget,
     type StartPlayerRule
@@ -38,6 +39,7 @@ export type GameRecord = {
     startPlayer: StartPlayerRule
     minimumBids: number
     marketDeal: MarketDeal
+    extraCubeCost: ExtraCubeCost
     bots: string[]
     // The letters dealt to each round's market, in order.
     markets: string[][]
@@ -63,6 +65,7 @@ export type Variant = {
     startPlayer: StartPlayerRule
     minimumBids: number
     marketDeal: MarketDeal
+    extraCubeCost: ExtraCubeCost
 }
 
 export function playGame({
@@ -74,7 +77,8 @@ export function playGame({
     bots: Bot[]
     variant: Variant
 }): GameRecord {
-    const { cubesPerRound, routeTarget, startPlayer, minimumBids, marketDeal } = variant
+    const { cubesPerRound, routeTarget, startPlayer, minimumBids, marketDeal, extraCubeCost } =
+        variant
     const players = bots.length
     const playerIds = bots.map((_, seat) => `s${seat}`)
     const engine = new GameEngine(ConduitRuntime)
@@ -89,7 +93,8 @@ export function playGame({
                 routeTarget,
                 startPlayer,
                 minimumBids: String(minimumBids),
-                marketDeal
+                marketDeal,
+                extraCubeCost
             }),
             players: playerIds.map((id) => ({
                 id,
@@ -113,6 +118,7 @@ export function playGame({
         startPlayer,
         minimumBids,
         marketDeal,
+        extraCubeCost,
         bots: bots.map((bot) => bot.name),
         markets: [],
         finalCash: [],
@@ -187,7 +193,8 @@ export function playGame({
             random,
             cubesPerRound,
             routeTarget,
-            marketDeal
+            marketDeal,
+            extraCubeCost
         })
         if (hydrated.machineState === MachineState.Offering) {
             const offer = hydrated.currentOffer()

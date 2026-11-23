@@ -4,7 +4,13 @@ import { playGame } from '../game.js'
 import { makeBot } from '../bots/catalog.js'
 import type { Bot } from '../bots/bot.js'
 import { placementEffects } from '../bots/evaluate.js'
-import { MachineState, marketDealOf, RouteTarget, StartPlayerRule } from '../../../src/index.js'
+import {
+    ExtraCubeCost,
+    MachineState,
+    marketDealOf,
+    RouteTarget,
+    StartPlayerRule
+} from '../../../src/index.js'
 
 const deal = marketDealOf({ marketDeal: process.argv[2] })
 const games = Number(process.argv[3] ?? 50)
@@ -41,7 +47,8 @@ for (let seed = 1; seed <= games; seed++) {
             routeTarget: RouteTarget.SameLetter,
             startPlayer: StartPlayerRule.Clockwise,
             minimumBids: 2,
-            marketDeal: deal
+            marketDeal: deal,
+            extraCubeCost: ExtraCubeCost.Free
         }
     })
 }

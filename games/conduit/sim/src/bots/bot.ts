@@ -2,6 +2,7 @@ import type { OffsetCoordinates, RandomFunction } from '@tabletop/common'
 import {
     ActionType,
     type HydratedConduitGameState,
+    type ExtraCubeCost,
     type MarketDeal,
     type RouteTarget
 } from '../../../src/index.js'
@@ -29,6 +30,7 @@ export interface BotContext {
     cubesPerRound: number
     routeTarget: RouteTarget
     marketDeal: MarketDeal
+    extraCubeCost: ExtraCubeCost
 }
 
 export interface Bot {

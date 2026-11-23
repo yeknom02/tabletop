@@ -5,6 +5,7 @@ import { makeBot } from '../bots/catalog.js'
 import type { Bot } from '../bots/bot.js'
 import {
     MachineState,
+    ExtraCubeCost,
     MarketDeal,
     RouteTarget,
     StartPlayerRule,
@@ -42,7 +43,8 @@ for (let seed = 1; seed <= games; seed++) {
             routeTarget: RouteTarget.SameLetter,
             startPlayer: StartPlayerRule.Clockwise,
             minimumBids: 2,
-            marketDeal: MarketDeal.Cycle
+            marketDeal: MarketDeal.Cycle,
+            extraCubeCost: ExtraCubeCost.Free
         }
     })
     const stations = lastState?.board.stations ?? []

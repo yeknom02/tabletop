@@ -1,6 +1,8 @@
 import { assertExists } from '@tabletop/common'
 import {
     ActionType,
+    ExtraCubeCost,
+    extraCubesPrice,
     MachineState,
     MarketDeal,
     RouteTarget,
@@ -42,6 +44,10 @@ export type Habits = {
     // tile of the letter it needs turns up (this market or the next), times how often such a tile
     // would actually connect. 0 is the myopic bot.
     prospect: number
+    // When extra cubes cost money: add the next extra cube only if the payout it adds beats its
+    // price by at least this much. ignoreCubeCost stacks every affordable cube anyway.
+    cubeMargin: number
+    ignoreCubeCost: boolean
     // Random noise on the bid choice, so bots are not all identical.
     jitter: number
 }
@@ -58,6 +64,8 @@ export const BalancedHabits: Habits = {
     block: 0.3,
     focusBonus: 0,
     prospect: 0,
+    cubeMargin: 0,
+    ignoreCubeCost: false,
     jitter: 0.5
 }
 
@@ -66,6 +74,7 @@ type TileView = { best?: PlacementEffect; perPayout: number }
 export class HabitBot implements Bot {
     private routeTarget = RouteTarget.SameLetter
     private marketDeal = MarketDeal.Cycle
+    private extraCubeCost = ExtraCubeCost.Free
 
     constructor(
         readonly name: string,
@@ -76,6 +85,7 @@ export class HabitBot implements Bot {
         const { state } = context
         this.routeTarget = context.routeTarget
         this.marketDeal = context.marketDeal
+        this.extraCubeCost = context.extraCubeCost
         switch (state.machineState) {
             case MachineState.Bidding:
                 return this.bid(context)
@@ -102,9 +112,29 @@ export class HabitBot implements Bot {
         return { best, perPayout: perPayout * focused }
     }
 
-    private plannedCubes(state: HydratedConduitGameState, playerId: string, habits: Habits) {
+    // Extra cubes for a new station paying perPayout each time. Free cubes: every spare cube the
+    // habits allow. Paid cubes: one more while its extra (last, most discounted) payout beats its
+    // price, and the player can pay.
+    private extrasFor(
+        state: HydratedConduitGameState,
+        playerId: string,
+        perPayout: number,
+        habits: Habits,
+        cashAfter = state.getPlayerState(playerId).cash
+    ): number {
         const supply = state.getPlayerState(playerId).supply
-        return 1 + Math.max(0, Math.min(habits.maxExtra, supply - habits.keep))
+        const cap = Math.max(0, Math.min(habits.maxExtra, supply - habits.keep))
+        if (this.extraCubeCost === ExtraCubeCost.Free) return cap
+        const affordable = (count: number) =>
+            extraCubesPrice(count, this.extraCubeCost) <= cashAfter
+        let extras = 0
+        while (extras < cap && affordable(extras + 1)) {
+            const next = extras + 1
+            const worth = perPayout * habits.discount ** next - next
+            if (!habits.ignoreCubeCost && worth < habits.cubeMargin) break
+            extras = next
+        }
+        return extras
     }
 
     private expectedValue(perPayout: number, cubes: number, discount: number): number {
@@ -120,11 +150,13 @@ export class HabitBot implements Bot {
         habits: Habits
     ): number {
         const view = this.tileView(state, tileId, playerId)
-        const cubes = this.plannedCubes(state, playerId, habits)
+        const extras = this.extrasFor(state, playerId, view.perPayout, habits)
+        const cubes = 1 + extras
+        const cubeCost = extraCubesPrice(extras, this.extraCubeCost)
         if (view.perPayout > 0 || habits.prospect === 0) {
-            return this.expectedValue(view.perPayout, cubes, habits.discount)
+            return this.expectedValue(view.perPayout, cubes, habits.discount) - cubeCost
         }
-        return this.prospectValue(state, tileId, cubes, habits)
+        return this.prospectValue(state, tileId, cubes, habits) - cubeCost
     }
 
     // A station with no route yet earns once a tile of the letter it needs arrives and connects.
@@ -221,9 +253,8 @@ export class HabitBot implements Bot {
             return { effect, score: (effect.gain.get(playerId) ?? 0) - habits.block * others }
         })
         const best = scored.reduce((leader, entry) => (entry.score > leader.score ? entry : leader))
-        const supply = state.getPlayerState(playerId).supply
         const extraCubes = placement.faceUp
-            ? Math.max(0, Math.min(habits.maxExtra, supply - habits.keep))
+            ? this.extrasFor(state, playerId, best.effect.stationPayout, habits)
             : 0
         return {
             decision: {
