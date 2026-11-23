@@ -26,7 +26,8 @@ const dir = join(RunsRoot, values.name)
 if (existsSync(dir)) throw Error(`${dir} exists; pick a new --name`)
 mkdirSync(dir, { recursive: true })
 
-const lineup = values.lineup.split(',')
+// Bot specs may hold commas inside their braces, so split only on commas outside them.
+const lineup = values.lineup.match(/[^,{]+(?:\{[^}]*\})?/g) ?? []
 const lineups = values.rotate
     ? lineup.map((_, offset) => [...lineup.slice(offset), ...lineup.slice(0, offset)])
     : [lineup]
