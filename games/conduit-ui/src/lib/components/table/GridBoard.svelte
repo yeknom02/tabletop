@@ -20,15 +20,14 @@
     const centre = $derived(cellOrigin(CentralCell, bounds))
     const half = CellSize / 2
 
-    const routeCells = $derived(gameSession.inspectedRoute?.cells ?? [])
-    const routePoints = $derived(
-        routeCells
+    function routePoints(cells: OffsetCoordinates[]): string {
+        return cells
             .map((cell) => {
                 const origin = cellOrigin(cell, bounds)
                 return `${origin.x + half},${origin.y + half}`
             })
             .join(' ')
-    )
+    }
 
     // The Central Station draws its own blocked ends.
     const sticks = $derived(
@@ -68,7 +67,7 @@
 {#each stations as station (cellKey(station.cell))}
     {@const origin = cellOrigin(station.cell, bounds)}
     {@const owned = station.ownerId !== undefined}
-    {@const revenue = gameSession.stationRoutes.get(cellKey(station.cell))}
+    {@const badge = gameSession.stationBadges.get(cellKey(station.cell))}
     <g class="station" class:owned transform="translate({origin.x} {origin.y})">
         {#if station.faceUp}
             <image
@@ -101,7 +100,7 @@
                 >{station.cubes}</text
             >
         {/if}
-        {#if revenue}
+        {#if badge !== undefined}
             <rect class="badge" x={CellSize - 38} y={CellSize - 26} width="34" height="22" rx="11"
             ></rect>
             <text
@@ -109,7 +108,7 @@
                 x={CellSize - 21}
                 y={CellSize - 15}
                 dy={centredTextShift(14)}
-                text-anchor="middle">${revenue.amount}</text
+                text-anchor="middle">${badge}</text
             >
         {/if}
         {#if owned}
@@ -127,9 +126,9 @@
     </g>
 {/each}
 
-{#if routeCells.length > 1}
-    <polyline class="route" points={routePoints}></polyline>
-{/if}
+{#each gameSession.shownRoutes as route (route.key)}
+    <polyline class="route" points={routePoints(route.cells)} style:stroke={route.color}></polyline>
+{/each}
 
 {#each sticks as closed (`${cellKey(closed.cell)}-${closed.side}`)}
     {@const stick = stickOf(closed.cell, closed.side)}

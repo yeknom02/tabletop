@@ -14,7 +14,7 @@
     )
 </script>
 
-{#if cell && tileId !== undefined}
+{#if cell && tileId !== undefined && !gameSession.busy}
     {#key `${cell.col},${cell.row}`}
         <Floater
             placement="right"

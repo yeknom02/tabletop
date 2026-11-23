@@ -1,12 +1,19 @@
 import { GameSession, undoableStagedSelection } from '@tabletop/frontend-components'
-import { assertExists, sameCoordinates, type OffsetCoordinates } from '@tabletop/common'
+import {
+    assertExists,
+    sameCoordinates,
+    type GameAction,
+    type OffsetCoordinates
+} from '@tabletop/common'
 import {
     ActionType,
     BuyTile,
     PassTile,
     PlaceBid,
     PlaceTile,
+    isPayRevenue,
     revenueFor,
+    type StationRevenue,
     type ConduitProjectedState,
     type HydratedConduitGameState,
     type Placement,
@@ -19,6 +26,7 @@ import {
     type PlacementSelection
 } from './stagedSelection.js'
 import { boardBounds, cellKey } from '$lib/utils/boardLayout.js'
+import { TableAnimator } from '$lib/animators/tableAnimator.svelte.js'
 
 type SessionOptions = ConstructorParameters<
     typeof GameSession<ConduitProjectedState, HydratedConduitGameState>
@@ -26,10 +34,13 @@ type SessionOptions = ConstructorParameters<
 
 export type StationRoute = { route: Route | undefined; amount: number }
 
+export type ShownRoute = { key: string; color: string | undefined; cells: OffsetCoordinates[] }
+
 export class ConduitGameSession extends GameSession<
     ConduitProjectedState,
     HydratedConduitGameState
 > {
+    readonly tableAnimator = new TableAnimator(this)
     rulesOpen = $state(false)
     inspectedCell: OffsetCoordinates | undefined = $state()
 
@@ -77,6 +88,47 @@ export class ConduitGameSession extends GameSession<
         this.inspectedCell ? this.stationRoutes.get(cellKey(this.inspectedCell))?.route : undefined
     )
 
+    // A revenue step viewed in the history shows what each station was paid, and by which route.
+    readonly paidRevenues: StationRevenue[] | undefined = $derived(
+        this.isViewingHistory && isPayRevenue(this.currentAction)
+            ? this.currentAction.metadata?.revenues
+            : undefined
+    )
+
+    readonly shownRoutes: ShownRoute[] = $derived.by(() => {
+        if (this.paidRevenues) {
+            return this.paidRevenues
+                .filter((revenue) => revenue.route.length > 1)
+                .map((revenue) => ({
+                    key: `paid-${revenue.tileId}`,
+                    color: this.colors.getPlayerBgColorValue(revenue.playerId),
+                    cells: revenue.route
+                }))
+        }
+        const route = this.inspectedRoute
+        return route && route.cells.length > 1
+            ? [{ key: 'inspected', color: undefined, cells: route.cells }]
+            : []
+    })
+
+    // The badge on each Power Station: what it was paid in a viewed revenue step, otherwise what
+    // it would earn now.
+    readonly stationBadges: Map<string, number> = $derived.by(() => {
+        const paid = this.paidRevenues
+        if (!paid) {
+            return new Map(
+                [...this.stationRoutes.entries()].map(([key, route]) => [key, route.amount])
+            )
+        }
+        const stations = this.gameState.board.stations
+        return new Map(
+            paid.flatMap((revenue) => {
+                const station = stations.find((candidate) => candidate.tileId === revenue.tileId)
+                return station ? [[cellKey(station.cell), revenue.amount] as const] : []
+            })
+        )
+    })
+
     readonly offer = $derived(this.gameState.currentOffer())
     readonly pendingPlacement = $derived(this.gameState.pendingPlacement())
 
@@ -104,6 +156,15 @@ export class ConduitGameSession extends GameSession<
         )?.rotations ?? []
     )
     readonly mySupply = $derived(this.myPlayerState?.supply ?? 0)
+
+    // Each revenue payout is its own history step, so stepping back shows the routes it paid.
+    override shouldAutoStepAction(action: GameAction, next?: GameAction): boolean {
+        return !isPayRevenue(action) && super.shouldAutoStepAction(action, next)
+    }
+
+    override beforeNewState() {
+        this.tableAnimator.settle()
+    }
 
     toggleRules() {
         this.rulesOpen = !this.rulesOpen

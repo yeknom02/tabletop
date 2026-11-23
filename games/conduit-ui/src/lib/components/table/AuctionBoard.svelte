@@ -80,7 +80,7 @@
                     ></rect>
                 {/if}
             {/each}
-            {#if spot?.tileId !== undefined}
+            {#if spot?.tileId !== undefined && gameSession.tableAnimator.flyingTile?.slot !== slot}
                 <image
                     href={tileFaceUrl(spot.tileId)}
                     x={TrackCell + 6}

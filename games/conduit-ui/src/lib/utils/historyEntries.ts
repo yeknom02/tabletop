@@ -8,7 +8,8 @@ import {
     isPlaceBid,
     isPlaceTile,
     Rounds,
-    stationTile
+    stationTile,
+    type StationRevenue
 } from '@tabletop/conduit'
 
 export type HistoryDivider = { kind: 'divider'; key: string; label: string }
@@ -19,7 +20,7 @@ export type HistoryEntry = {
     title: string
     playerId?: string
     lines: string[]
-    // Index of the last action in the entry, for jumping to the table as it then stood.
+    // The last action's index in the game, for jumping to the table as that action left it.
     lastIndex: number
 }
 
@@ -55,15 +56,15 @@ export function describeAction(action: GameAction, name: Name): string | undefin
         return `Market: ${action.metadata.tileIds.map((tileId) => stationTile(tileId).letter).join(' ')}`
     }
     if (isPayRevenue(action) && action.metadata) {
-        const paid = action.metadata.revenues
-        return paid.length === 0
+        const totals = new Map<string, number>()
+        for (const revenue of action.metadata.revenues) {
+            totals.set(revenue.playerId, (totals.get(revenue.playerId) ?? 0) + revenue.amount)
+        }
+        return totals.size === 0
             ? 'No stations earned'
-            : paid
-                  .map(
-                      (revenue) =>
-                          `${name(revenue.playerId)}: ${tileName(revenue.tileId)} ${revenue.amount > 0 ? dollars(revenue.amount) : 'no route'}`
-                  )
-                  .join('; ')
+            : [...totals.entries()]
+                  .map(([playerId, amount]) => `${name(playerId)} ${dollars(amount)}`)
+                  .join(' · ')
     }
     if (isLoseInfrastructure(action) && action.metadata) {
         const flipped = action.metadata.flippedTileIds.length
@@ -72,6 +73,16 @@ export function describeAction(action: GameAction, name: Name): string | undefin
             : `${flipped} station${flipped === 1 ? '' : 's'} went dark`
     }
     return undefined
+}
+
+function revenueLines(revenues: StationRevenue[], name: Name): string[] {
+    if (revenues.length === 0) {
+        return ['No stations earned']
+    }
+    return revenues.map(
+        (revenue) =>
+            `${name(revenue.playerId)}'s ${tileName(revenue.tileId)}: ${revenue.amount > 0 ? dollars(revenue.amount) : 'no route'}`
+    )
 }
 
 function tileOf(action: GameAction): number | undefined {
@@ -99,6 +110,10 @@ export function historyItems(actions: readonly GameAction[], name: Name): Histor
         if (line === undefined) {
             return
         }
+        const lines =
+            isPayRevenue(action) && action.metadata
+                ? revenueLines(action.metadata.revenues, name)
+                : [line]
         if (isFillMarket(action) && action.metadata) {
             close()
             round = action.metadata.round
@@ -110,9 +125,10 @@ export function historyItems(actions: readonly GameAction[], name: Name): Histor
             : tileId !== undefined
               ? `tile-${tileId}`
               : `${action.type}-${index}`
+        const actionIndex = action.index ?? index
         if (open && groupKey === key) {
-            open.lines.push(line)
-            open.lastIndex = index
+            open.lines.push(...lines)
+            open.lastIndex = actionIndex
             return
         }
         const title = isPlaceBid(action)
@@ -124,7 +140,7 @@ export function historyItems(actions: readonly GameAction[], name: Name): Histor
                 : isPayRevenue(action)
                   ? 'Revenue'
                   : 'Infrastructure loss'
-        open = { kind: 'entry', key: action.id, title, lines: [line], lastIndex: index }
+        open = { kind: 'entry', key: action.id, title, lines, lastIndex: actionIndex }
         groupKey = key
         items.push(open)
         if (isLoseInfrastructure(action) && action.metadata?.roundEnded && round === Rounds) {
