@@ -1,6 +1,7 @@
 import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
-import { GameAction, HydratableAction } from '@tabletop/common'
+import { assertExists, GameAction, HydratableAction, type MachineContext } from '@tabletop/common'
+import { routeTargetOf } from '../definition/gameConfig.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedConduitGameState, StationRevenue } from '../model/gameState.js'
 
@@ -34,7 +35,8 @@ export class HydratedPayRevenue extends HydratableAction<typeof PayRevenue> impl
         super(data, PayRevenueValidator)
     }
 
-    apply(state: HydratedConduitGameState) {
-        this.metadata = { revenues: state.payRevenue() }
+    apply(state: HydratedConduitGameState, context?: MachineContext) {
+        assertExists(context, 'Revenue reads the game configuration')
+        this.metadata = { revenues: state.payRevenue(routeTargetOf(context.gameConfig)) }
     }
 }

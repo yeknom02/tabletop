@@ -17,6 +17,7 @@ import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { MachineState } from '../definition/states.js'
 import { BaseLetters, type BaseLetter, StationLetter } from '../components/tiles.js'
+import { RouteTarget, StartPlayerRule } from '../definition/gameConfig.js'
 import { Board, Grid, isPermanentCell, type PlacedStation, type Route } from './board.js'
 import { ConduitPlayerState, HydratedConduitPlayerState } from './playerState.js'
 
@@ -320,10 +321,13 @@ export class HydratedConduitGameState
 
     // Each Power Station pays $1 plus $1 per station on its route, then loses a cube to its owner's
     // reserve. A station with no route earns nothing but still loses the cube.
-    payRevenue(): StationRevenue[] {
+    payRevenue(routeTarget: RouteTarget): StationRevenue[] {
         const grid = this.grid()
         const routes = new Map(
-            this.ownedStations().map((station) => [station, grid.bestRoute(station.cell)])
+            this.ownedStations().map((station) => [
+                station,
+                grid.bestRoute(station.cell, routeTarget)
+            ])
         )
         return [...routes.entries()].map(([station, route]) => {
             const ownerId = station.ownerId
@@ -356,7 +360,7 @@ export class HydratedConduitGameState
 
     // The round ends with every player moving cubes from reserve to supply, except after the fifth
     // round, and the Start Player marker passing clockwise.
-    endRound(cubesPerRound: number): Payment[] {
+    endRound(cubesPerRound: number, startPlayerRule: StartPlayerRule): Payment[] {
         this.roundManager.endRound(this.actionCount)
         const refills = this.isPayingOut()
             ? []
@@ -364,8 +368,26 @@ export class HydratedConduitGameState
                   playerId: player.playerId,
                   amount: player.refillSupply(cubesPerRound)
               }))
-        this.turnManager.newFirstPlayer(this.turnManager.nextPlayer(this.startPlayerId()))
+        this.turnManager.newFirstPlayer(this.nextStartPlayerId(startPlayerRule))
         return refills
+    }
+
+    // The marker passes clockwise. In the variant being tested it goes to the player with the most
+    // cash, the first of them clockwise from the current Start Player's left on a tie.
+    private nextStartPlayerId(rule: StartPlayerRule): string {
+        const next = this.turnManager.nextPlayer(this.startPlayerId())
+        if (rule === StartPlayerRule.Clockwise) {
+            return next
+        }
+        const order = this.turnManager.turnOrder
+        const fromNext = [
+            ...order.slice(order.indexOf(next)),
+            ...order.slice(0, order.indexOf(next))
+        ]
+        const most = Math.max(...this.players.map((player) => player.cash))
+        const richest = fromNext.find((playerId) => this.getPlayerState(playerId).cash === most)
+        assertExists(richest, 'Someone has the most cash')
+        return richest
     }
 
     // Most cash wins; ties go to the most cubes in supply, and players still tied share the win.

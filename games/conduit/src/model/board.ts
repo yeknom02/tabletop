@@ -1,5 +1,6 @@
 import { OffsetCoordinates, sameCoordinates } from '@tabletop/common'
 import * as Type from 'typebox'
+import { RouteTarget } from '../definition/gameConfig.js'
 import {
     nextLetter,
     oppositeSide,
@@ -149,14 +150,19 @@ export class Grid {
         )
     }
 
-    // The shortest route through open connections to a face-up station of the next letter. Among
+    // The shortest route through open connections to another face-up station of the next letter
+    // (or of the same letter, in the variant being tested). Among
     // equally short routes the one through the most face-up stations pays best (designer ruling).
-    bestRoute(from: OffsetCoordinates): Route | undefined {
+    bestRoute(
+        from: OffsetCoordinates,
+        routeTarget: RouteTarget = RouteTarget.NextLetter
+    ): Route | undefined {
         const start = this.stationAt(from)
         if (!start || !start.faceUp) {
             return undefined
         }
-        const target = nextLetter(stationTile(start.tileId).letter)
+        const letter = stationTile(start.tileId).letter
+        const target = routeTarget === RouteTarget.SameLetter ? letter : nextLetter(letter)
         const best = new Map<string, { stations: number; previous?: OffsetCoordinates }>([
             [cellKey(from), { stations: 1 }]
         ])

@@ -2,7 +2,7 @@ import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { assertExists, GameAction, HydratableAction, type MachineContext } from '@tabletop/common'
 import { ActionType } from '../definition/actions.js'
-import { cubesPerRound } from '../definition/gameConfig.js'
+import { cubesPerRound, startPlayerRuleOf } from '../definition/gameConfig.js'
 import { HydratedConduitGameState, Payment } from '../model/gameState.js'
 
 export type InfrastructureLost = Type.Static<typeof InfrastructureLost>
@@ -46,7 +46,12 @@ export class HydratedLoseInfrastructure
         assertExists(context, 'Infrastructure loss reads the game configuration')
         const flippedTileIds = state.loseInfrastructure()
         const roundEnded = state.roundManager.currentRound !== undefined
-        const refills = roundEnded ? state.endRound(cubesPerRound(context.gameConfig)) : []
+        const refills = roundEnded
+            ? state.endRound(
+                  cubesPerRound(context.gameConfig),
+                  startPlayerRuleOf(context.gameConfig)
+              )
+            : []
         this.metadata = { flippedTileIds, refills, roundEnded }
     }
 }

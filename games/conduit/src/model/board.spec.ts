@@ -11,6 +11,7 @@ import {
 } from '../components/tiles.js'
 import { Grid, isPermanentCell, type PlacedStation } from './board.js'
 import { revenueFor } from './gameState.js'
+import { RouteTarget } from '../definition/gameConfig.js'
 
 const LetterIndex: Record<StationLetter, number> = { A: 0, B: 1, C: 2, D: 3, E: 4 }
 
@@ -213,5 +214,22 @@ describe('routes', () => {
             station(StationLetter.B, { col: 11, row: 10 }, { faceUp: false })
         ]
         expect(new Grid({ stations }).bestRoute({ col: 10, row: 10 })).toBeUndefined()
+    })
+})
+
+describe('the same-letter route variant', () => {
+    it('runs to another station of the same letter, not the next one', () => {
+        const stations = [
+            ...negativeCross(),
+            station(StationLetter.A, { col: 10, row: 10 }),
+            station(StationLetter.B, { col: 11, row: 10 }),
+            station(StationLetter.A, { col: 12, row: 10 })
+        ]
+        const grid = new Grid({ stations })
+        const same = grid.bestRoute({ col: 10, row: 10 }, RouteTarget.SameLetter)
+        expect(same?.cells.at(-1)).toEqual({ col: 12, row: 10 })
+        expect(same?.stations).toBe(3)
+        const next = grid.bestRoute({ col: 10, row: 10 }, RouteTarget.NextLetter)
+        expect(next?.cells.at(-1)).toEqual({ col: 11, row: 10 })
     })
 })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { assertExists } from '@tabletop/common'
 import { MachineState } from './states.js'
+import { StartPlayerRule } from './gameConfig.js'
 import { isBuyTile } from '../actions/buyTile.js'
 import { isPayRevenue } from '../actions/payRevenue.js'
 import { isLoseInfrastructure } from '../actions/loseInfrastructure.js'
@@ -337,5 +338,36 @@ describe('the end of the game', () => {
         expect(state.leadingPlayerIds()).toEqual(['p0', 'p1'])
         state.getPlayerState('p2').cash = 11
         expect(state.leadingPlayerIds()).toEqual(['p2'])
+    })
+})
+
+describe('the richest-start-player variant', () => {
+    it('gives the marker to the player with the most cash', () => {
+        const state = startTestGame(4).hydrated()
+        const [first, second, third, fourth] = state.turnManager.turnOrder
+        state.getPlayerState(third).cash = 12
+        state.endRound(2, StartPlayerRule.Richest)
+        expect(state.turnManager.turnOrder).toEqual([third, fourth, first, second])
+    })
+
+    it('breaks a tie with the first richest player clockwise from the Start Player’s left', () => {
+        const state = startTestGame(4).hydrated()
+        const [first, second, , fourth] = state.turnManager.turnOrder
+        state.getPlayerState(first).cash = 9
+        state.getPlayerState(fourth).cash = 9
+        state.endRound(2, StartPlayerRule.Richest)
+        expect(state.turnManager.turnOrder[0]).toBe(fourth)
+        state.roundManager.startRound(state.actionCount)
+        state.getPlayerState(second).cash = 9
+        state.endRound(2, StartPlayerRule.Richest)
+        expect(state.turnManager.turnOrder[0]).toBe(first)
+    })
+
+    it('passes clockwise under the printed rule', () => {
+        const state = startTestGame(4).hydrated()
+        const [, second, third] = state.turnManager.turnOrder
+        state.getPlayerState(third).cash = 12
+        state.endRound(2, StartPlayerRule.Clockwise)
+        expect(state.turnManager.turnOrder[0]).toBe(second)
     })
 })

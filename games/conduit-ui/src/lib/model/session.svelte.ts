@@ -13,6 +13,7 @@ import {
     PlaceTile,
     isPayRevenue,
     revenueFor,
+    routeTargetOf,
     type StationRevenue,
     type ConduitProjectedState,
     type HydratedConduitGameState,
@@ -82,7 +83,7 @@ export class ConduitGameSession extends GameSession<
     readonly stationRoutes: Map<string, StationRoute> = $derived(
         new Map(
             this.gameState.ownedStations().map((station) => {
-                const route = this.grid.bestRoute(station.cell)
+                const route = this.grid.bestRoute(station.cell, routeTargetOf(this.game.config))
                 return [cellKey(station.cell), { route, amount: revenueFor(route) }]
             })
         )
