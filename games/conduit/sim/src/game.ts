@@ -24,11 +24,13 @@ import {
     stationTile,
     type ExtraCubeCost,
     type MarketDeal,
+    MarketSize,
     RouteToll,
     type RouteTarget,
     type StartPlayerRule
 } from '../../src/index.js'
 import type { Bot, DecisionNote } from './bots/bot.js'
+import { placementEffects } from './bots/evaluate.js'
 
 export type NotedDecision = DecisionNote & { round: number; seat: number }
 
@@ -44,7 +46,9 @@ export type GameRecord = {
     marketDeal: MarketDeal
     extraCubeCost: ExtraCubeCost
     startingCash: number
+    startingCashStep: number
     routeToll: RouteToll
+    marketSize: MarketSize
     bots: string[]
     // The letters dealt to each round's market, in order.
     markets: string[][]
@@ -56,10 +60,20 @@ export type GameRecord = {
     payoutRoundsAfterLast: number
     unboughtByRound: number[]
     bids: number[]
-    buys: { round: number; seat: number; price: number; letter: string; payout: number }[]
+    buys: {
+        round: number
+        seat: number
+        price: number
+        letter: string
+        payout: number
+        tileId: number
+    }[]
+    // Each round's market as bidding opens: the Start Player's seat and what each tile would earn
+    // per payout for whoever could place it best, by the bots' measure.
+    roundMarkets: { round: number; startSeat: number; tileIds: number[]; values: number[] }[]
     passes: number[]
-    offers: (NotedDecision & { price: number; bought: boolean })[]
-    placements: (NotedDecision & { faceUp: boolean; extraCubes: number })[]
+    offers: (NotedDecision & { price: number; bought: boolean; canPay: boolean })[]
+    placements: (NotedDecision & { faceUp: boolean; extraCubes: number; supply: number })[]
     revenues: { round: number; seat: number; letter: string; amount: number; stations: number }[]
     // Toll income per seat, and how many tolls each route paid out.
     tollIncome: number[]
@@ -78,7 +92,10 @@ export type Variant = {
     extraCubeCost: ExtraCubeCost
     // Starting cash; the rules' $5 when absent.
     startingCash?: number
+    // Extra starting cash per seat clockwise from the Start Player; the rules' $1 when absent.
+    startingCashStep?: number
     routeToll?: RouteToll
+    marketSize?: MarketSize
 }
 
 export function playGame({
@@ -92,7 +109,9 @@ export function playGame({
 }): GameRecord {
     const { cubesPerRound, routeTarget, startPlayer, minimumBids, marketDeal, extraCubeCost } =
         variant
-    const routeToll = variant.routeToll ?? RouteToll.None
+    const routeToll = variant.routeToll ?? RouteToll.Flat
+    const marketSize = variant.marketSize ?? MarketSize.SmallFirst
+    const startingCashStep = variant.startingCashStep ?? 1
     const players = bots.length
     const playerIds = bots.map((_, seat) => `s${seat}`)
     const engine = new GameEngine(ConduitRuntime)
@@ -112,7 +131,9 @@ export function playGame({
                 ...(variant.startingCash === undefined
                     ? {}
                     : { startingCash: String(variant.startingCash) }),
-                routeToll
+                startingCashStep: String(startingCashStep),
+                routeToll,
+                marketSize
             }),
             players: playerIds.map((id) => ({
                 id,
@@ -138,7 +159,9 @@ export function playGame({
         marketDeal,
         extraCubeCost,
         startingCash: variant.startingCash ?? 5,
+        startingCashStep,
         routeToll,
+        marketSize,
         bots: bots.map((bot) => bot.name),
         markets: [],
         finalCash: [],
@@ -150,6 +173,7 @@ export function playGame({
         unboughtByRound: [],
         bids: playerIds.map(() => 0),
         buys: [],
+        roundMarkets: [],
         passes: playerIds.map(() => 0),
         offers: [],
         placements: [],
@@ -170,6 +194,7 @@ export function playGame({
             pick(state.players.find((player) => player.playerId === id) ?? { cash: 0, supply: 0 })
         )
     let lastRoundSeen = 0
+    let lastRoundValued = 0
     let roundsEnded = 0
 
     const observe = (actions: GameAction[]) => {
@@ -214,6 +239,35 @@ export function playGame({
         const seat = seatOf(playerId)
         const hydrated = ConduitRuntime.hydrator.hydrateState(structuredClone(state))
         const round = hydrated.round
+        if (hydrated.machineState === MachineState.Bidding && round !== lastRoundValued) {
+            lastRoundValued = round
+            const tileIds = hydrated.market.flatMap((slot) =>
+                slot.tileId === undefined ? [] : [slot.tileId]
+            )
+            record.roundMarkets.push({
+                round,
+                startSeat: seatOf(hydrated.startPlayerId()),
+                tileIds,
+                values: tileIds.map((tileId) =>
+                    Math.max(
+                        0,
+                        ...playerIds.map((id) =>
+                            Math.max(
+                                0,
+                                ...placementEffects(
+                                    hydrated,
+                                    tileId,
+                                    true,
+                                    id,
+                                    routeTarget,
+                                    routeToll
+                                ).map((effect) => effect.gain.get(id) ?? 0)
+                            )
+                        )
+                    )
+                )
+            })
+        }
         const { decision, note } = bots[seat].decide({
             state: hydrated,
             playerId,
@@ -222,7 +276,8 @@ export function playGame({
             routeTarget,
             marketDeal,
             extraCubeCost,
-            routeToll
+            routeToll,
+            marketSize
         })
         if (hydrated.machineState === MachineState.Offering) {
             const offer = hydrated.currentOffer()
@@ -231,7 +286,8 @@ export function playGame({
                 round,
                 seat,
                 price: offer?.price ?? 0,
-                bought: decision.type === 'buyTile'
+                bought: decision.type === 'buyTile',
+                canPay: (hydrated.getPlayerState(playerId).cash ?? 0) >= (offer?.price ?? 0)
             })
         }
         if (hydrated.machineState === MachineState.Placing && decision.type === 'placeTile') {
@@ -240,7 +296,8 @@ export function playGame({
                 round,
                 seat,
                 faceUp: hydrated.pendingPlacement()?.faceUp ?? false,
-                extraCubes: decision.extraCubes
+                extraCubes: decision.extraCubes,
+                supply: hydrated.getPlayerState(playerId).supply
             })
             if (hydrated.pendingPlacement()?.faceUp) {
                 const grid = hydrated.grid()
@@ -272,7 +329,8 @@ export function playGame({
                     seat,
                     price: processed.metadata.price,
                     letter: stationTile(processed.metadata.tileId).letter,
-                    payout: 0
+                    payout: 0,
+                    tileId: processed.metadata.tileId
                 })
             }
             if (isPlaceTile(processed) && processed.metadata && !processed.metadata.faceUp) {

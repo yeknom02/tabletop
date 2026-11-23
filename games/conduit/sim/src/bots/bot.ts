@@ -4,6 +4,7 @@ import {
     type HydratedConduitGameState,
     type ExtraCubeCost,
     type MarketDeal,
+    type MarketSize,
     type RouteTarget,
     type RouteToll
 } from '../../../src/index.js'
@@ -33,6 +34,7 @@ export interface BotContext {
     marketDeal: MarketDeal
     extraCubeCost: ExtraCubeCost
     routeToll: RouteToll
+    marketSize: MarketSize
 }
 
 export interface Bot {

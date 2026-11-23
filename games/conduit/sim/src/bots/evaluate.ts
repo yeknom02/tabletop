@@ -2,6 +2,8 @@ import type { OffsetCoordinates } from '@tabletop/common'
 import {
     BaseLetters,
     MarketDeal,
+    MarketSize,
+    marketTiles,
     nextLetter,
     RouteTarget,
     RouteToll,
@@ -120,10 +122,11 @@ export function unseenByLetter(state: HydratedConduitGameState): Map<BaseLetter,
 export function nextMarketChance(
     state: HydratedConduitGameState,
     letter: BaseLetter,
-    marketDeal: MarketDeal
+    marketDeal: MarketDeal,
+    marketSize: MarketSize = MarketSize.SmallFirst
 ): number {
     if (state.round >= Rounds) return 0
-    const spots = state.players.length + 1
+    const spots = marketTiles(marketSize, state.players.length, state.round + 1)
     if (marketDeal === MarketDeal.Cycle) {
         const start = BaseLetters.indexOf(state.nextLetter)
         const dealt = Array.from({ length: spots }, (_, i) => BaseLetters[(start + i) % 4])

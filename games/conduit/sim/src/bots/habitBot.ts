@@ -5,6 +5,7 @@ import {
     extraCubesPrice,
     MachineState,
     MarketDeal,
+    MarketSize,
     RouteTarget,
     RouteToll,
     Rounds,
@@ -77,6 +78,7 @@ export class HabitBot implements Bot {
     private marketDeal = MarketDeal.Cycle
     private extraCubeCost = ExtraCubeCost.Free
     private routeToll = RouteToll.None
+    private marketSize = MarketSize.SmallFirst
 
     constructor(
         readonly name: string,
@@ -89,6 +91,7 @@ export class HabitBot implements Bot {
         this.marketDeal = context.marketDeal
         this.extraCubeCost = context.extraCubeCost
         this.routeToll = context.routeToll
+        this.marketSize = context.marketSize
         switch (state.machineState) {
             case MachineState.Bidding:
                 return this.bid(context)
@@ -123,8 +126,8 @@ export class HabitBot implements Bot {
     }
 
     // Extra cubes for a new station paying perPayout each time. Free cubes: every spare cube the
-    // habits allow. Paid cubes: one more while its extra (last, most discounted) payout beats its
-    // price, and the player can pay.
+    // habits allow. Paid cubes: one more while its extra (last, most discounted) payout beats what
+    // that cube costs, and the player can pay.
     private extrasFor(
         state: HydratedConduitGameState,
         playerId: string,
@@ -140,7 +143,10 @@ export class HabitBot implements Bot {
         let extras = 0
         while (extras < cap && affordable(extras + 1)) {
             const next = extras + 1
-            const worth = perPayout * habits.discount ** next - next
+            const cubePrice =
+                extraCubesPrice(next, this.extraCubeCost) -
+                extraCubesPrice(extras, this.extraCubeCost)
+            const worth = perPayout * habits.discount ** next - cubePrice
             if (!habits.ignoreCubeCost && worth < habits.cubeMargin) break
             extras = next
         }
@@ -185,7 +191,7 @@ export class HabitBot implements Bot {
                 slot.tileId !== tileId &&
                 letterOf(slot.tileId) === needed
         )
-        const perMarket = nextMarketChance(state, needed, this.marketDeal)
+        const perMarket = nextMarketChance(state, needed, this.marketDeal, this.marketSize)
         const marketsLeft = Math.max(0, Rounds - state.round)
         let missing = inMarket ? 0 : 1
         let total = 0
