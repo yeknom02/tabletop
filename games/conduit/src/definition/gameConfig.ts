@@ -31,6 +31,13 @@ export enum ExtraCubeCost {
     Rising = 'rising'
 }
 
+export enum RouteToll {
+    // Only a route's own station earns (rules v0.8.1).
+    None = 'none',
+    // Each other player's Power Station on a route also earns its owner $1 from the bank.
+    Flat = 'flat'
+}
+
 // Number settings accept any digit so bot studies can try values the option list doesn't offer.
 export const ConduitGameConfig = Type.Object({
     cubesPerRound: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
@@ -39,7 +46,8 @@ export const ConduitGameConfig = Type.Object({
     minimumBids: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
     marketDeal: Type.Optional(Type.Enum(MarketDeal)),
     extraCubeCost: Type.Optional(Type.Enum(ExtraCubeCost)),
-    startingCash: Type.Optional(Type.String({ pattern: '^[0-9]{1,2}$' }))
+    startingCash: Type.Optional(Type.String({ pattern: '^[0-9]{1,2}$' })),
+    routeToll: Type.Optional(Type.Enum(RouteToll))
 })
 
 // The designer is playtesting how many cubes move from reserve to supply each round.
@@ -97,4 +105,8 @@ export function extraCubesPrice(extraCubes: number, cost: ExtraCubeCost): number
 // Rules v0.8.1 start each player with $5; bot studies try more alongside paid extra cubes.
 export function startingCashOf(config: { startingCash?: unknown }): number | undefined {
     return typeof config.startingCash === 'string' ? Number(config.startingCash) : undefined
+}
+
+export function routeTollOf(config: { routeToll?: unknown }): RouteToll {
+    return config.routeToll === RouteToll.Flat ? RouteToll.Flat : RouteToll.None
 }

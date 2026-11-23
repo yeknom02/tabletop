@@ -17,7 +17,7 @@ import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { MachineState } from '../definition/states.js'
 import { BaseLetters, type BaseLetter, StationLetter } from '../components/tiles.js'
-import { RouteTarget, StartPlayerRule } from '../definition/gameConfig.js'
+import { RouteTarget, RouteToll, StartPlayerRule } from '../definition/gameConfig.js'
 import { Board, Grid, isPermanentCell, type PlacedStation, type Route } from './board.js'
 import { ConduitPlayerState, HydratedConduitPlayerState } from './playerState.js'
 
@@ -72,7 +72,9 @@ export const StationRevenue = Type.Object({
     playerId: Type.String(),
     tileId: Type.Integer(),
     route: Type.Array(OffsetCoordinates),
-    amount: Type.Integer()
+    amount: Type.Integer(),
+    // Tolls paid to other players' Power Stations on the route, in the route-toll variant.
+    tolls: Type.Optional(Type.Array(Payment))
 })
 
 export interface Offer {
@@ -340,25 +342,27 @@ export class HydratedConduitGameState
     }
 
     // Each Power Station pays $1 plus $1 per station on its route, then loses a cube to its owner's
-    // reserve. A station with no route earns nothing but still loses the cube.
-    payRevenue(routeTarget: RouteTarget): StationRevenue[] {
-        const grid = this.grid()
-        const routes = new Map(
-            this.ownedStations().map((station) => [
-                station,
-                grid.bestRoute(station.cell, routeTarget)
-            ])
-        )
-        return [...routes.entries()].map(([station, route]) => {
-            const ownerId = station.ownerId
-            assertExists(ownerId, 'An owned station has an owner')
-            const amount = revenueFor(route)
+    // reserve. A station with no route earns nothing but still loses the cube. With the route toll,
+    // every other player's Power Station on the route also earns its owner $1. Every station's
+    // earnings are worked out before any cube is removed.
+    payRevenue(routeTarget: RouteTarget, routeToll = RouteToll.None): StationRevenue[] {
+        const earnings = stationEarnings(this.board, routeTarget, routeToll)
+        for (const { station, ownerId, amount, tolls } of earnings) {
             const owner = this.getPlayerState(ownerId)
             owner.earn(amount)
+            for (const toll of tolls) {
+                this.getPlayerState(toll.playerId).earn(toll.amount)
+            }
             station.cubes -= 1
             owner.retireCube()
-            return { playerId: ownerId, tileId: station.tileId, route: route?.cells ?? [], amount }
-        })
+        }
+        return earnings.map(({ station, ownerId, route, amount, tolls }) => ({
+            playerId: ownerId,
+            tileId: station.tileId,
+            route: route?.cells ?? [],
+            amount,
+            ...(tolls.length > 0 ? { tolls } : {})
+        }))
     }
 
     // Stations left without cubes flip face down, except the permanent tiles beside the Central
@@ -424,6 +428,45 @@ export class HydratedConduitGameState
 
 export function revenueFor(route: Route | undefined): number {
     return route ? 1 + route.stations : 0
+}
+
+export interface StationEarning {
+    station: PlacedStation
+    ownerId: string
+    route: Route | undefined
+    amount: number
+    tolls: Payment[]
+}
+
+// What each owned station would earn if revenue were paid now. A toll goes to every Power Station
+// (face up, with a cube) on the route that another player owns, the destination included; the
+// unowned setup tiles never collect.
+export function stationEarnings(
+    board: Board,
+    routeTarget: RouteTarget,
+    routeToll: RouteToll = RouteToll.None
+): StationEarning[] {
+    const grid = new Grid(board)
+    return board.stations.flatMap((station) => {
+        const ownerId = station.ownerId
+        if (ownerId === undefined) {
+            return []
+        }
+        const route = grid.bestRoute(station.cell, routeTarget)
+        const tolls =
+            routeToll === RouteToll.Flat && route
+                ? route.cells.slice(1).flatMap((cell) => {
+                      const passed = grid.stationAt(cell)
+                      return passed?.ownerId !== undefined &&
+                          passed.ownerId !== ownerId &&
+                          passed.faceUp &&
+                          passed.cubes > 0
+                          ? [{ playerId: passed.ownerId, amount: 1 }]
+                          : []
+                  })
+                : []
+        return [{ station, ownerId, route, amount: revenueFor(route), tolls }]
+    })
 }
 
 function compareRanks(a: number[], b: number[]): number {

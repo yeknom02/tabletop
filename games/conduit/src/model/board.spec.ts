@@ -10,8 +10,8 @@ import {
     Terminal
 } from '../components/tiles.js'
 import { Grid, isPermanentCell, type PlacedStation } from './board.js'
-import { revenueFor } from './gameState.js'
-import { RouteTarget } from '../definition/gameConfig.js'
+import { revenueFor, stationEarnings } from './gameState.js'
+import { RouteTarget, RouteToll } from '../definition/gameConfig.js'
 
 const LetterIndex: Record<StationLetter, number> = { A: 0, B: 1, C: 2, D: 3, E: 4 }
 
@@ -248,5 +248,63 @@ describe('the next-letter route variant (rules v0.8b)', () => {
         const stations = [...negativeCross(), station(StationLetter.D, { col: 1, row: -1 })]
         const route = new Grid({ stations }).bestRoute({ col: 1, row: -1 }, RouteTarget.NextLetter)
         expect(route?.cells.at(-1)).toEqual({ col: 0, row: -1 })
+    })
+})
+
+describe('the route-toll variant', () => {
+    // Cal's B runs through Bea's A and a face-down tile to Dee's B (the designer's example).
+    const stations = [
+        ...negativeCross(),
+        station(StationLetter.B, { col: 10, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+        station(StationLetter.A, { col: 11, row: 10 }, { ownerId: 'bea', cubes: 2 }),
+        station(StationLetter.C, { col: 12, row: 10 }, { faceUp: false }),
+        station(StationLetter.B, { col: 13, row: 10 }, { ownerId: 'dee', cubes: 1 }),
+        station(StationLetter.D, { col: 14, row: 10 }, { ownerId: 'dee', cubes: 1 })
+    ]
+    const earned = (toll: RouteToll) =>
+        Object.fromEntries(
+            stationEarnings({ stations }, RouteTarget.SameLetter, toll).map((earning) => [
+                `${earning.ownerId} ${stationTile(earning.station.tileId).letter}`,
+                { amount: earning.amount, tolls: earning.tolls }
+            ])
+        )
+
+    it('pays $1 to each other player’s Power Station on the route, the destination included', () => {
+        const earnings = earned(RouteToll.Flat)
+        expect(earnings['cal B']).toEqual({
+            amount: 4,
+            tolls: [
+                { playerId: 'bea', amount: 1 },
+                { playerId: 'dee', amount: 1 }
+            ]
+        })
+        expect(earnings['dee B']).toEqual({
+            amount: 4,
+            tolls: [
+                { playerId: 'bea', amount: 1 },
+                { playerId: 'cal', amount: 1 }
+            ]
+        })
+    })
+
+    it('pays no toll to a station without a route', () => {
+        expect(earned(RouteToll.Flat)['bea A']).toEqual({ amount: 0, tolls: [] })
+    })
+
+    it('pays nothing to the route owner’s own stations or to stations without cubes', () => {
+        const own = [
+            ...negativeCross(),
+            station(StationLetter.B, { col: 10, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+            station(StationLetter.A, { col: 11, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+            station(StationLetter.C, { col: 12, row: 10 }, { ownerId: 'bea', cubes: 0 }),
+            station(StationLetter.B, { col: 13, row: 10 }, { ownerId: 'dee', cubes: 1 })
+        ]
+        const cal = stationEarnings({ stations: own }, RouteTarget.SameLetter, RouteToll.Flat)[0]
+        expect(cal.amount).toBe(5)
+        expect(cal.tolls).toEqual([{ playerId: 'dee', amount: 1 }])
+    })
+
+    it('pays no tolls under the printed rules', () => {
+        expect(earned(RouteToll.None)['cal B']).toEqual({ amount: 4, tolls: [] })
     })
 })
