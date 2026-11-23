@@ -72,6 +72,7 @@ export type GameRecord = {
     // per payout for whoever could place it best, by the bots' measure.
     roundMarkets: { round: number; startSeat: number; tileIds: number[]; values: number[] }[]
     passes: number[]
+    bidNotes: NotedDecision[]
     offers: (NotedDecision & { price: number; bought: boolean; canPay: boolean })[]
     placements: (NotedDecision & { faceUp: boolean; extraCubes: number; supply: number })[]
     revenues: { round: number; seat: number; letter: string; amount: number; stations: number }[]
@@ -175,6 +176,7 @@ export function playGame({
         buys: [],
         roundMarkets: [],
         passes: playerIds.map(() => 0),
+        bidNotes: [],
         offers: [],
         placements: [],
         revenues: [],
@@ -279,6 +281,9 @@ export function playGame({
             routeToll,
             marketSize
         })
+        if (hydrated.machineState === MachineState.Bidding && note) {
+            record.bidNotes.push({ ...note, round, seat })
+        }
         if (hydrated.machineState === MachineState.Offering) {
             const offer = hydrated.currentOffer()
             record.offers.push({
