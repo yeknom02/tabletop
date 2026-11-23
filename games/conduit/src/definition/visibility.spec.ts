@@ -3,6 +3,7 @@ import { assert, MachineContext, Prng, validateGameResult, type Visibility } fro
 import { BaseLetters } from '../components/tiles.js'
 import { ConduitGameStateValidator, type ConduitProjectedState } from '../model/gameState.js'
 import { createGame, startTestGame, type TestSession } from '../testing/table.js'
+import { MarketDeal } from './gameConfig.js'
 import { playRandomDecision } from '../testing/bot.js'
 import { ConduitRuntime } from './runtime.js'
 import { MachineState } from './states.js'
@@ -96,5 +97,42 @@ describe('the end-of-game result', () => {
         )
         expect(state.winningPlayerIds).toEqual(['p0', 'p1', 'p2'])
         expect(() => validateGameResult(state.dehydrate())).not.toThrow()
+    })
+})
+
+describe('the shuffled-market variant', () => {
+    it('deals from one hidden stack of every tile left after setup', () => {
+        const session = startTestGame(4, { marketDeal: MarketDeal.Shuffled })
+        const state = session.state
+        expect(state.deck?.remaining).toBe(60 - 5)
+        for (const letter of BaseLetters) {
+            expect(state.stacks[letter].remaining).toBe(0)
+        }
+        const view = ConduitRuntime.visibility.state.project(
+            state,
+            { kind: 'player', playerId: 'p0' },
+            { config: {} }
+        )
+        expect(view.deck).toEqual({ items: [], remaining: 55 })
+    })
+
+    it('refills the one stack with exactly the unseen tiles for exploration', () => {
+        const session = startTestGame(4, { marketDeal: MarketDeal.Shuffled })
+        playDecisions(session, 40)
+        const view = ConduitRuntime.visibility.state.project(
+            session.state,
+            { kind: 'player', playerId: 'p0' },
+            { config: {} }
+        )
+        const explored = ConduitRuntime.exploration.createFromProjectedState({
+            game: createGame(4, { marketDeal: MarketDeal.Shuffled }),
+            state: view,
+            actions: [],
+            perspective: { kind: 'player', playerId: 'p0' },
+            random: new Prng({ seed: 3, invocations: 0 }).random
+        })
+        expect(explored.deck?.items.toSorted((a, b) => a - b)).toEqual(
+            session.state.deck?.items.toSorted((a, b) => a - b)
+        )
     })
 })

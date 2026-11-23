@@ -122,16 +122,22 @@ describe('bidding', () => {
         expect(session.activePlayerId()).toBe(order[0])
     })
 
-    it('ends once every player has three bids and every tile has a bid', () => {
+    it('ends once every player has two bids and every tile has a bid', () => {
         const session = startTestGame(3)
         bidAround(session)
-        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([3, 2, 2, 2])
+        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([2, 2, 1, 1])
         expect(session.state.machineState).toBe(MachineState.Offering)
     })
 
-    it('goes on past three bids while a tile has none', () => {
+    it('asks for three bids each in the older minimum (rules v0.8b)', () => {
+        const session = startTestGame(3, { minimumBids: '3' })
+        bidAround(session)
+        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([3, 2, 2, 2])
+    })
+
+    it('goes on past two bids while a tile has none', () => {
         const session = startTestGame(3)
-        for (let bid = 0; bid < 9; bid++) {
+        for (let bid = 0; bid < 6; bid++) {
             session.bid(bid % 3)
         }
         expect(session.state.machineState).toBe(MachineState.Bidding)
@@ -147,7 +153,7 @@ describe('bidding', () => {
         })
         session.bid(0)
         expect(session.activePlayerId()).toBe(third)
-        for (let bid = 0; bid < 5; bid++) {
+        for (let bid = 0; bid < 4; bid++) {
             session.bid(bid % 4)
         }
         expect(session.state.machineState).toBe(MachineState.Offering)

@@ -8,7 +8,7 @@ Each file is a position reached by real play from a seeded start, so the history
 Four players, round 3, bidding. The grid has owned stations, face-down tiles and a closed
 connection.
 
-- Click an owned station: its route to the next letter lights up, matching its revenue badge.
+- Click an owned station: its route to another station of the same letter lights up, matching its revenue badge.
 - Check the red stick sits on the edge where two opposite terminals meet.
 - Bid on any spot: the cube goes on the lowest free space of that track.
 
@@ -24,9 +24,11 @@ the third player and the Start Player.
 
 ## Placing a station
 
-Four players, round 3. A bought tile waits to be placed.
+Four players, round 2. A bought tile waits to be placed, and the grid already spans six tiles one
+way.
 
-- Every lit cell shares an edge with two tiles.
+- Every lit cell borders a tile, and none would stretch the grid past 6×6: the cells beyond the
+  six-tile side stay dark.
 - Choose a cell, then a turn and the extra cubes: the station shows its cubes and revenue badge.
 - Undo steps back through the cube, turn and cell choices before undoing anything played.
 

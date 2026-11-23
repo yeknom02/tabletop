@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { assert, Prng } from '@tabletop/common'
 import { MachineState } from './states.js'
 import { ConduitGameStateValidator, Rounds } from '../model/gameState.js'
+import { MaxGridSize } from '../model/board.js'
+import { MarketDeal } from './gameConfig.js'
 import { startTestGame, type TestSession } from '../testing/table.js'
 import { playRandomDecision } from '../testing/bot.js'
 
@@ -27,6 +29,25 @@ describe.each([3, 4, 5])('random games with %i players', (count) => {
             0
         )
         expect(totalCubes).toBe(count * 15)
+        const span = (values: number[]) => Math.max(...values, 0) - Math.min(...values, 0) + 1
+        expect(span(state.board.stations.map((station) => station.cell.col))).toBeLessThanOrEqual(
+            MaxGridSize
+        )
+        expect(span(state.board.stations.map((station) => station.cell.row))).toBeLessThanOrEqual(
+            MaxGridSize
+        )
+    })
+
+    it.each([1, 2, 3])('plays to the end from one shuffled stack with seed %i', (seed) => {
+        const session = startTestGame(
+            count,
+            { marketDeal: MarketDeal.Shuffled },
+            `${seed}`.padStart(32, '0')
+        )
+        playToEnd(session, seed)
+        const state = session.hydrated()
+        expect(state.round).toBe(Rounds)
+        expect(state.deck?.remaining).toBe(60 - 5 * (count + 1))
     })
 
     it('is deterministic for a seed', () => {

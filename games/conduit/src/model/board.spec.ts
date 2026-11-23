@@ -110,10 +110,19 @@ describe('connections', () => {
 })
 
 describe('legal placements', () => {
-    it('must touch two tiles when it can', () => {
+    it('may border a single tile', () => {
         const grid = new Grid({ stations: negativeCross() })
         const placements = grid.legalPlacements(tileId(StationLetter.A), true)
-        expect(cells(placements)).toEqual(['-1,-1', '-1,1', '1,-1', '1,1'])
+        expect(cells(placements)).toEqual([
+            '-1,-1',
+            '-1,1',
+            '-2,0',
+            '0,-2',
+            '0,2',
+            '1,-1',
+            '1,1',
+            '2,0'
+        ])
         expect(placements[0].rotations).toEqual([0, 1, 2, 3])
     })
 
@@ -121,21 +130,29 @@ describe('legal placements', () => {
         const grid = new Grid({ stations: negativeCross() })
         const threePositive = tileId(StationLetter.A, [Side.North, Side.East, Side.South])
         const placements = grid.legalPlacements(threePositive, true)
-        expect(cells(placements)).toEqual(['-1,-1', '-1,1', '1,-1', '1,1'])
+        const rotationsAt = (col: number, row: number) =>
+            placements.find(({ cell }) => cell.col === col && cell.row === row)?.rotations
         // At the north-east corner the one negative terminal must face A to the west or B below.
-        const northEast = placements.find(({ cell }) => cell.col === 1 && cell.row === -1)
-        expect(northEast?.rotations).toEqual([0, 3])
+        expect(rotationsAt(1, -1)).toEqual([0, 3])
+        // North of A it must face down.
+        expect(rotationsAt(0, -2)).toEqual([3])
     })
 
-    it('puts touching two tiles before an open connection', () => {
+    it('keeps the whole grid within 6x6', () => {
         const stations = [
             ...negativeCross(),
-            station(StationLetter.B, { col: 0, row: -2 }, { positive: [Side.North] })
+            station(StationLetter.B, { col: 0, row: -2 }),
+            station(StationLetter.C, { col: 0, row: -3 }),
+            station(StationLetter.D, { col: 0, row: -4 })
         ]
-        const allPositive = tileId(StationLetter.C, [Side.North, Side.East, Side.South, Side.West])
-        const placements = new Grid({ stations }).legalPlacements(allPositive, true)
-        expect(cells(placements)).toEqual(['-1,-1', '-1,1', '1,-1', '1,1'])
-        expect(placements.every((placement) => placement.rotations.length === 4)).toBe(true)
+        const placements = cells(
+            new Grid({ stations }).legalPlacements(tileId(StationLetter.A), true)
+        )
+        // Rows -4 to 1 already span six tiles, so the grid cannot grow up or down.
+        expect(placements).not.toContain('0,-5')
+        expect(placements).not.toContain('0,2')
+        expect(placements).toContain('1,-4')
+        expect(placements).toContain('2,0')
     })
 
     it('places a face-down tile in one orientation', () => {
@@ -146,12 +163,12 @@ describe('legal placements', () => {
 })
 
 describe('routes', () => {
-    it('runs to an adjacent station of the next letter, counting both ends', () => {
+    it('runs to an adjacent station of the same letter, counting both ends', () => {
         const stations = [...negativeCross(), station(StationLetter.A, { col: 1, row: -1 })]
         const route = new Grid({ stations }).bestRoute({ col: 1, row: -1 })
         expect(route?.cells).toEqual([
             { col: 1, row: -1 },
-            { col: 1, row: 0 }
+            { col: 0, row: -1 }
         ])
         expect(revenueFor(route)).toBe(3)
     })
@@ -162,19 +179,13 @@ describe('routes', () => {
         expect(revenueFor(route)).toBe(0)
     })
 
-    it('runs from D back to A', () => {
-        const stations = [...negativeCross(), station(StationLetter.D, { col: 1, row: -1 })]
-        const route = new Grid({ stations }).bestRoute({ col: 1, row: -1 })
-        expect(route?.cells.at(-1)).toEqual({ col: 0, row: -1 })
-    })
-
     it('takes the better-paying of two equally short routes', () => {
         const stations = [
             ...negativeCross(),
             station(StationLetter.A, { col: 10, row: 10 }),
             station(StationLetter.C, { col: 11, row: 10 }),
             station(StationLetter.C, { col: 10, row: 11 }, { faceUp: false }),
-            station(StationLetter.B, { col: 11, row: 11 })
+            station(StationLetter.A, { col: 11, row: 11 })
         ]
         const route = new Grid({ stations }).bestRoute({ col: 10, row: 10 })
         expect(route?.cells[1]).toEqual({ col: 11, row: 10 })
@@ -186,7 +197,7 @@ describe('routes', () => {
             ...negativeCross(),
             station(StationLetter.A, { col: 10, row: 10 }),
             station(StationLetter.C, { col: 11, row: 10 }, { faceUp: false }),
-            station(StationLetter.B, { col: 12, row: 10 }),
+            station(StationLetter.A, { col: 12, row: 10 }),
             station(StationLetter.C, { col: 10, row: 11 }),
             station(StationLetter.C, { col: 10, row: 12 }),
             station(StationLetter.C, { col: 11, row: 12 }),
@@ -202,7 +213,7 @@ describe('routes', () => {
         const stations = [
             ...negativeCross(),
             station(StationLetter.A, { col: 10, row: 10 }),
-            station(StationLetter.B, { col: 11, row: 10 }, { positive: [Side.West] })
+            station(StationLetter.A, { col: 11, row: 10 }, { positive: [Side.West] })
         ]
         expect(new Grid({ stations }).bestRoute({ col: 10, row: 10 })).toBeUndefined()
     })
@@ -211,14 +222,14 @@ describe('routes', () => {
         const stations = [
             ...negativeCross(),
             station(StationLetter.A, { col: 10, row: 10 }),
-            station(StationLetter.B, { col: 11, row: 10 }, { faceUp: false })
+            station(StationLetter.A, { col: 11, row: 10 }, { faceUp: false })
         ]
         expect(new Grid({ stations }).bestRoute({ col: 10, row: 10 })).toBeUndefined()
     })
 })
 
-describe('the same-letter route variant', () => {
-    it('runs to another station of the same letter, not the next one', () => {
+describe('the next-letter route variant (rules v0.8b)', () => {
+    it('runs to a station of the next letter, not the same one', () => {
         const stations = [
             ...negativeCross(),
             station(StationLetter.A, { col: 10, row: 10 }),
@@ -226,10 +237,16 @@ describe('the same-letter route variant', () => {
             station(StationLetter.A, { col: 12, row: 10 })
         ]
         const grid = new Grid({ stations })
+        const next = grid.bestRoute({ col: 10, row: 10 }, RouteTarget.NextLetter)
+        expect(next?.cells.at(-1)).toEqual({ col: 11, row: 10 })
         const same = grid.bestRoute({ col: 10, row: 10 }, RouteTarget.SameLetter)
         expect(same?.cells.at(-1)).toEqual({ col: 12, row: 10 })
         expect(same?.stations).toBe(3)
-        const next = grid.bestRoute({ col: 10, row: 10 }, RouteTarget.NextLetter)
-        expect(next?.cells.at(-1)).toEqual({ col: 11, row: 10 })
+    })
+
+    it('runs from D back to A', () => {
+        const stations = [...negativeCross(), station(StationLetter.D, { col: 1, row: -1 })]
+        const route = new Grid({ stations }).bestRoute({ col: 1, row: -1 }, RouteTarget.NextLetter)
+        expect(route?.cells.at(-1)).toEqual({ col: 0, row: -1 })
     })
 })

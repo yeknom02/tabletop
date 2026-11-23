@@ -1,14 +1,14 @@
 <script lang="ts">
-    import { MachineState, stationTile } from '@tabletop/conduit'
+    import { MachineState, minimumBidsOf, stationTile } from '@tabletop/conduit'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { describeAction } from '$lib/utils/historyEntries.js'
-    import { MinimumBidsPerPlayer } from '@tabletop/conduit'
 
     const gameSession = getGameSession()
     const state = $derived(gameSession.gameState)
     const name = (playerId: string) => gameSession.getPlayerName(playerId)
     const activeId = $derived(state.activePlayerIds[0])
     const letterOf = (tileId: number) => stationTile(tileId).letter
+    const minimumBids = $derived(minimumBidsOf(gameSession.game.config))
 
     const standings = $derived(
         [...state.players].sort((a, b) => b.cash - a.cash || b.supply - a.supply)
@@ -45,7 +45,7 @@
     {:else if gameSession.isBidding}
         <p class="prompt">Bid on a tile</p>
         <p class="detail">
-            Bids {myBids} of {MinimumBidsPerPlayer} · {gameSession.mySupply} in supply
+            Bids {myBids} of {minimumBids} · {gameSession.mySupply} in supply
         </p>
     {:else if gameSession.isOffered && gameSession.offer}
         {@const offer = gameSession.offer}

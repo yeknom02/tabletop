@@ -1,6 +1,6 @@
 # Conduit
 
-## by Dan Domme Rules of Play v. 0.8b, November 22, 2026
+## by Dan Domme Rules of Play v. 0.8.1, November 23, 2026
 
 ## Overview
 
@@ -46,7 +46,7 @@ The station tiles feature a tile identification letter (A–D) and a section of 
 
 2. ## Place Bids
 
-Beginning with the Start Player, each player in turn takes a single cube from their current available supply and places one on the lowest available space of a bidding track of their choice. Biding continues until the following conditions are both met: (1) at least 3 cubes have been placed by every player, and (2) all tiles have at least one bid. Passing is not allowed.
+Beginning with the Start Player, each player in turn takes a single cube from their current available supply and places one on the lowest available space of a bidding track of their choice. Biding continues until the following conditions are both met: (1) at least 2 cubes have been placed by every player, and (2) all tiles have at least one bid. Passing is not allowed.
 
 3. ## Resolve Bids
 
@@ -60,7 +60,7 @@ If all players pass on the tile, the current Start Player chooses how to add it 
 
 To add a tile to the network, it must be placed according to the following rules:
 
-- If it is possible to place the tile such that it connects to more than one other tile, you must do so.
+- The tile must border at least one other tile, and the resulting grid must fit within a 6x6-tile square.
 
 - If two connectors are of a similar color, or at least one of the tiles is face down, their connection is considered “open.” If the connectors are of opposite colors, the connection is considered “closed.” Place a blocking marker on each closed connection. You must place your tile such that you create at least one valid connection.
 
@@ -72,7 +72,7 @@ Continue resolving bids in this manner until all are resolved.
 
 For each Power Station on the board:
 
-1. The owning player traces the shortest possible non-branching route from their Power Station to another station of the next letter. This route cannot traverse closed connections or the Central Station.
+1. The owning player traces the shortest possible non-branching route from their Power Station to another station of the same letter. This route cannot traverse closed connections or the Central Station.
 2. The player earns \$1, plus \$1 per station on the route.
 3. Remove one cube from the tile, placing it in the matching player’s reserve.
 

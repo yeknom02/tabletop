@@ -23,7 +23,6 @@ import { ConduitPlayerState, HydratedConduitPlayerState } from './playerState.js
 
 export const Rounds = 5
 export const BidTrackSpaces = 9
-export const MinimumBidsPerPlayer = 3
 
 export type StationStack = Type.Static<typeof StationStack>
 export const StationStack = DrawBag(Type.Integer())
@@ -99,6 +98,8 @@ export const ConduitGameState = Type.Evaluate(
             machineState: Type.Enum(MachineState),
             roundManager: RoundManager,
             stacks: Stacks,
+            // In the shuffled-market variant, every tile left after setup in one stack.
+            deck: Type.Optional(StationStack),
             nextLetter: BaseLetterSchema,
             market: Type.Array(MarketSlot),
             board: Board
@@ -129,6 +130,7 @@ export class HydratedConduitGameState
     declare winningPlayerIds: string[]
     declare roundManager: HydratedRoundManager
     declare stacks: Stacks
+    declare deck?: StationStack
     declare nextLetter: BaseLetter
     declare market: MarketSlot[]
     declare board: Board
@@ -157,7 +159,7 @@ export class HydratedConduitGameState
     }
 
     // The market holds one more tile than there are players, drawn from the stacks in letter order,
-    // carrying on from where the last fill stopped.
+    // carrying on from where the last fill stopped, or from the top of the one shuffled stack.
     fillMarket(): number[] {
         this.roundManager.startRound(this.actionCount)
         const tileIds = Array.from({ length: this.players.length + 1 }, () => this.drawNextTile())
@@ -166,6 +168,13 @@ export class HydratedConduitGameState
     }
 
     private drawNextTile(): number {
+        if (this.deck) {
+            const deck = new HydratedStationStack(this.deck)
+            assert(!deck.isEmpty(), 'The stack has run out')
+            const tileId = deck.draw()
+            this.deck = deck.dehydrate()
+            return tileId
+        }
         const letter = this.nextLetter
         this.nextLetter = BaseLetters[(BaseLetters.indexOf(letter) + 1) % BaseLetters.length]
         const stack = new HydratedStationStack(this.stacks[letter])
@@ -193,11 +202,12 @@ export class HydratedConduitGameState
         return this.getPlayerState(playerId).supply > 0 && this.biddableSlots().length > 0
     }
 
-    // Bidding goes on until every player has placed three cubes and every tile has a bid. A player
+    // Bidding goes on until every player has placed the minimum (two cubes in rules v0.8.1, three
+    // before) and every tile has a bid. A player
     // with an empty supply is skipped, so bidding also ends once no one can bid (designer rulings).
-    isBiddingOver(): boolean {
+    isBiddingOver(minimumBids: number): boolean {
         const everyPlayerDone = this.players.every(
-            (player) => this.bidsBy(player.playerId) >= MinimumBidsPerPlayer || player.supply === 0
+            (player) => this.bidsBy(player.playerId) >= minimumBids || player.supply === 0
         )
         const everyTileBid = this.market.every((slot) => slot.bids.length > 0)
         const anyoneCanBid = this.players.some((player) => this.canBid(player.playerId))

@@ -2,9 +2,11 @@ import * as Type from 'typebox'
 import { ConfigOptionType, type GameConfigOptions } from '@tabletop/common'
 
 export const DefaultCubesPerRound = 2
+export const DefaultMinimumBids = 2
 
 export type ConduitGameConfig = Type.Static<typeof ConduitGameConfig>
-// Rule variants the designer is testing with bots. They are not offered when creating a game.
+// Rule variants the designer is testing with bots. Only cubes per round is offered when creating a
+// game; the rest take their defaults (the current printed rules) unless a bot study sets them.
 export enum RouteTarget {
     NextLetter = 'next',
     SameLetter = 'same'
@@ -15,11 +17,20 @@ export enum StartPlayerRule {
     Richest = 'richest'
 }
 
-// The option offers 2 to 4, but any value from 0 to 9 is accepted so bot studies can try others.
+export enum MarketDeal {
+    // Fill the market from the A, B, C, D stacks in turn.
+    Cycle = 'cycle',
+    // Shuffle every tile left after setup into one stack and deal from its top.
+    Shuffled = 'shuffled'
+}
+
+// Number settings accept any digit so bot studies can try values the option list doesn't offer.
 export const ConduitGameConfig = Type.Object({
     cubesPerRound: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
     routeTarget: Type.Optional(Type.Enum(RouteTarget)),
-    startPlayer: Type.Optional(Type.Enum(StartPlayerRule))
+    startPlayer: Type.Optional(Type.Enum(StartPlayerRule)),
+    minimumBids: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
+    marketDeal: Type.Optional(Type.Enum(MarketDeal))
 })
 
 // The designer is playtesting how many cubes move from reserve to supply each round.
@@ -40,9 +51,9 @@ export const ConduitGameConfigOptions: GameConfigOptions = [
 ]
 
 export function routeTargetOf(config: { routeTarget?: unknown }): RouteTarget {
-    return config.routeTarget === RouteTarget.SameLetter
-        ? RouteTarget.SameLetter
-        : RouteTarget.NextLetter
+    return config.routeTarget === RouteTarget.NextLetter
+        ? RouteTarget.NextLetter
+        : RouteTarget.SameLetter
 }
 
 export function startPlayerRuleOf(config: { startPlayer?: unknown }): StartPlayerRule {
@@ -51,8 +62,16 @@ export function startPlayerRuleOf(config: { startPlayer?: unknown }): StartPlaye
         : StartPlayerRule.Clockwise
 }
 
+export function marketDealOf(config: { marketDeal?: unknown }): MarketDeal {
+    return config.marketDeal === MarketDeal.Shuffled ? MarketDeal.Shuffled : MarketDeal.Cycle
+}
+
 export function cubesPerRound(config: { cubesPerRound?: unknown }): number {
     return typeof config.cubesPerRound === 'string'
         ? Number(config.cubesPerRound)
         : DefaultCubesPerRound
+}
+
+export function minimumBidsOf(config: { minimumBids?: unknown }): number {
+    return typeof config.minimumBids === 'string' ? Number(config.minimumBids) : DefaultMinimumBids
 }

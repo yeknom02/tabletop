@@ -9,6 +9,7 @@ import { MachineState } from '../definition/states.js'
 import { HydratedPlaceBid, isPlaceBid } from '../actions/placeBid.js'
 import type { HydratedConduitGameState } from '../model/gameState.js'
 import { endTurn, nextResolutionState, startTurn } from './flow.js'
+import { minimumBidsOf } from '../definition/gameConfig.js'
 
 // Starting with the Start Player, players in turn place one cube each, skipping anyone who cannot.
 export class BiddingStateHandler implements MachineStateHandler<
@@ -44,7 +45,9 @@ export class BiddingStateHandler implements MachineStateHandler<
     ): MachineState {
         const state = context.gameState
         endTurn(state)
-        return state.isBiddingOver() ? nextResolutionState(context) : MachineState.Bidding
+        return state.isBiddingOver(minimumBidsOf(context.gameConfig))
+            ? nextResolutionState(context)
+            : MachineState.Bidding
     }
 
     private nextBidder(state: HydratedConduitGameState): string {

@@ -122,24 +122,34 @@ function table(slug, playerCount) {
 {
     const scenario = table('stacked-offer', 3)
     const order = scenario.hydrated().turnManager.turnOrder
-    const [first, second] = order
-    const bids = [0, 1, 2, 0, 0, 3, 0, 1, 2]
+    const [first, , third] = order
+    // Tile 4 stays unbid until the last bid, so bidding runs past two bids each.
+    const bids = [0, 1, 2, 0, 1, 0, 0, 3]
     for (const slot of bids) scenario.act(ActionType.PlaceBid, { slot })
     const view = scenario.hydrated()
     if (view.machineState !== MachineState.Offering) throw Error('stacked-offer: bidding goes on')
-    if (view.market[0].bids.join() !== [first, first, second, first].join())
+    if (view.market[0].bids.join() !== [first, first, third, first].join())
         throw Error(`stacked-offer: track is ${view.market[0].bids.join()}`)
     scenario.write()
 }
 
-// A bought tile waiting to be placed in round 3, where every lit cell touches two tiles.
+// A bought tile waiting to be placed once the grid spans six tiles one way, so the 6x6 limit
+// leaves some bordering cells unlit.
 {
+    const span = (values) => Math.max(...values, 0) - Math.min(...values, 0) + 1
+    const spans = (view) => [
+        span(view.board.stations.map((station) => station.cell.col)),
+        span(view.board.stations.map((station) => station.cell.row))
+    ]
     const scenario = table('placing-a-station', 4)
     scenario.playUntil(
         (view) =>
-            view.round === 3 &&
             view.machineState === MachineState.Placing &&
-            view.pendingPlacement()?.faceUp === true
+            view.pendingPlacement()?.faceUp === true &&
+            Math.max(...spans(view)) === 6
+    )
+    console.log(
+        `placing-a-station: round ${scenario.hydrated().round}, grid ${spans(scenario.hydrated()).join('x')}`
     )
     scenario.write()
 }

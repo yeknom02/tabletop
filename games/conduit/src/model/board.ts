@@ -29,6 +29,9 @@ export const Board = Type.Object({
 
 export const CentralCell: OffsetCoordinates = { col: 0, row: 0 }
 
+// The whole grid, Central Station included, must fit within this many tiles each way (rules v0.8.1).
+export const MaxGridSize = 6
+
 export interface TileFace {
     tileId: number
     rotation: number
@@ -122,12 +125,10 @@ export class Grid {
         return closed
     }
 
-    // A tile must share an edge with two or more tiles when it can, and among those spots must make
-    // an open connection when it can (designer rulings: touching two comes first).
+    // A tile must border another tile and keep the grid within 6x6 (rules v0.8.1). Among those spots
+    // it must make an open connection when it can.
     legalPlacements(tileId: number, faceUp: boolean): Placement[] {
-        const candidates = this.emptyCellsTouchingBoard()
-        const mostTouching = candidates.some((cell) => this.touchCount(cell) >= 2)
-        const allowed = candidates.filter((cell) => !mostTouching || this.touchCount(cell) >= 2)
+        const allowed = this.emptyCellsTouchingBoard().filter((cell) => this.fitsWithLimit(cell))
         const rotations = faceUp ? [0, 1, 2, 3] : [0]
         const options = allowed.map((cell) => ({
             cell,
@@ -150,12 +151,12 @@ export class Grid {
         )
     }
 
-    // The shortest route through open connections to another face-up station of the next letter
-    // (or of the same letter, in the variant being tested). Among
+    // The shortest route through open connections to another face-up station of the same letter
+    // (rules v0.8.1; the next letter in the older rule, kept for bot studies). Among
     // equally short routes the one through the most face-up stations pays best (designer ruling).
     bestRoute(
         from: OffsetCoordinates,
-        routeTarget: RouteTarget = RouteTarget.NextLetter
+        routeTarget: RouteTarget = RouteTarget.SameLetter
     ): Route | undefined {
         const start = this.stationAt(from)
         if (!start || !start.faceUp) {
@@ -261,8 +262,13 @@ export class Grid {
         return [...empty.values()]
     }
 
-    private touchCount(cell: OffsetCoordinates): number {
-        return SidesClockwise.filter((side) => this.isOccupied(neighborCell(cell, side))).length
+    private fitsWithLimit(added: OffsetCoordinates): boolean {
+        const cells = [CentralCell, added, ...this.board.stations.map((station) => station.cell)]
+        const span = (values: number[]) => Math.max(...values) - Math.min(...values) + 1
+        return (
+            span(cells.map((cell) => cell.col)) <= MaxGridSize &&
+            span(cells.map((cell) => cell.row)) <= MaxGridSize
+        )
     }
 
     private makesOpenConnection(cell: OffsetCoordinates, face: TileFace): boolean {

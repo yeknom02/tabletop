@@ -15,12 +15,14 @@ import {
     type ConduitProjectedState,
     HydratedConduitGameState,
     HydratedStationStack,
-    type Stacks
+    type Stacks,
+    type StationStack
 } from '../model/gameState.js'
 import { newPlayerState } from '../model/playerState.js'
 import { CentralCell, neighborCell, type PlacedStation } from '../model/board.js'
 import { BaseLetters, Side, StationLetter, tileIdsOfLetter } from '../components/tiles.js'
 import { MachineState } from './states.js'
+import { MarketDeal, marketDealOf } from './gameConfig.js'
 import { ConduitColors } from './colors.js'
 
 // One tile from each of the A-D stacks forms a cross around the Central Station: A to the North,
@@ -67,12 +69,18 @@ export class ConduitGameInitializer
             }
         })
 
+        const deck =
+            marketDealOf(game.config) === MarketDeal.Shuffled
+                ? this.gatherDeck(stacks, protectedPrng)
+                : undefined
+
         const conduitState: ConduitGameState = Object.assign(state, {
             players,
             turnManager,
             machineState: MachineState.Bidding,
             roundManager: HydratedRoundManager.generate(),
             stacks,
+            ...(deck ? { deck } : {}),
             nextLetter: BaseLetters[0],
             market: [],
             board: { stations }
@@ -80,6 +88,18 @@ export class ConduitGameInitializer
         const hydrated = new HydratedConduitGameState(conduitState)
         hydrated.fillMarket()
         return hydrated
+    }
+
+    // The shuffled-market variant: every tile left after setup goes into one shuffled stack, and the
+    // letter stacks are left empty.
+    private gatherDeck(stacks: Stacks, protectedPrng: Prng): StationStack {
+        const tileIds = BaseLetters.flatMap((letter) => {
+            const items = stacks[letter].items
+            stacks[letter] = { items: [], remaining: 0 }
+            return items
+        })
+        shuffle(tileIds, protectedPrng.random)
+        return { items: tileIds, remaining: tileIds.length }
     }
 
     private shuffleStacks(protectedPrng: Prng): Stacks {
