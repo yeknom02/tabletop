@@ -19,9 +19,12 @@ import {
     isPlaceBid,
     isPlaceTile,
     MachineState,
+    neighborCell,
+    SidesClockwise,
     stationTile,
     type ExtraCubeCost,
     type MarketDeal,
+    RouteToll,
     type RouteTarget,
     type StartPlayerRule
 } from '../../src/index.js'
@@ -41,6 +44,7 @@ export type GameRecord = {
     marketDeal: MarketDeal
     extraCubeCost: ExtraCubeCost
     startingCash: number
+    routeToll: RouteToll
     bots: string[]
     // The letters dealt to each round's market, in order.
     markets: string[][]
@@ -57,6 +61,11 @@ export type GameRecord = {
     offers: (NotedDecision & { price: number; bought: boolean })[]
     placements: (NotedDecision & { faceUp: boolean; extraCubes: number })[]
     revenues: { round: number; seat: number; letter: string; amount: number; stations: number }[]
+    // Toll income per seat, and how many tolls each route paid out.
+    tollIncome: number[]
+    tollsPerRoute: number[]
+    // Occupied neighbours (Central Station included) of each face-up station when placed.
+    placedNeighbors: number[]
     steps: number
 }
 
@@ -69,6 +78,7 @@ export type Variant = {
     extraCubeCost: ExtraCubeCost
     // Starting cash; the rules' $5 when absent.
     startingCash?: number
+    routeToll?: RouteToll
 }
 
 export function playGame({
@@ -82,6 +92,7 @@ export function playGame({
 }): GameRecord {
     const { cubesPerRound, routeTarget, startPlayer, minimumBids, marketDeal, extraCubeCost } =
         variant
+    const routeToll = variant.routeToll ?? RouteToll.None
     const players = bots.length
     const playerIds = bots.map((_, seat) => `s${seat}`)
     const engine = new GameEngine(ConduitRuntime)
@@ -100,7 +111,8 @@ export function playGame({
                 extraCubeCost,
                 ...(variant.startingCash === undefined
                     ? {}
-                    : { startingCash: String(variant.startingCash) })
+                    : { startingCash: String(variant.startingCash) }),
+                routeToll
             }),
             players: playerIds.map((id) => ({
                 id,
@@ -126,6 +138,7 @@ export function playGame({
         marketDeal,
         extraCubeCost,
         startingCash: variant.startingCash ?? 5,
+        routeToll,
         bots: bots.map((bot) => bot.name),
         markets: [],
         finalCash: [],
@@ -141,6 +154,9 @@ export function playGame({
         offers: [],
         placements: [],
         revenues: [],
+        tollIncome: playerIds.map(() => 0),
+        tollsPerRoute: [],
+        placedNeighbors: [],
         steps: 0
     }
     // The first market is dealt during setup, not by an action.
@@ -175,6 +191,10 @@ export function playGame({
                         amount: revenue.amount,
                         stations: revenue.amount > 0 ? revenue.amount - 1 : 0
                     })
+                    if (revenue.amount > 0) record.tollsPerRoute.push(revenue.tolls?.length ?? 0)
+                    for (const toll of revenue.tolls ?? []) {
+                        record.tollIncome[seatOf(toll.playerId)] += toll.amount
+                    }
                 }
             }
             if (isLoseInfrastructure(action) && action.metadata?.roundEnded) {
@@ -201,7 +221,8 @@ export function playGame({
             cubesPerRound,
             routeTarget,
             marketDeal,
-            extraCubeCost
+            extraCubeCost,
+            routeToll
         })
         if (hydrated.machineState === MachineState.Offering) {
             const offer = hydrated.currentOffer()
@@ -221,6 +242,17 @@ export function playGame({
                 faceUp: hydrated.pendingPlacement()?.faceUp ?? false,
                 extraCubes: decision.extraCubes
             })
+            if (hydrated.pendingPlacement()?.faceUp) {
+                const grid = hydrated.grid()
+                record.placedNeighbors.push(
+                    SidesClockwise.filter((side) => {
+                        const cell = neighborCell(decision.cell, side)
+                        return (
+                            (cell.col === 0 && cell.row === 0) || grid.stationAt(cell) !== undefined
+                        )
+                    }).length
+                )
+            }
         }
         const { type, ...payload } = decision
         const action: GameAction = {

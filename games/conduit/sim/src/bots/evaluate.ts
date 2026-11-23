@@ -4,7 +4,9 @@ import {
     MarketDeal,
     nextLetter,
     RouteTarget,
+    RouteToll,
     Rounds,
+    stationEarnings,
     tileIdsOfLetter,
     type BaseLetter,
     Grid,
@@ -17,14 +19,18 @@ import {
 
 export type PlacementChoice = { cell: OffsetCoordinates; rotation: number }
 
-// What every Power Station would earn if revenue were paid now, summed per owner.
-export function revenueByOwner(board: Board, routeTarget: RouteTarget): Map<string, number> {
-    const grid = new Grid(board)
+// What every Power Station would earn if revenue were paid now, tolls included, summed per owner.
+export function revenueByOwner(
+    board: Board,
+    routeTarget: RouteTarget,
+    routeToll: RouteToll = RouteToll.None
+): Map<string, number> {
     const totals = new Map<string, number>()
-    for (const station of board.stations) {
-        if (!station.ownerId) continue
-        const amount = revenueFor(grid.bestRoute(station.cell, routeTarget))
-        totals.set(station.ownerId, (totals.get(station.ownerId) ?? 0) + amount)
+    const add = (playerId: string, amount: number) =>
+        totals.set(playerId, (totals.get(playerId) ?? 0) + amount)
+    for (const earning of stationEarnings(board, routeTarget, routeToll)) {
+        add(earning.ownerId, earning.amount)
+        for (const toll of earning.tolls) add(toll.playerId, toll.amount)
     }
     return totals
 }
@@ -53,9 +59,10 @@ export function placementEffects(
     tileId: number,
     faceUp: boolean,
     ownerId: string | undefined,
-    routeTarget: RouteTarget
+    routeTarget: RouteTarget,
+    routeToll: RouteToll = RouteToll.None
 ): PlacementEffect[] {
-    const before = revenueByOwner(state.board, routeTarget)
+    const before = revenueByOwner(state.board, routeTarget, routeToll)
     return placementChoices(state, tileId, faceUp).map((choice) => {
         const station: PlacedStation = {
             cell: choice.cell,
@@ -66,7 +73,7 @@ export function placementEffects(
             ...(faceUp && ownerId ? { ownerId } : {})
         }
         const board: Board = { stations: [...state.board.stations, station] }
-        const after = revenueByOwner(board, routeTarget)
+        const after = revenueByOwner(board, routeTarget, routeToll)
         const gain = new Map<string, number>()
         for (const player of state.players) {
             const id = player.playerId

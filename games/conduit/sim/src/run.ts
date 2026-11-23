@@ -2,7 +2,13 @@ import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
-import { extraCubeCostOf, marketDealOf, routeTargetOf, startPlayerRuleOf } from '../../src/index.js'
+import {
+    extraCubeCostOf,
+    marketDealOf,
+    routeTargetOf,
+    routeTollOf,
+    startPlayerRuleOf
+} from '../../src/index.js'
 
 // Plays a study: every seed with every rotation of the lineup (when --rotate), so each bot sits in
 // every seat on the same deals. Writes run.json and games-*.jsonl under the runs folder.
@@ -18,6 +24,7 @@ const { values } = parseArgs({
         deal: { type: 'string', default: 'cycle' },
         'cube-cost': { type: 'string', default: 'free' },
         cash: { type: 'string', default: '5' },
+        toll: { type: 'string', default: 'none' },
         start: { type: 'string', default: 'clockwise' },
         rotate: { type: 'boolean', default: false },
         workers: { type: 'string', default: '12' },
@@ -29,6 +36,7 @@ if (routeTargetOf({ routeTarget: values.route }) !== values.route) throw Error('
 if (marketDealOf({ marketDeal: values.deal }) !== values.deal) throw Error('--deal: cycle|shuffled')
 if (extraCubeCostOf({ extraCubeCost: values['cube-cost'] }) !== values['cube-cost'])
     throw Error('--cube-cost: free|rising')
+if (routeTollOf({ routeToll: values.toll }) !== values.toll) throw Error('--toll: none|flat')
 if (startPlayerRuleOf({ startPlayer: values.start }) !== values.start)
     throw Error('--start: clockwise|richest')
 
@@ -65,6 +73,7 @@ writeFileSync(
             marketDeal: values.deal,
             extraCubeCost: values['cube-cost'],
             startingCash: Number(values.cash),
+            routeToll: values.toll,
             commit: git(['rev-parse', 'HEAD']),
             dirty: git(['status', '--porcelain', '--', 'games/conduit']) !== '',
             startedAt: new Date().toISOString()
@@ -87,7 +96,8 @@ const runs = Array.from({ length: workers }, (_, worker) => {
             minimumBids: Number(values['min-bids']),
             marketDeal: values.deal,
             extraCubeCost: values['cube-cost'],
-            startingCash: Number(values.cash)
+            startingCash: Number(values.cash),
+            routeToll: values.toll
         }
     }
     return new Promise<void>((resolve, reject) => {

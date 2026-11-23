@@ -6,6 +6,7 @@ import {
     MachineState,
     MarketDeal,
     RouteTarget,
+    RouteToll,
     Rounds,
     type HydratedConduitGameState
 } from '../../../src/index.js'
@@ -75,6 +76,7 @@ export class HabitBot implements Bot {
     private routeTarget = RouteTarget.SameLetter
     private marketDeal = MarketDeal.Cycle
     private extraCubeCost = ExtraCubeCost.Free
+    private routeToll = RouteToll.None
 
     constructor(
         readonly name: string,
@@ -86,6 +88,7 @@ export class HabitBot implements Bot {
         this.routeTarget = context.routeTarget
         this.marketDeal = context.marketDeal
         this.extraCubeCost = context.extraCubeCost
+        this.routeToll = context.routeToll
         switch (state.machineState) {
             case MachineState.Bidding:
                 return this.bid(context)
@@ -100,7 +103,14 @@ export class HabitBot implements Bot {
 
     // What one payout of the tile would be worth to a player at its best spot now.
     private tileView(state: HydratedConduitGameState, tileId: number, playerId: string): TileView {
-        const effects = placementEffects(state, tileId, true, playerId, this.routeTarget)
+        const effects = placementEffects(
+            state,
+            tileId,
+            true,
+            playerId,
+            this.routeTarget,
+            this.routeToll
+        )
         let best: PlacementEffect | undefined
         for (const effect of effects) {
             if (!best || (effect.gain.get(playerId) ?? 0) > (best.gain.get(playerId) ?? 0)) {
@@ -245,7 +255,8 @@ export class HabitBot implements Bot {
             placement.tileId,
             placement.faceUp,
             placement.faceUp ? playerId : undefined,
-            this.routeTarget
+            this.routeTarget,
+            this.routeToll
         )
         const scored = effects.map((effect) => {
             let others = 0
