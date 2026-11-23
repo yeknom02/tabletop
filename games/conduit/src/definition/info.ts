@@ -1,4 +1,4 @@
-import type { GameInfo } from '@tabletop/common'
+import { GameVisibility, type GameInfo } from '@tabletop/common'
 import { ConduitConfigurator } from './configurator.js'
 import { GAME_VERSION } from './version.js'
 
@@ -17,7 +17,9 @@ export const ConduitInfo: GameInfo = {
         maxPlayers: 5,
         defaultPlayerCount: 4,
         version: GAME_VERSION,
-        beta: true
+        beta: true,
+        // A prototype in playtesting: only alpha testers and developers see it.
+        visibility: GameVisibility.Alpha
     },
     configurator: new ConduitConfigurator()
 }

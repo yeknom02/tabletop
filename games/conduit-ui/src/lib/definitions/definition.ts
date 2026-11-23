@@ -7,7 +7,7 @@ import {
     type ConduitProjectedState,
     type HydratedConduitGameState
 } from '@tabletop/conduit'
-import coverImg from '$lib/images/tiles/tile-01.webp'
+import coverImg from '$lib/images/cover.webp'
 
 export const UiDefinition: GameUiDefinition<ConduitProjectedState, HydratedConduitGameState> = {
     info: {

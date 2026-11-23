@@ -1,11 +1,12 @@
 <script lang="ts">
     import type { Attachment } from 'svelte/attachments'
-    import { marked } from 'marked'
     import rulesText from '$lib/rules/rules.md?raw'
+    import { parseMarkdown } from '$lib/utils/markdown.js'
+    import RulesText from './RulesText.svelte'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
 
     const gameSession = getGameSession()
-    const rulesHtml = marked.parse(rulesText, { async: false })
+    const rules = parseMarkdown(rulesText)
 
     const holdFocus: Attachment<HTMLElement> = (panel) => {
         const opener = document.activeElement
@@ -37,9 +38,7 @@
         <button class="close" aria-label="Close the rules" onclick={() => gameSession.closeRules()}
             >×</button
         >
-        <!-- The rules are the designer's own Markdown, bundled with the game, never player input. -->
-        <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-        <article class="text">{@html rulesHtml}</article>
+        <article class="text"><RulesText blocks={rules} /></article>
     </div>
 </div>
 
@@ -118,6 +117,15 @@
 
     .text :global(li > h2) {
         display: inline;
+    }
+
+    .text :global(li > p) {
+        margin: 0;
+    }
+
+    .text :global(hr) {
+        margin: 14px 0;
+        border-color: rgb(0 0 0 / 0.15);
     }
 
     @media (max-width: 639px) {

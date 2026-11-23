@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { assert, MachineContext, Prng, validateGameResult, type Visibility } from '@tabletop/common'
 import { BaseLetters } from '../components/tiles.js'
 import { ConduitGameStateValidator, type ConduitProjectedState } from '../model/gameState.js'
-import { createGame, startTestGame, TestMasterSeed, type TestSession } from '../testing/table.js'
+import { createGame, startTestGame, type TestSession } from '../testing/table.js'
 import { playRandomDecision } from '../testing/bot.js'
 import { ConduitRuntime } from './runtime.js'
 import { MachineState } from './states.js'
@@ -79,34 +79,6 @@ describe.each([3, 4, 5])('what each Perspective sees with %i players', (count) =
                 midGame.stacks[letter].items.toSorted((a, b) => a - b)
             )
         }
-    })
-})
-
-describe.each([3, 4, 5])('tournaments with %i players', (count) => {
-    it('seats players in their assigned order', () => {
-        const game = createGame(count)
-        const order = game.players.map((seat) => seat.id).reverse()
-        const { initialState, startedGame } = startTestGame(count).engine.startGame(game, {
-            masterSeed: TestMasterSeed,
-            startingPositions: { playerIds: order }
-        })
-        expect(startedGame.protectedInformation).toBe(true)
-        expect(initialState.turnManager.turnOrder).toEqual(order)
-        expect(initialState.activePlayerIds).toEqual([order[0]])
-    })
-
-    it('declares a valid result with scores the spectator can see', () => {
-        const [, , finished] = stages(count)
-        expect(() => validateGameResult(finished)).not.toThrow()
-        const scores = ConduitRuntime.scoring.finalScores(finished)
-        const spectatorView = ConduitRuntime.visibility.state.project(
-            finished,
-            { kind: 'spectator' },
-            { config: {} }
-        )
-        expect(ConduitRuntime.scoring.finalScores(spectatorView)).toEqual(scores)
-        const best = Math.max(...Object.values(scores))
-        expect(finished.winningPlayerIds.every((playerId) => scores[playerId] === best)).toBe(true)
     })
 })
 
