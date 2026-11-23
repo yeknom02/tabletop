@@ -12,8 +12,10 @@ import {
     PlaceBid,
     PlaceTile,
     isPayRevenue,
-    revenueFor,
     routeTargetOf,
+    routeTollOf,
+    stationEarnings,
+    type Payment,
     type StationRevenue,
     type ConduitProjectedState,
     type HydratedConduitGameState,
@@ -35,7 +37,7 @@ type SessionOptions = ConstructorParameters<
     typeof GameSession<ConduitProjectedState, HydratedConduitGameState>
 >[0]
 
-export type StationRoute = { route: Route | undefined; amount: number }
+export type StationRoute = { route: Route | undefined; amount: number; tolls: Payment[] }
 
 export type ShownRoute = { key: string; color: string | undefined; cells: OffsetCoordinates[] }
 
@@ -79,15 +81,35 @@ export class ConduitGameSession extends GameSession<
     readonly bounds = $derived(boardBounds(this.gameState.board))
     readonly closedConnections = $derived(this.grid.closedConnections())
 
-    // What each Power Station would earn if revenue were paid now.
+    // What each Power Station would earn if revenue were paid now, and the tolls its route would
+    // pay other players.
     readonly stationRoutes: Map<string, StationRoute> = $derived(
         new Map(
-            this.gameState.ownedStations().map((station) => {
-                const route = this.grid.bestRoute(station.cell, routeTargetOf(this.game.config))
-                return [cellKey(station.cell), { route, amount: revenueFor(route) }]
-            })
+            stationEarnings(
+                this.gameState.board,
+                routeTargetOf(this.game.config),
+                routeTollOf(this.game.config)
+            ).map(({ station, route, amount, tolls }) => [
+                cellKey(station.cell),
+                { route, amount, tolls }
+            ])
         )
     )
+
+    // What each player would earn if revenue were paid now: their stations' routes plus the tolls
+    // other players' routes would pay them.
+    readonly projectedIncome: Map<string, number> = $derived.by(() => {
+        const totals = new Map<string, number>()
+        const add = (playerId: string, amount: number) =>
+            totals.set(playerId, (totals.get(playerId) ?? 0) + amount)
+        for (const station of this.gameState.ownedStations()) {
+            const earning = this.stationRoutes.get(cellKey(station.cell))
+            if (!earning || station.ownerId === undefined) continue
+            add(station.ownerId, earning.amount)
+            for (const toll of earning.tolls) add(toll.playerId, toll.amount)
+        }
+        return totals
+    })
 
     readonly inspectedRoute: Route | undefined = $derived(
         this.inspectedCell ? this.stationRoutes.get(cellKey(this.inspectedCell))?.route : undefined

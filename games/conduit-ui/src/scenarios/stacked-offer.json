@@ -34,10 +34,10 @@
     "winningPlayerIds": [],
     "seed": 3367980177,
     "activePlayerIds": [],
-    "createdAt": "2026-11-23T15:06:50.468Z",
+    "createdAt": "2026-11-23T20:34:07.663Z",
     "storage": "remote",
     "category": "standard",
-    "startedAt": "2026-11-23T15:06:50.468Z",
+    "startedAt": "2026-11-23T20:34:07.664Z",
     "protectedInformation": true,
     "progress": {
       "fraction": 0,
@@ -46,7 +46,7 @@
   },
   "state": {
     "systemVersion": 3,
-    "id": "h_ygnBYOkYX3HBqkOgbv3",
+    "id": "4Prc93ZPO-gsXYUWLRCSN",
     "gameId": "scenario-stacked-offer",
     "seed": 3367980177,
     "prng": {
@@ -76,14 +76,14 @@
       {
         "playerId": "p1",
         "color": "purple",
-        "cash": 5,
+        "cash": 7,
         "supply": 3,
         "reserve": 10
       },
       {
         "playerId": "p2",
         "color": "red",
-        "cash": 5,
+        "cash": 6,
         "supply": 2,
         "reserve": 10
       }
@@ -238,12 +238,13 @@
           64,
           55,
           59,
-          61
+          61,
+          63
         ],
-        "remaining": 14
+        "remaining": 15
       }
     },
-    "nextLetter": "A",
+    "nextLetter": "D",
     "market": [
       {
         "tileId": 15,
@@ -258,17 +259,12 @@
         "tileId": 19,
         "bids": [
           "p2",
+          "p1",
           "p2"
         ]
       },
       {
         "tileId": 35,
-        "bids": [
-          "p1"
-        ]
-      },
-      {
-        "tileId": 63,
         "bids": [
           "p2"
         ]
@@ -327,7 +323,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-23T15:06:50.470Z",
+      "createdAt": "2026-11-23T20:34:07.674Z",
       "index": 0,
       "undoPatch": [
         {
@@ -376,7 +372,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-23T15:06:50.470Z",
+      "createdAt": "2026-11-23T20:34:07.675Z",
       "index": 1,
       "undoPatch": [
         {
@@ -424,8 +420,8 @@
       "playerId": "p1",
       "source": "user",
       "type": "placeBid",
-      "slot": 2,
-      "createdAt": "2026-11-23T15:06:50.471Z",
+      "slot": 1,
+      "createdAt": "2026-11-23T20:34:07.676Z",
       "index": 2,
       "undoPatch": [
         {
@@ -463,7 +459,7 @@
         },
         {
           "op": "remove",
-          "path": "/market/2/bids/0"
+          "path": "/market/1/bids/1"
         }
       ]
     },
@@ -474,7 +470,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-23T15:06:50.471Z",
+      "createdAt": "2026-11-23T20:34:07.677Z",
       "index": 3,
       "undoPatch": [
         {
@@ -523,7 +519,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-23T15:06:50.471Z",
+      "createdAt": "2026-11-23T20:34:07.688Z",
       "index": 4,
       "undoPatch": [
         {
@@ -561,7 +557,7 @@
         },
         {
           "op": "remove",
-          "path": "/market/1/bids/1"
+          "path": "/market/1/bids/2"
         }
       ]
     },
@@ -572,7 +568,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-23T15:06:50.472Z",
+      "createdAt": "2026-11-23T20:34:07.690Z",
       "index": 5,
       "undoPatch": [
         {
@@ -621,7 +617,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-23T15:06:50.472Z",
+      "createdAt": "2026-11-23T20:34:07.691Z",
       "index": 6,
       "undoPatch": [
         {
@@ -669,8 +665,8 @@
       "playerId": "p2",
       "source": "user",
       "type": "placeBid",
-      "slot": 3,
-      "createdAt": "2026-11-23T15:06:50.472Z",
+      "slot": 2,
+      "createdAt": "2026-11-23T20:34:07.696Z",
       "index": 7,
       "undoPatch": [
         {
@@ -713,7 +709,7 @@
         },
         {
           "op": "remove",
-          "path": "/market/3/bids/0"
+          "path": "/market/2/bids/0"
         }
       ]
     }

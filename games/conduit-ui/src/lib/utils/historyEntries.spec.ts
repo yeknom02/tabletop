@@ -63,4 +63,34 @@ describe('history entries', () => {
             'P1 placed it with 3 cubes'
         ])
     })
+
+    it('lists the tolls a route paid other players', () => {
+        const items = historyItems(
+            [
+                action(ActionType.PayRevenue, {
+                    source: ActionSource.System,
+                    metadata: {
+                        revenues: [
+                            {
+                                playerId: 'p1',
+                                tileId: 3,
+                                route: [],
+                                amount: 4,
+                                tolls: [
+                                    { playerId: 'p0', amount: 1 },
+                                    { playerId: 'p2', amount: 1 },
+                                    { playerId: 'p0', amount: 1 }
+                                ]
+                            }
+                        ]
+                    }
+                })
+            ],
+            name
+        )
+        const revenue = items[1]
+        expect(revenue.kind === 'entry' && revenue.lines).toEqual([
+            "P1's A tile: $4, tolls P0 $2, P2 $1"
+        ])
+    })
 })

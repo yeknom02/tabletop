@@ -11,15 +11,7 @@
         state.ownedStations().filter((station) => station.ownerId === playerId)
     )
     const cubesOnBoard = $derived(stations.reduce((total, station) => total + station.cubes, 0))
-    const projected = $derived(
-        stations.reduce(
-            (total, station) =>
-                total +
-                (gameSession.stationRoutes.get(`${station.cell.col}_${station.cell.row}`)?.amount ??
-                    0),
-            0
-        )
-    )
+    const projected = $derived(gameSession.projectedIncome.get(playerId) ?? 0)
     const isStartPlayer = $derived(state.turnManager.turnOrder[0] === playerId)
     const isActive = $derived(state.activePlayerIds.includes(playerId))
     const color = $derived(gameSession.colors.getPlayerBgColorValue(playerId))

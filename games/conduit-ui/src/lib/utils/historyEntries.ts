@@ -57,8 +57,11 @@ export function describeAction(action: GameAction, name: Name): string | undefin
     }
     if (isPayRevenue(action) && action.metadata) {
         const totals = new Map<string, number>()
+        const add = (playerId: string, amount: number) =>
+            totals.set(playerId, (totals.get(playerId) ?? 0) + amount)
         for (const revenue of action.metadata.revenues) {
-            totals.set(revenue.playerId, (totals.get(revenue.playerId) ?? 0) + revenue.amount)
+            add(revenue.playerId, revenue.amount)
+            for (const toll of revenue.tolls ?? []) add(toll.playerId, toll.amount)
         }
         return totals.size === 0
             ? 'No stations earned'
@@ -79,10 +82,16 @@ function revenueLines(revenues: StationRevenue[], name: Name): string[] {
     if (revenues.length === 0) {
         return ['No stations earned']
     }
-    return revenues.map(
-        (revenue) =>
-            `${name(revenue.playerId)}'s ${tileName(revenue.tileId)}: ${revenue.amount > 0 ? dollars(revenue.amount) : 'no route'}`
-    )
+    return revenues.map((revenue) => {
+        const line = `${name(revenue.playerId)}'s ${tileName(revenue.tileId)}: ${revenue.amount > 0 ? dollars(revenue.amount) : 'no route'}`
+        const tolls = new Map<string, number>()
+        for (const toll of revenue.tolls ?? []) {
+            tolls.set(toll.playerId, (tolls.get(toll.playerId) ?? 0) + toll.amount)
+        }
+        return tolls.size === 0
+            ? line
+            : `${line}, tolls ${[...tolls].map(([playerId, amount]) => `${name(playerId)} ${dollars(amount)}`).join(', ')}`
+    })
 }
 
 function tileOf(action: GameAction): number | undefined {

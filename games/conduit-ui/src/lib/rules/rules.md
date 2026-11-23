@@ -1,6 +1,6 @@
 # Conduit
 
-## by Dan Domme Rules of Play v. 0.8.1, November 23, 2026
+## by Dan Domme Rules of Play v. 0.8.2, November 23, 2026
 
 ## Overview
 
@@ -22,7 +22,9 @@ _Note: play money is not provided. It is suggested to use poker chips or similar
 
 Divide the tiles into stacks by letter, shuffling each separately and placing them face-down. Place the Central Station tile in the center, as well as one tile each from stacks A–D to make a simple cross pattern: A to the North, B to the East, C to the South, and D to the West. Terminal orientations (black/red) should be random.
 
-Give each player all the cubes in their player color, as well as \$5. Each player begins with 5 available cubes in supply, with the remaining 10 kept in a reserve.
+Give each player all the cubes in their player color. Each player begins with 5 available cubes in supply, with the remaining 10 kept in a reserve.
+
+Assign a random player the Start Player marker. They receive \$5. Then, in clockwise order, each other player receives one more dollar than the previous player.
 
 ## Order of Play
 
@@ -38,7 +40,7 @@ After each round, the Start Player marker moves to the next player clockwise.
 
 1. ## Fill the Tile Market
 
-The auction board has up to six spaces for tiles, each with its own bidding track. In alphabetical order, flip the top tile of each stack over to build a market of tiles that is one greater than the number of players. Order is circulating, i.e., the A stack follows the D stack. Once the market is full, take note of the final tile, because the market will be filled starting with the next tile in order for the following round.
+The auction board has up to six spaces for tiles, each with its own bidding track. In alphabetical order, flip the top tile of each stack over to build a market of tiles that is one greater than the number of players, except in the first round when the tile count should match the player count exactly. Order is circulating, i.e., the A stack follows the D stack. Once the market is full, take note of the final tile, because the market will be filled starting with the next tile in order for the following round.
 
 _Ex: In a 4-player game, the first market will consist of tiles \[A, B, C, D, A\], followed by \[B, C, D, A, B\] in the following round, etc._
 
@@ -72,15 +74,16 @@ Continue resolving bids in this manner until all are resolved.
 
 For each Power Station on the board:
 
-1. The owning player traces the shortest possible non-branching route from their Power Station to another station of the same letter. This route cannot traverse closed connections or the Central Station.
-2. The player earns \$1, plus \$1 per station on the route.
-3. Remove one cube from the tile, placing it in the matching player’s reserve.
+1. The owning player traces the shortest possible non-branching route from their Power Station to another station of the next letter in the A, B, C, D sequence. This route cannot traverse closed connections or the Central Station.
+2. In the case that there are multiple candidates for shortest route, the station owner chooses which to use, except that they must maximize the number of stations traversed, and further must choose a route which has the least number of their own stations.
+3. The player earns \$1, plus \$1 per station on the route. Other players who own stations on this route gain \$1 per station traversed.
+4. After all income is counted, remove one cube from every tile, placing them in the matching player’s reserve.
 
 ## 5\. Infrastructure Loss
 
-After all income has been distributed, each station on the board which is devoid of cubes is flipped to its reverse side, except for the original four stations bordering the Central Station. All connections with this tile are now open.
+After all income has been distributed, each station on the board which is devoid of cubes is flipped to its reverse side. This includes the original four stations bordering the Central Station at the end of Round 1\. All connections with a flipped tile are now open (except for those bordering the Central Station).
 
-Unless it is the end of the fifth round, all players now take two additional cubes from their reserve into their supply.
+Unless it is the end of the fifth round, all players now take two additional cubes from their reserve into their supply. The Start Player marker then passes clockwise.
 
 ## End of the Game
 

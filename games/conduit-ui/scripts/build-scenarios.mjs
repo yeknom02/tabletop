@@ -123,8 +123,9 @@ function table(slug, playerCount) {
     const scenario = table('stacked-offer', 3)
     const order = scenario.hydrated().turnManager.turnOrder
     const [first, , third] = order
-    // Tile 4 stays unbid until the last bid, so bidding runs past two bids each.
-    const bids = [0, 1, 2, 0, 1, 0, 0, 3]
+    // The first market has three tiles; tile 3 stays unbid until the last bid, so bidding runs
+    // past two bids each.
+    const bids = [0, 1, 1, 0, 1, 0, 0, 2]
     for (const slot of bids) scenario.act(ActionType.PlaceBid, { slot })
     const view = scenario.hydrated()
     if (view.machineState !== MachineState.Offering) throw Error('stacked-offer: bidding goes on')
