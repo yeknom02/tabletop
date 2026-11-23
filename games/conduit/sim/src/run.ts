@@ -17,6 +17,7 @@ const { values } = parseArgs({
         'min-bids': { type: 'string', default: '2' },
         deal: { type: 'string', default: 'cycle' },
         'cube-cost': { type: 'string', default: 'free' },
+        cash: { type: 'string', default: '5' },
         start: { type: 'string', default: 'clockwise' },
         rotate: { type: 'boolean', default: false },
         workers: { type: 'string', default: '12' },
@@ -63,6 +64,7 @@ writeFileSync(
             minimumBids: Number(values['min-bids']),
             marketDeal: values.deal,
             extraCubeCost: values['cube-cost'],
+            startingCash: Number(values.cash),
             commit: git(['rev-parse', 'HEAD']),
             dirty: git(['status', '--porcelain', '--', 'games/conduit']) !== '',
             startedAt: new Date().toISOString()
@@ -84,7 +86,8 @@ const runs = Array.from({ length: workers }, (_, worker) => {
             startPlayer: values.start,
             minimumBids: Number(values['min-bids']),
             marketDeal: values.deal,
-            extraCubeCost: values['cube-cost']
+            extraCubeCost: values['cube-cost'],
+            startingCash: Number(values.cash)
         }
     }
     return new Promise<void>((resolve, reject) => {

@@ -40,6 +40,7 @@ export type GameRecord = {
     minimumBids: number
     marketDeal: MarketDeal
     extraCubeCost: ExtraCubeCost
+    startingCash: number
     bots: string[]
     // The letters dealt to each round's market, in order.
     markets: string[][]
@@ -66,6 +67,8 @@ export type Variant = {
     minimumBids: number
     marketDeal: MarketDeal
     extraCubeCost: ExtraCubeCost
+    // Starting cash; the rules' $5 when absent.
+    startingCash?: number
 }
 
 export function playGame({
@@ -94,7 +97,10 @@ export function playGame({
                 startPlayer,
                 minimumBids: String(minimumBids),
                 marketDeal,
-                extraCubeCost
+                extraCubeCost,
+                ...(variant.startingCash === undefined
+                    ? {}
+                    : { startingCash: String(variant.startingCash) })
             }),
             players: playerIds.map((id) => ({
                 id,
@@ -119,6 +125,7 @@ export function playGame({
         minimumBids,
         marketDeal,
         extraCubeCost,
+        startingCash: variant.startingCash ?? 5,
         bots: bots.map((bot) => bot.name),
         markets: [],
         finalCash: [],
