@@ -4,10 +4,9 @@ import { ConfigOptionType, type GameConfigOptions } from '@tabletop/common'
 export const DefaultCubesPerRound = 2
 
 export type ConduitGameConfig = Type.Static<typeof ConduitGameConfig>
+// The option offers 2 to 4, but any value from 0 to 9 is accepted so bot studies can try others.
 export const ConduitGameConfig = Type.Object({
-    cubesPerRound: Type.Optional(
-        Type.Union([Type.Literal('2'), Type.Literal('3'), Type.Literal('4')])
-    )
+    cubesPerRound: Type.Optional(Type.String({ pattern: '^[0-9]$' }))
 })
 
 // The designer is playtesting how many cubes move from reserve to supply each round.
