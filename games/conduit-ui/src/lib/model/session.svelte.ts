@@ -27,6 +27,8 @@ import {
 } from './stagedSelection.js'
 import { boardBounds, cellKey } from '$lib/utils/boardLayout.js'
 import { TableAnimator } from '$lib/animators/tableAnimator.svelte.js'
+import { AuctionSpots } from '$lib/utils/tableLayout.js'
+import { MediaQuery } from 'svelte/reactivity'
 
 type SessionOptions = ConstructorParameters<
     typeof GameSession<ConduitProjectedState, HydratedConduitGameState>
@@ -40,6 +42,8 @@ export class ConduitGameSession extends GameSession<
     ConduitProjectedState,
     HydratedConduitGameState
 > {
+    private readonly phone = new MediaQuery('max-width: 639px')
+    readonly auctionColumns = $derived(this.phone.current ? 3 : AuctionSpots)
     readonly tableAnimator = new TableAnimator(this)
     rulesOpen = $state(false)
     inspectedCell: OffsetCoordinates | undefined = $state()
@@ -236,10 +240,6 @@ export class ConduitGameSession extends GameSession<
         assertExists(cell, 'Cubes go on a chosen cell')
         assertExists(rotation, 'Cubes go on a turned tile')
         await this.place(cell, rotation, extraCubes)
-    }
-
-    clearPlacement() {
-        this.selection = {}
     }
 
     private async place(cell: OffsetCoordinates, rotation: number, extraCubes: number) {

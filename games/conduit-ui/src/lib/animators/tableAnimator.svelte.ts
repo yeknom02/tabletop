@@ -29,6 +29,7 @@ export type FlyingTile = {
 export type PayoutFloat = { key: string; at: Point; amount: number }
 
 type Session = {
+    readonly auctionColumns: number
     addGameStateChangeListener(listener: GameStateChangeListener<HydratedConduitGameState>): void
     removeGameStateChangeListener(listener: GameStateChangeListener<HydratedConduitGameState>): void
 }
@@ -79,8 +80,8 @@ export class TableAnimator {
     ) {
         const placement = from.pendingPlacement()
         if (!placement) return
-        const before = tableGeometry(from.board)
-        const after = tableGeometry(to.board)
+        const before = tableGeometry(from.board, this.session.auctionColumns)
+        const after = tableGeometry(to.board, this.session.auctionColumns)
         const start = spotTileOrigin(placement.slot, before)
         this.flyingTile = {
             slot: placement.slot,
@@ -135,7 +136,7 @@ export class TableAnimator {
         from: HydratedConduitGameState,
         animationContext: AnimationContext
     ) {
-        const geometry = tableGeometry(from.board)
+        const geometry = tableGeometry(from.board, this.session.auctionColumns)
         this.payoutFloats = paid.revenues
             .filter((revenue) => revenue.amount > 0 && revenue.route.length > 0)
             .map((revenue, index) => {

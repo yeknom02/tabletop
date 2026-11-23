@@ -16,11 +16,7 @@
 
 {#if cell && tileId !== undefined && !gameSession.busy}
     {#key `${cell.col},${cell.row}`}
-        <Floater
-            placement="right"
-            reference="#{cellElementId(cell)}"
-            onClose={() => gameSession.clearPlacement()}
-        >
+        <Floater placement="right" reference="#{cellElementId(cell)}" trigger="manual">
             <div class="picker">
                 {#if rotations.length > 1}
                     <div class="title">Turn the tile</div>

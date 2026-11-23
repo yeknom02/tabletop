@@ -2,8 +2,8 @@
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import {
         AuctionSpots,
-        SpotGap,
         SpotWidth,
+        spotOrigin,
         SpotHeight,
         TrackCell,
         TileInSpot,
@@ -22,6 +22,7 @@
             ? gameSession.colors.getPlayerBgColorValue(gameSession.myPlayer.id)
             : undefined
     )
+    const columns = $derived(gameSession.auctionColumns)
     const tracks = Array.from({ length: BidTrackSpaces }, (_, index) => index)
 
     function activate(event: KeyboardEvent, slot: number) {
@@ -39,7 +40,7 @@
         class="spot"
         class:biddable
         class:unused={!inPlay}
-        transform="translate({slot * (SpotWidth + SpotGap)} 0)"
+        transform="translate({spotOrigin(slot, columns).x} {spotOrigin(slot, columns).y})"
     >
         <rect
             class="frame"

@@ -7,7 +7,9 @@
     import GridBoard from './GridBoard.svelte'
 
     const gameSession = getGameSession()
-    const geometry = $derived(tableGeometry(gameSession.gameState.board))
+    const geometry = $derived(
+        tableGeometry(gameSession.gameState.board, gameSession.auctionColumns)
+    )
     const flying = $derived(gameSession.tableAnimator.flyingTile)
     const half = CellSize / 2
 </script>

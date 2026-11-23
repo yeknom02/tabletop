@@ -13,6 +13,11 @@
     const standings = $derived(
         [...state.players].sort((a, b) => b.cash - a.cash || b.supply - a.supply)
     )
+    // What the last player to act did, for everyone waiting.
+    const lastMove = $derived.by(() => {
+        const action = gameSession.actions.findLast((candidate) => candidate.playerId)
+        return action ? describeAction(action, name) : undefined
+    })
     const myBids = $derived(gameSession.myPlayer ? state.bidsBy(gameSession.myPlayer.id) : 0)
 </script>
 
@@ -84,6 +89,9 @@
         </p>
     {:else}
         <p class="prompt">Paying revenue</p>
+    {/if}
+    {#if !gameSession.isViewingHistory && !state.result && !gameSession.isMyTurn && lastMove}
+        <p class="detail">Last: {lastMove}</p>
     {/if}
 </section>
 
