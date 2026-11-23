@@ -20,11 +20,15 @@ export const ConduitPlayerState = Type.Evaluate(
 
 const ConduitPlayerStateValidator = Compile(ConduitPlayerState)
 
-export function newPlayerState(playerId: string, color: Color): ConduitPlayerState {
+export function newPlayerState(
+    playerId: string,
+    color: Color,
+    cash: number = StartingCash
+): ConduitPlayerState {
     return {
         playerId,
         color,
-        cash: StartingCash,
+        cash,
         supply: StartingSupply,
         reserve: StartingReserve
     }

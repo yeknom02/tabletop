@@ -22,7 +22,7 @@ import { newPlayerState } from '../model/playerState.js'
 import { CentralCell, neighborCell, type PlacedStation } from '../model/board.js'
 import { BaseLetters, Side, StationLetter, tileIdsOfLetter } from '../components/tiles.js'
 import { MachineState } from './states.js'
-import { MarketDeal, marketDealOf } from './gameConfig.js'
+import { MarketDeal, marketDealOf, startingCashOf } from './gameConfig.js'
 import { ConduitColors } from './colors.js'
 
 // One tile from each of the A-D stacks forms a cross around the Central Station: A to the North,
@@ -52,7 +52,7 @@ export class ConduitGameInitializer
         const colors = structuredClone(ConduitColors)
         shuffle(colors, prng.random)
         const players = game.players.map((player, index) =>
-            newPlayerState(player.id, colors[index])
+            newPlayerState(player.id, colors[index], startingCashOf(game.config))
         )
         const turnManager = HydratedTurnManager.generate(players, prng.random, assignment)
         const stacks = this.shuffleStacks(protectedPrng)

@@ -38,7 +38,8 @@ export const ConduitGameConfig = Type.Object({
     startPlayer: Type.Optional(Type.Enum(StartPlayerRule)),
     minimumBids: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
     marketDeal: Type.Optional(Type.Enum(MarketDeal)),
-    extraCubeCost: Type.Optional(Type.Enum(ExtraCubeCost))
+    extraCubeCost: Type.Optional(Type.Enum(ExtraCubeCost)),
+    startingCash: Type.Optional(Type.String({ pattern: '^[0-9]{1,2}$' }))
 })
 
 // The designer is playtesting how many cubes move from reserve to supply each round.
@@ -91,4 +92,9 @@ export function extraCubeCostOf(config: { extraCubeCost?: unknown }): ExtraCubeC
 // What a player pays for this many extra cubes on one new station.
 export function extraCubesPrice(extraCubes: number, cost: ExtraCubeCost): number {
     return cost === ExtraCubeCost.Rising ? (extraCubes * (extraCubes + 1)) / 2 : 0
+}
+
+// Rules v0.8.1 start each player with $5; bot studies try more alongside paid extra cubes.
+export function startingCashOf(config: { startingCash?: unknown }): number | undefined {
+    return typeof config.startingCash === 'string' ? Number(config.startingCash) : undefined
 }

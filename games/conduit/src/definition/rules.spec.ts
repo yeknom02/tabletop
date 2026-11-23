@@ -229,6 +229,12 @@ describe('offers', () => {
         expect(isPlaceTile(placed) && placed.metadata?.extraPrice).toBe(3)
     })
 
+    it('starts players with the configured cash in the starting-cash variant', () => {
+        const session = startTestGame(3, { startingCash: '10' })
+        expect(session.state.players.map((seat) => seat.cash)).toEqual([10, 10, 10])
+        expect(startTestGame(3).state.players.map((seat) => seat.cash)).toEqual([5, 5, 5])
+    })
+
     it('refuses extra cubes the player cannot pay for in the rising-cost variant', () => {
         const session = startTestGame(3, { extraCubeCost: ExtraCubeCost.Rising })
         bidAround(session)
