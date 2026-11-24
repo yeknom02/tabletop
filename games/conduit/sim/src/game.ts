@@ -22,6 +22,7 @@ import {
     neighborCell,
     SidesClockwise,
     stationTile,
+    type EmptyStations,
     type ExtraCubeCost,
     type MarketDeal,
     MarketSize,
@@ -53,6 +54,7 @@ export type GameRecord = {
     biddingEnd?: BiddingEnd
     basePrice?: number
     stationCubeCap?: number
+    emptyStations?: EmptyStations
     bots: string[]
     // The letters dealt to each round's market, in order.
     markets: string[][]
@@ -112,6 +114,7 @@ export type Variant = {
     biddingEnd?: BiddingEnd
     basePrice?: number
     stationCubeCap?: number
+    emptyStations?: EmptyStations
 }
 
 export function playGame({
@@ -155,7 +158,8 @@ export function playGame({
                 marketSize,
                 biddingEnd,
                 basePrice: String(basePrice),
-                ...(stationCubeCap === undefined ? {} : { stationCubeCap: String(stationCubeCap) })
+                ...(stationCubeCap === undefined ? {} : { stationCubeCap: String(stationCubeCap) }),
+                ...(variant.emptyStations ? { emptyStations: variant.emptyStations } : {})
             }),
             players: playerIds.map((id) => ({
                 id,
@@ -187,6 +191,7 @@ export function playGame({
         biddingEnd,
         basePrice,
         ...(stationCubeCap === undefined ? {} : { stationCubeCap }),
+        ...(variant.emptyStations ? { emptyStations: variant.emptyStations } : {}),
         lateBids: playerIds.map(() => 0),
         bots: bots.map((bot) => bot.name),
         markets: [],

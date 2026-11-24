@@ -9,6 +9,7 @@ import {
     routeTollOf,
     marketSizeOf,
     biddingEndOf,
+    emptyStationsOf,
     startPlayerRuleOf
 } from '../../src/index.js'
 
@@ -32,6 +33,7 @@ const { values } = parseArgs({
         'bid-end': { type: 'string', default: 'minimum' },
         'base-price': { type: 'string', default: '0' },
         'cube-cap': { type: 'string' },
+        'empty-stations': { type: 'string', default: 'atOnce' },
         start: { type: 'string', default: 'clockwise' },
         rotate: { type: 'boolean', default: false },
         workers: { type: 'string', default: '12' },
@@ -47,7 +49,9 @@ if (marketSizeOf({ marketSize: values.market }) !== values.market)
     throw Error('--market: smallFirst|plusOne|players')
 if (routeTollOf({ routeToll: values.toll }) !== values.toll) throw Error('--toll: none|flat')
 if (biddingEndOf({ biddingEnd: values['bid-end'] }) !== values['bid-end'])
-    throw Error('--bid-end: minimum|allPass')
+    throw Error('--bid-end: minimum|allPass|passAfterOwn')
+if (emptyStationsOf({ emptyStations: values['empty-stations'] }) !== values['empty-stations'])
+    throw Error('--empty-stations: atOnce|linger')
 if (startPlayerRuleOf({ startPlayer: values.start }) !== values.start)
     throw Error('--start: clockwise|richest')
 
@@ -90,6 +94,7 @@ writeFileSync(
             biddingEnd: values['bid-end'],
             basePrice: Number(values['base-price']),
             ...(values['cube-cap'] ? { stationCubeCap: Number(values['cube-cap']) } : {}),
+            emptyStations: values['empty-stations'],
             commit: git(['rev-parse', 'HEAD']),
             dirty: git(['status', '--porcelain', '--', 'games/conduit']) !== '',
             startedAt: new Date().toISOString()
@@ -118,7 +123,8 @@ const runs = Array.from({ length: workers }, (_, worker) => {
             marketSize: values.market,
             biddingEnd: values['bid-end'],
             basePrice: Number(values['base-price']),
-            ...(values['cube-cap'] ? { stationCubeCap: Number(values['cube-cap']) } : {})
+            ...(values['cube-cap'] ? { stationCubeCap: Number(values['cube-cap']) } : {}),
+            emptyStations: values['empty-stations']
         }
     }
     return new Promise<void>((resolve, reject) => {
