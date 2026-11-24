@@ -2,7 +2,7 @@ import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { assertExists, GameAction, HydratableAction, type MachineContext } from '@tabletop/common'
 import { ActionType } from '../definition/actions.js'
-import { cubesPerRound, startPlayerRuleOf } from '../definition/gameConfig.js'
+import { cubesPerRound, emptyStationsOf, startPlayerRuleOf } from '../definition/gameConfig.js'
 import { HydratedConduitGameState, Payment } from '../model/gameState.js'
 
 export type InfrastructureLost = Type.Static<typeof InfrastructureLost>
@@ -44,7 +44,7 @@ export class HydratedLoseInfrastructure
     // The payouts after the fifth round are not rounds of their own, so only a round in progress ends.
     apply(state: HydratedConduitGameState, context?: MachineContext) {
         assertExists(context, 'Infrastructure loss reads the game configuration')
-        const flippedTileIds = state.loseInfrastructure()
+        const flippedTileIds = state.loseInfrastructure(emptyStationsOf(context.gameConfig))
         const roundEnded = state.roundManager.currentRound !== undefined
         const refills = roundEnded
             ? state.endRound(

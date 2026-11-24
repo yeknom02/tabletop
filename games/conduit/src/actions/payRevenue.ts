@@ -1,7 +1,7 @@
 import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { assertExists, GameAction, HydratableAction, type MachineContext } from '@tabletop/common'
-import { routeTargetOf, routeTollOf } from '../definition/gameConfig.js'
+import { emptyStationsOf, routeTargetOf, routeTollOf } from '../definition/gameConfig.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedConduitGameState, StationRevenue } from '../model/gameState.js'
 
@@ -40,7 +40,8 @@ export class HydratedPayRevenue extends HydratableAction<typeof PayRevenue> impl
         this.metadata = {
             revenues: state.payRevenue(
                 routeTargetOf(context.gameConfig),
-                routeTollOf(context.gameConfig)
+                routeTollOf(context.gameConfig),
+                emptyStationsOf(context.gameConfig)
             )
         }
     }

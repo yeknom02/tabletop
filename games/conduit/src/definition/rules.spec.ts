@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { assertExists } from '@tabletop/common'
 import { MachineState } from './states.js'
-import { BiddingEnd, ExtraCubeCost, MarketSize, StartPlayerRule } from './gameConfig.js'
+import {
+    BiddingEnd,
+    EmptyStations,
+    ExtraCubeCost,
+    MarketSize,
+    StartPlayerRule
+} from './gameConfig.js'
 import { ActionType } from './actions.js'
 import { isBuyTile } from '../actions/buyTile.js'
 import { isPayRevenue } from '../actions/payRevenue.js'
@@ -507,5 +513,79 @@ describe('the station-cube cap variant', () => {
         expect(() => session.place(cell, rotation, 3)).toThrow()
         session.place(cell, rotation, 2)
         expect(session.state.board.stations.at(-1)).toMatchObject({ ownerId: 'p0', cubes: 3 })
+    })
+})
+
+describe('passing after your own two bids (rules v0.8.3)', () => {
+    const PassAfterOwn = { biddingEnd: BiddingEnd.PassAfterOwn }
+    const passBid = (session: TestSession) =>
+        session.act(session.activePlayerId(), ActionType.PassBid)
+
+    it('refuses a pass before the player has placed two cubes', () => {
+        const session = startTestGame(3, PassAfterOwn)
+        session.bid(0)
+        session.bid(0)
+        session.bid(0)
+        expect(() => passBid(session)).toThrow()
+    })
+
+    it('lets players pass with tiles still unbid, which then go face down', () => {
+        const session = startTestGame(3, PassAfterOwn)
+        for (let bid = 0; bid < 6; bid++) session.bid(0)
+        for (let pass = 0; pass < 3; pass++) passBid(session)
+        expect(session.state.machineState).toBe(MachineState.Offering)
+        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([6, 0, 0])
+        session.pass()
+        session.pass()
+        session.pass()
+        session.pass()
+        session.pass()
+        session.pass()
+        expect(session.hydrated().pendingPlacement()).toMatchObject({ faceUp: false })
+    })
+})
+
+describe('empty stations linger for a round (rules v0.8.3)', () => {
+    const Linger = { emptyStations: EmptyStations.Linger }
+
+    function roundWithOneStation() {
+        const session = startTestGame(3, Linger)
+        bidAround(session)
+        setOfferTrack(session, ['p0'])
+        session.buy()
+        placeAnywhere(session)
+        resolveAll(session, () => 'pass')
+        return session
+    }
+
+    const ownStation = (session: TestSession) =>
+        session.state.board.stations.find((station) => station.cubes > 0 || station.faceUp)
+
+    it('pays the station, then takes its cube but leaves it face up with no owner', () => {
+        const before = startTestGame(3, Linger).state
+        const session = roundWithOneStation()
+        const paid = session.actions.find(isPayRevenue)
+        expect(paid?.metadata).toMatchObject({ revenues: [{ playerId: 'p0' }] })
+        const faceUp = session.state.board.stations.filter((station) => station.faceUp)
+        expect(faceUp).toHaveLength(1)
+        expect(faceUp[0]).toMatchObject({ cubes: 0 })
+        expect(faceUp[0].ownerId).toBeUndefined()
+        // The setup cross had no cubes all round, so it flips now.
+        expect(session.state.board.stations.filter((station) => !station.faceUp)).toHaveLength(
+            session.state.board.stations.length - 1
+        )
+        // Infrastructure loss moved one cube to the reserve, then the refill took two to supply.
+        expect(player(session.state, 'p0').reserve).toBe(player(before, 'p0').reserve + 1 - 2)
+        expect(ownStation(session)).toBeDefined()
+    })
+
+    it('flips the empty station at the end of the next round, paying it nothing', () => {
+        const session = roundWithOneStation()
+        const paidRounds = session.actions.filter(isPayRevenue).length
+        bidAround(session)
+        resolveAll(session, () => 'pass')
+        const secondPayout = session.actions.filter(isPayRevenue)[paidRounds]
+        expect(secondPayout?.metadata?.revenues).toEqual([])
+        expect(session.state.board.stations.some((station) => station.faceUp)).toBe(false)
     })
 })

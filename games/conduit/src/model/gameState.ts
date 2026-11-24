@@ -19,6 +19,7 @@ import { MachineState } from '../definition/states.js'
 import { BaseLetters, type BaseLetter, StationLetter } from '../components/tiles.js'
 import {
     BiddingEnd,
+    EmptyStations,
     MarketSize,
     marketTiles,
     RouteTarget,
@@ -234,19 +235,23 @@ export class HydratedConduitGameState
 
     // Bidding goes on until the minimum is done. A player with an empty supply is skipped, so
     // bidding also ends once no one can bid (designer rulings). In the bid-until-all-pass variant
-    // it goes on past the minimum until everyone has passed or cannot bid.
+    // it goes on past the minimum until everyone has passed or cannot bid; in rules v0.8.3 each
+    // player may pass once they have placed the minimum themselves.
     isBiddingOver(minimumBids: number, end: BiddingEnd = BiddingEnd.Minimum): boolean {
         const anyoneCanBid = this.players.some((player) => this.canBid(player.playerId))
-        if (end === BiddingEnd.AllPass) return !anyoneCanBid
+        if (end !== BiddingEnd.Minimum) return !anyoneCanBid
         return this.isMinimumBiddingDone(minimumBids) || !anyoneCanBid
     }
 
     canPassBid(playerId: string, minimumBids: number, end: BiddingEnd): boolean {
-        return (
-            end === BiddingEnd.AllPass &&
-            this.isMinimumBiddingDone(minimumBids) &&
-            this.canBid(playerId)
-        )
+        switch (end) {
+            case BiddingEnd.AllPass:
+                return this.isMinimumBiddingDone(minimumBids) && this.canBid(playerId)
+            case BiddingEnd.PassAfterOwn:
+                return this.bidsBy(playerId) >= minimumBids && this.canBid(playerId)
+            default:
+                return false
+        }
     }
 
     passBid(playerId: string) {
@@ -381,8 +386,13 @@ export class HydratedConduitGameState
     // Each Power Station pays $1 plus $1 per station on its route, then loses a cube to its owner's
     // reserve. A station with no route earns nothing but still loses the cube. With the route toll,
     // every other player's Power Station on the route also earns its owner $1. Every station's
-    // earnings are worked out before any cube is removed.
-    payRevenue(routeTarget: RouteTarget, routeToll = RouteToll.None): StationRevenue[] {
+    // earnings are worked out before any cube is removed. When empty stations linger (rules
+    // v0.8.3), the cube comes off during infrastructure loss instead.
+    payRevenue(
+        routeTarget: RouteTarget,
+        routeToll = RouteToll.None,
+        emptyStations = EmptyStations.AtOnce
+    ): StationRevenue[] {
         const earnings = stationEarnings(this.board, routeTarget, routeToll)
         for (const { station, ownerId, amount, tolls } of earnings) {
             const owner = this.getPlayerState(ownerId)
@@ -390,8 +400,10 @@ export class HydratedConduitGameState
             for (const toll of tolls) {
                 this.getPlayerState(toll.playerId).earn(toll.amount)
             }
-            station.cubes -= 1
-            owner.retireCube()
+            if (emptyStations === EmptyStations.AtOnce) {
+                station.cubes -= 1
+                owner.retireCube()
+            }
         }
         return earnings.map(({ station, ownerId, route, amount, tolls }) => ({
             playerId: ownerId,
@@ -403,14 +415,26 @@ export class HydratedConduitGameState
     }
 
     // Stations left without cubes flip face down, the setup cross included, so the cross flips at
-    // the end of round 1 (rules v0.8.2). Returns the tiles flipped.
-    loseInfrastructure(): number[] {
+    // the end of round 1 (rules v0.8.2). When empty stations linger (rules v0.8.3), every other
+    // station then loses a cube to its owner's reserve; one left empty stays face up with no owner
+    // (no cube marks it) until the next infrastructure loss. Returns the tiles flipped.
+    loseInfrastructure(emptyStations = EmptyStations.AtOnce): number[] {
         const flipped = this.board.stations.filter(
             (station) => station.faceUp && station.cubes === 0
         )
         for (const station of flipped) {
             station.faceUp = false
             delete station.ownerId
+        }
+        if (emptyStations === EmptyStations.Linger) {
+            for (const station of this.board.stations) {
+                if (station.cubes === 0) continue
+                station.cubes -= 1
+                if (station.ownerId !== undefined) {
+                    this.getPlayerState(station.ownerId).retireCube()
+                }
+                if (station.cubes === 0) delete station.ownerId
+            }
         }
         return flipped.map((station) => station.tileId)
     }

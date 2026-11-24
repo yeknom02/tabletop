@@ -19,10 +19,22 @@ export enum StartPlayerRule {
 
 // When bidding ends. Minimum: once every player has placed the minimum and every tile has a bid
 // (rules v0.8.2). AllPass: from that point players may also pass, a player who passes is out for
-// the round, and bidding ends when no one is left to bid.
+// the round, and bidding ends when no one is left to bid. PassAfterOwn (rules v0.8.3): each player
+// may pass once they have placed the minimum themselves, even if some tile has no bid; bidding
+// ends when no one is left to bid.
 export enum BiddingEnd {
     Minimum = 'minimum',
-    AllPass = 'allPass'
+    AllPass = 'allPass',
+    PassAfterOwn = 'passAfterOwn'
+}
+
+// When a station without cubes flips. AtOnce (rules v0.8.2): revenue removes a cube from every
+// station, then every station left without cubes flips. Linger (rules v0.8.3): infrastructure loss
+// first flips the stations that were already empty, then removes a cube from every other station,
+// so a station stays face up, earning nothing, for one round after its last cube goes.
+export enum EmptyStations {
+    AtOnce = 'atOnce',
+    Linger = 'linger'
 }
 
 export enum MarketDeal {
@@ -74,7 +86,8 @@ export const ConduitGameConfig = Type.Object({
     // Added to every tile's price, paid to the bank.
     basePrice: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
     // Most cubes a new station may hold, the winning cube included; absent means no cap.
-    stationCubeCap: Type.Optional(Type.String({ pattern: '^[1-9]$' }))
+    stationCubeCap: Type.Optional(Type.String({ pattern: '^[1-9]$' })),
+    emptyStations: Type.Optional(Type.Enum(EmptyStations))
 })
 
 // The designer is playtesting how many cubes move from reserve to supply each round.
@@ -175,7 +188,15 @@ export function routeTollOf(config: { routeToll?: unknown }): RouteToll {
 }
 
 export function biddingEndOf(config: { biddingEnd?: unknown }): BiddingEnd {
-    return config.biddingEnd === BiddingEnd.AllPass ? BiddingEnd.AllPass : BiddingEnd.Minimum
+    return Object.values(BiddingEnd).includes(config.biddingEnd as BiddingEnd)
+        ? (config.biddingEnd as BiddingEnd)
+        : BiddingEnd.Minimum
+}
+
+export function emptyStationsOf(config: { emptyStations?: unknown }): EmptyStations {
+    return config.emptyStations === EmptyStations.Linger
+        ? EmptyStations.Linger
+        : EmptyStations.AtOnce
 }
 
 export function basePriceOf(config: { basePrice?: unknown }): number {
