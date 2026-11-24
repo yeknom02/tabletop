@@ -18,6 +18,7 @@ import { Compile } from 'typebox/compile'
 import { MachineState } from '../definition/states.js'
 import { BaseLetters, type BaseLetter, StationLetter } from '../components/tiles.js'
 import {
+    BiddingEnd,
     MarketSize,
     marketTiles,
     RouteTarget,
@@ -110,7 +111,11 @@ export const ConduitGameState = Type.Evaluate(
             deck: Type.Optional(StationStack),
             nextLetter: BaseLetterSchema,
             market: Type.Array(MarketSlot),
-            board: Board
+            board: Board,
+            // Added to every tile's price in the base-price variant.
+            basePrice: Type.Optional(Type.Integer({ minimum: 0 })),
+            // Players out of this round's bidding, in the bid-until-all-pass variant.
+            bidPasses: Type.Optional(Type.Array(Type.String()))
         })
     ])
 )
@@ -142,6 +147,8 @@ export class HydratedConduitGameState
     declare nextLetter: BaseLetter
     declare market: MarketSlot[]
     declare board: Board
+    declare basePrice?: number
+    declare bidPasses?: string[]
 
     constructor(data: ConduitProjectedState) {
         super(data, ConduitProjectedStateValidator)
@@ -173,6 +180,7 @@ export class HydratedConduitGameState
         const count = marketTiles(size, this.players.length, this.round)
         const tileIds = Array.from({ length: count }, () => this.drawNextTile())
         this.market = tileIds.map((tileId) => ({ tileId, bids: [] }))
+        if (this.bidPasses) this.bidPasses = []
         return tileIds
     }
 
@@ -208,19 +216,41 @@ export class HydratedConduitGameState
     }
 
     canBid(playerId: string): boolean {
-        return this.getPlayerState(playerId).supply > 0 && this.biddableSlots().length > 0
+        return (
+            this.getPlayerState(playerId).supply > 0 &&
+            this.biddableSlots().length > 0 &&
+            !this.bidPasses?.includes(playerId)
+        )
     }
 
-    // Bidding goes on until every player has placed the minimum (two cubes in rules v0.8.1, three
-    // before) and every tile has a bid. A player
-    // with an empty supply is skipped, so bidding also ends once no one can bid (designer rulings).
-    isBiddingOver(minimumBids: number): boolean {
+    // Every player has placed the minimum (two cubes in rules v0.8.1, three before), or has no
+    // cube left, and every tile has a bid.
+    isMinimumBiddingDone(minimumBids: number): boolean {
         const everyPlayerDone = this.players.every(
             (player) => this.bidsBy(player.playerId) >= minimumBids || player.supply === 0
         )
-        const everyTileBid = this.market.every((slot) => slot.bids.length > 0)
+        return everyPlayerDone && this.market.every((slot) => slot.bids.length > 0)
+    }
+
+    // Bidding goes on until the minimum is done. A player with an empty supply is skipped, so
+    // bidding also ends once no one can bid (designer rulings). In the bid-until-all-pass variant
+    // it goes on past the minimum until everyone has passed or cannot bid.
+    isBiddingOver(minimumBids: number, end: BiddingEnd = BiddingEnd.Minimum): boolean {
         const anyoneCanBid = this.players.some((player) => this.canBid(player.playerId))
-        return (everyPlayerDone && everyTileBid) || !anyoneCanBid
+        if (end === BiddingEnd.AllPass) return !anyoneCanBid
+        return this.isMinimumBiddingDone(minimumBids) || !anyoneCanBid
+    }
+
+    canPassBid(playerId: string, minimumBids: number, end: BiddingEnd): boolean {
+        return (
+            end === BiddingEnd.AllPass &&
+            this.isMinimumBiddingDone(minimumBids) &&
+            this.canBid(playerId)
+        )
+    }
+
+    passBid(playerId: string) {
+        this.bidPasses = [...(this.bidPasses ?? []), playerId]
     }
 
     placeBid(playerId: string, slot: number) {
@@ -243,7 +273,7 @@ export class HydratedConduitGameState
         if (tileId === undefined || buyerId !== undefined || bids.length === 0) {
             return undefined
         }
-        return { slot, tileId, playerId: bids[0], price: bids.length }
+        return { slot, tileId, playerId: bids[0], price: bids.length + (this.basePrice ?? 0) }
     }
 
     // A bought tile is placed face up by its buyer. A tile no one bought goes face down, placed by
@@ -268,7 +298,7 @@ export class HydratedConduitGameState
         return this.unresolvedSlot() === undefined
     }
 
-    // The price is one dollar per cube on the track. Each other player's cube earns its owner a
+    // The price is one dollar per cube on the track, plus the base price if any, paid to the bank. Each other player's cube earns its owner a
     // dollar and goes back to their supply; each of the buyer's own goes to the bank. The bottom
     // cube will go onto the tile; the buyer's other cubes go back to their supply (designer ruling).
     buyTile(playerId: string): Payment[] {

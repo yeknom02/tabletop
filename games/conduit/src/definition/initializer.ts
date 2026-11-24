@@ -22,7 +22,13 @@ import { newPlayerState } from '../model/playerState.js'
 import { CentralCell, neighborCell, type PlacedStation } from '../model/board.js'
 import { BaseLetters, Side, StationLetter, tileIdsOfLetter } from '../components/tiles.js'
 import { MachineState } from './states.js'
-import { MarketDeal, marketDealOf, marketSizeOf, startingCashFor } from './gameConfig.js'
+import {
+    basePriceOf,
+    MarketDeal,
+    marketDealOf,
+    marketSizeOf,
+    startingCashFor
+} from './gameConfig.js'
 import { ConduitColors } from './colors.js'
 
 // One tile from each of the A-D stacks forms a cross around the Central Station: A to the North,
@@ -90,7 +96,8 @@ export class ConduitGameInitializer
             ...(deck ? { deck } : {}),
             nextLetter: BaseLetters[0],
             market: [],
-            board: { stations }
+            board: { stations },
+            ...(basePriceOf(game.config) > 0 ? { basePrice: basePriceOf(game.config) } : {})
         })
         const hydrated = new HydratedConduitGameState(conduitState)
         hydrated.fillMarket(marketSizeOf(game.config))

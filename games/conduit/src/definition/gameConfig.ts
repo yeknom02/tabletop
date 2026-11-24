@@ -17,6 +17,14 @@ export enum StartPlayerRule {
     Richest = 'richest'
 }
 
+// When bidding ends. Minimum: once every player has placed the minimum and every tile has a bid
+// (rules v0.8.2). AllPass: from that point players may also pass, a player who passes is out for
+// the round, and bidding ends when no one is left to bid.
+export enum BiddingEnd {
+    Minimum = 'minimum',
+    AllPass = 'allPass'
+}
+
 export enum MarketDeal {
     // Fill the market from the A, B, C, D stacks in turn.
     Cycle = 'cycle',
@@ -61,7 +69,12 @@ export const ConduitGameConfig = Type.Object({
     routeToll: Type.Optional(Type.Enum(RouteToll)),
     // How much more each player clockwise from the Start Player starts with.
     startingCashStep: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
-    marketSize: Type.Optional(Type.Enum(MarketSize))
+    marketSize: Type.Optional(Type.Enum(MarketSize)),
+    biddingEnd: Type.Optional(Type.Enum(BiddingEnd)),
+    // Added to every tile's price, paid to the bank.
+    basePrice: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
+    // Most cubes a new station may hold, the winning cube included; absent means no cap.
+    stationCubeCap: Type.Optional(Type.String({ pattern: '^[1-9]$' }))
 })
 
 // The designer is playtesting how many cubes move from reserve to supply each round.
@@ -159,4 +172,16 @@ export function marketTiles(size: MarketSize, players: number, round: number): n
 
 export function routeTollOf(config: { routeToll?: unknown }): RouteToll {
     return config.routeToll === RouteToll.None ? RouteToll.None : RouteToll.Flat
+}
+
+export function biddingEndOf(config: { biddingEnd?: unknown }): BiddingEnd {
+    return config.biddingEnd === BiddingEnd.AllPass ? BiddingEnd.AllPass : BiddingEnd.Minimum
+}
+
+export function basePriceOf(config: { basePrice?: unknown }): number {
+    return typeof config.basePrice === 'string' ? Number(config.basePrice) : 0
+}
+
+export function stationCubeCapOf(config: { stationCubeCap?: unknown }): number | undefined {
+    return typeof config.stationCubeCap === 'string' ? Number(config.stationCubeCap) : undefined
 }

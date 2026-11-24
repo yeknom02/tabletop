@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { assertExists } from '@tabletop/common'
 import { MachineState } from './states.js'
-import { ExtraCubeCost, MarketSize, StartPlayerRule } from './gameConfig.js'
+import { BiddingEnd, ExtraCubeCost, MarketSize, StartPlayerRule } from './gameConfig.js'
+import { ActionType } from './actions.js'
 import { isBuyTile } from '../actions/buyTile.js'
 import { isPayRevenue } from '../actions/payRevenue.js'
 import { isPlaceTile } from '../actions/placeTile.js'
@@ -430,5 +431,81 @@ describe('the richest-start-player variant', () => {
         state.getPlayerState(third).cash = 12
         state.endRound(2, StartPlayerRule.Clockwise)
         expect(state.turnManager.turnOrder[0]).toBe(second)
+    })
+})
+
+describe('the bid-until-all-pass variant', () => {
+    const AllPass = { biddingEnd: BiddingEnd.AllPass }
+    const passBid = (session: TestSession) =>
+        session.act(session.activePlayerId(), ActionType.PassBid)
+
+    // Three players, three tiles: six bids around the table do the minimum.
+    function doMinimum(session: TestSession) {
+        for (let bid = 0; bid < 6; bid++) session.bid(bid % 3)
+    }
+
+    it('refuses a pass before the minimum is done', () => {
+        const session = startTestGame(3, AllPass)
+        session.bid(0)
+        expect(() => passBid(session)).toThrow()
+    })
+
+    it('refuses a pass under the printed rule', () => {
+        const session = startTestGame(3)
+        session.bid(0)
+        expect(() => passBid(session)).toThrow()
+    })
+
+    it('goes on past the minimum until everyone has passed', () => {
+        const session = startTestGame(3, AllPass)
+        const [first, second, third] = session.state.turnManager.turnOrder
+        doMinimum(session)
+        expect(session.state.machineState).toBe(MachineState.Bidding)
+        expect(session.activePlayerId()).toBe(first)
+        passBid(session)
+        session.bid(0)
+        passBid(session)
+        expect(session.activePlayerId()).toBe(second)
+        session.bid(1)
+        expect(session.activePlayerId()).toBe(second)
+        passBid(session)
+        expect(session.state.machineState).toBe(MachineState.Offering)
+        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([3, 3, 2])
+        expect(session.state.bidPasses).toEqual([first, third, second])
+    })
+
+    it('lets a passed player back into bidding next round', () => {
+        const session = startTestGame(3, AllPass)
+        doMinimum(session)
+        for (let pass = 0; pass < 3; pass++) passBid(session)
+        resolveAll(session, () => 'pass')
+        expect(session.state.machineState).toBe(MachineState.Bidding)
+        expect(session.state.bidPasses).toEqual([])
+    })
+})
+
+describe('the base-price variant', () => {
+    it('adds the base price to the cubes on the track, paid to the bank', () => {
+        const session = startTestGame(3, { basePrice: '1' })
+        bidAround(session)
+        setOfferTrack(session, ['p0', 'p1'])
+        expect(session.hydrated().currentOffer()?.price).toBe(3)
+        const before = session.state
+        session.buy()
+        expect(player(session.state, 'p0').cash).toBe(player(before, 'p0').cash - 3)
+        expect(player(session.state, 'p1').cash).toBe(player(before, 'p1').cash + 1)
+    })
+})
+
+describe('the station-cube cap variant', () => {
+    it('allows the winning cube and extras up to the cap, and no more', () => {
+        const session = startTestGame(3, { stationCubeCap: '3' })
+        bidAround(session)
+        setOfferTrack(session, ['p0'])
+        session.buy()
+        const { cell, rotation } = firstLegalPlacement(session)
+        expect(() => session.place(cell, rotation, 3)).toThrow()
+        session.place(cell, rotation, 2)
+        expect(session.state.board.stations.at(-1)).toMatchObject({ ownerId: 'p0', cubes: 3 })
     })
 })

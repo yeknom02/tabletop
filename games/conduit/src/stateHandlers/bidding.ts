@@ -7,31 +7,41 @@ import {
 import { ActionType } from '../definition/actions.js'
 import { MachineState } from '../definition/states.js'
 import { HydratedPlaceBid, isPlaceBid } from '../actions/placeBid.js'
+import { HydratedPassBid, isPassBid } from '../actions/passBid.js'
 import type { HydratedConduitGameState } from '../model/gameState.js'
 import { endTurn, nextResolutionState, startTurn } from './flow.js'
-import { minimumBidsOf } from '../definition/gameConfig.js'
+import { biddingEndOf, minimumBidsOf } from '../definition/gameConfig.js'
+
+type BiddingAction = HydratedPlaceBid | HydratedPassBid
 
 // Starting with the Start Player, players in turn place one cube each, skipping anyone who cannot.
+// In the bid-until-all-pass variant, players may pass once the minimum is done.
 export class BiddingStateHandler implements MachineStateHandler<
-    HydratedPlaceBid,
+    BiddingAction,
     HydratedConduitGameState
 > {
     isValidAction(
         action: HydratedAction,
         context: MachineContext<HydratedConduitGameState>
-    ): action is HydratedPlaceBid {
-        return (
-            isPlaceBid(action) &&
-            context.gameState.isActivePlayer(action.playerId) &&
-            HydratedPlaceBid.canPlaceBid(context.gameState, action.playerId, action.slot)
-        )
+    ): action is BiddingAction {
+        const state = context.gameState
+        if (!state.isActivePlayer(action.playerId ?? '')) return false
+        if (isPlaceBid(action)) {
+            return HydratedPlaceBid.canPlaceBid(state, action.playerId, action.slot)
+        }
+        if (isPassBid(action)) return this.canPass(action.playerId, context)
+        return false
     }
 
     validActionsForPlayer(
         playerId: string,
         context: MachineContext<HydratedConduitGameState>
     ): ActionType[] {
-        return context.gameState.isActivePlayer(playerId) ? [ActionType.PlaceBid] : []
+        if (!context.gameState.isActivePlayer(playerId)) return []
+        return [
+            ActionType.PlaceBid,
+            ...(this.canPass(playerId, context) ? [ActionType.PassBid] : [])
+        ]
     }
 
     enter(context: MachineContext<HydratedConduitGameState>) {
@@ -40,16 +50,28 @@ export class BiddingStateHandler implements MachineStateHandler<
     }
 
     onAction(
-        _action: HydratedPlaceBid,
+        _action: BiddingAction,
         context: MachineContext<HydratedConduitGameState>
     ): MachineState {
         const state = context.gameState
         endTurn(state)
-        return state.isBiddingOver(minimumBidsOf(context.gameConfig))
+        return state.isBiddingOver(
+            minimumBidsOf(context.gameConfig),
+            biddingEndOf(context.gameConfig)
+        )
             ? nextResolutionState(context)
             : MachineState.Bidding
     }
 
+    private canPass(playerId: string, context: MachineContext<HydratedConduitGameState>) {
+        return context.gameState.canPassBid(
+            playerId,
+            minimumBidsOf(context.gameConfig),
+            biddingEndOf(context.gameConfig)
+        )
+    }
+
+    // After a pass, the turn still moves on from the player who just acted.
     private nextBidder(state: HydratedConduitGameState): string {
         const canBid = (playerId: string) => state.canBid(playerId)
         const anyBids = state.market.some((slot) => slot.bids.length > 0)

@@ -7,7 +7,7 @@ import {
     type MachineContext,
     OffsetCoordinates
 } from '@tabletop/common'
-import { extraCubeCostOf, extraCubesPrice } from '../definition/gameConfig.js'
+import { extraCubeCostOf, extraCubesPrice, stationCubeCapOf } from '../definition/gameConfig.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedConduitGameState } from '../model/gameState.js'
 
@@ -72,7 +72,7 @@ export class HydratedPlaceTile extends HydratableAction<typeof PlaceTile> implem
     static canPlaceTile(
         state: HydratedConduitGameState,
         action: PlaceTile,
-        config: { extraCubeCost?: unknown } = {}
+        config: { extraCubeCost?: unknown; stationCubeCap?: unknown } = {}
     ): boolean {
         const placement = state.pendingPlacement()
         if (placement?.playerId !== action.playerId) {
@@ -85,8 +85,11 @@ export class HydratedPlaceTile extends HydratableAction<typeof PlaceTile> implem
         }
         const player = state.getPlayerState(action.playerId)
         const extraPrice = extraCubesPrice(action.extraCubes, extraCubeCostOf(config))
+        const cap = stationCubeCapOf(config)
         const cubesAllowed = placement.faceUp
-            ? action.extraCubes <= player.supply && extraPrice <= player.cash
+            ? action.extraCubes <= player.supply &&
+              extraPrice <= player.cash &&
+              (cap === undefined || 1 + action.extraCubes <= cap)
             : action.extraCubes === 0
         return cubesAllowed && state.grid().isLegalPlacement(face, action.cell)
     }

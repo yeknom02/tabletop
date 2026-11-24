@@ -3,6 +3,7 @@ import { HydratedConduitGameState, type ConduitProjectedState } from '../model/g
 import { HydratedPlaceBid, isPlaceBid } from '../actions/placeBid.js'
 import { HydratedBuyTile, isBuyTile } from '../actions/buyTile.js'
 import { HydratedPassTile, isPassTile } from '../actions/passTile.js'
+import { HydratedPassBid, isPassBid } from '../actions/passBid.js'
 import { HydratedPlaceTile, isPlaceTile } from '../actions/placeTile.js'
 import { HydratedFillMarket, isFillMarket } from '../actions/fillMarket.js'
 import { HydratedPayRevenue, isPayRevenue } from '../actions/payRevenue.js'
@@ -20,6 +21,8 @@ export class ConduitHydrator implements GameHydrator<
                 return new HydratedBuyTile(data)
             case isPassTile(data):
                 return new HydratedPassTile(data)
+            case isPassBid(data):
+                return new HydratedPassBid(data)
             case isPlaceTile(data):
                 return new HydratedPlaceTile(data)
             case isFillMarket(data):
