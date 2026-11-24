@@ -33,9 +33,13 @@ From `games/conduit`:
 
 ```bash
 /workspace/node_modules/.bin/tsx sim/src/run.ts --name <run> --lineup balanced,balanced,passer,balanced \
-  --games 500 --rotate --cubes 2 --workers 12 --purpose "<question>"
+  --games 500 --rotate --workers 12 --purpose "<question>"
 /workspace/node_modules/.bin/tsx sim/src/analyze/summary.ts /workspace/tmp/conduit/runs/<run>
 ```
+
+Rule flags (`--cubes`, `--deal`, `--bid-end`, `--base-price`, `--cube-cost`, `--cube-cap`,
+`--empty-stations`, `--cash-step`, …) default to the printed rules, v0.8.3. Batch scripts written
+before batch 14 relied on the earlier v0.8.2 defaults.
 
 Runs are written to `/workspace/tmp/conduit/runs/<run>/` (`run.json` with the commit and a dirty
 flag, `games-*.jsonl` one game per line). Seeds start at 1, so runs with the same `--games` play

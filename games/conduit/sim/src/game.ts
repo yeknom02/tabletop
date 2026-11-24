@@ -26,7 +26,12 @@ import {
     type ExtraCubeCost,
     type MarketDeal,
     MarketSize,
-    BiddingEnd,
+    type BiddingEnd,
+    biddingEndOf,
+    DefaultBasePrice,
+    DefaultStartingCashStep,
+    DefaultStationCubeCap,
+    emptyStationsOf,
     RouteToll,
     type RouteTarget,
     type StartPlayerRule
@@ -130,10 +135,12 @@ export function playGame({
         variant
     const routeToll = variant.routeToll ?? RouteToll.Flat
     const marketSize = variant.marketSize ?? MarketSize.SmallFirst
-    const startingCashStep = variant.startingCashStep ?? 1
-    const biddingEnd = variant.biddingEnd ?? BiddingEnd.Minimum
-    const basePrice = variant.basePrice ?? 0
-    const stationCubeCap = variant.stationCubeCap
+    // Anything the variant leaves out follows the printed rules (the engine's defaults).
+    const startingCashStep = variant.startingCashStep ?? DefaultStartingCashStep
+    const biddingEnd = variant.biddingEnd ?? biddingEndOf({})
+    const basePrice = variant.basePrice ?? DefaultBasePrice
+    const stationCubeCap = variant.stationCubeCap ?? DefaultStationCubeCap
+    const emptyStations = variant.emptyStations ?? emptyStationsOf({})
     const players = bots.length
     const playerIds = bots.map((_, seat) => `s${seat}`)
     const engine = new GameEngine(ConduitRuntime)
@@ -158,8 +165,8 @@ export function playGame({
                 marketSize,
                 biddingEnd,
                 basePrice: String(basePrice),
-                ...(stationCubeCap === undefined ? {} : { stationCubeCap: String(stationCubeCap) }),
-                ...(variant.emptyStations ? { emptyStations: variant.emptyStations } : {})
+                stationCubeCap: String(stationCubeCap),
+                emptyStations
             }),
             players: playerIds.map((id) => ({
                 id,
@@ -190,8 +197,8 @@ export function playGame({
         marketSize,
         biddingEnd,
         basePrice,
-        ...(stationCubeCap === undefined ? {} : { stationCubeCap }),
-        ...(variant.emptyStations ? { emptyStations: variant.emptyStations } : {}),
+        stationCubeCap,
+        emptyStations,
         lateBids: playerIds.map(() => 0),
         bots: bots.map((bot) => bot.name),
         markets: [],
@@ -345,10 +352,7 @@ export function playGame({
                 faceUp: hydrated.pendingPlacement()?.faceUp ?? false,
                 extraCubes: decision.extraCubes,
                 supply: hydrated.getPlayerState(playerId).supply,
-                allowed: Math.min(
-                    hydrated.getPlayerState(playerId).supply,
-                    (stationCubeCap ?? 99) - 1
-                )
+                allowed: Math.min(hydrated.getPlayerState(playerId).supply, stationCubeCap - 1)
             })
             if (hydrated.pendingPlacement()?.faceUp) {
                 const grid = hydrated.grid()

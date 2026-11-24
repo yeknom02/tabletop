@@ -14,26 +14,27 @@ import {
 } from '../../src/index.js'
 
 // Plays a study: every seed with every rotation of the lineup (when --rotate), so each bot sits in
-// every seat on the same deals. Writes run.json and games-*.jsonl under the runs folder.
+// every seat on the same deals. Rule flags default to the printed rules, v0.8.3 (batch scripts
+// before batch 14 were written when the defaults were v0.8.2 and rely on them). Writes run.json and games-*.jsonl under the runs folder.
 const { values } = parseArgs({
     options: {
         name: { type: 'string' },
         lineup: { type: 'string' },
         games: { type: 'string', default: '100' },
         'seed-start': { type: 'string', default: '1' },
-        cubes: { type: 'string', default: '2' },
+        cubes: { type: 'string', default: '3' },
         route: { type: 'string', default: 'next' },
         'min-bids': { type: 'string', default: '2' },
-        deal: { type: 'string', default: 'cycle' },
-        'cube-cost': { type: 'string', default: 'free' },
+        deal: { type: 'string', default: 'shuffled' },
+        'cube-cost': { type: 'string', default: 'rising' },
         cash: { type: 'string', default: '5' },
         toll: { type: 'string', default: 'flat' },
-        'cash-step': { type: 'string', default: '1' },
+        'cash-step': { type: 'string', default: '0' },
         market: { type: 'string', default: 'smallFirst' },
-        'bid-end': { type: 'string', default: 'minimum' },
-        'base-price': { type: 'string', default: '0' },
-        'cube-cap': { type: 'string' },
-        'empty-stations': { type: 'string', default: 'atOnce' },
+        'bid-end': { type: 'string', default: 'passAfterOwn' },
+        'base-price': { type: 'string', default: '1' },
+        'cube-cap': { type: 'string', default: '4' },
+        'empty-stations': { type: 'string', default: 'linger' },
         start: { type: 'string', default: 'clockwise' },
         rotate: { type: 'boolean', default: false },
         workers: { type: 'string', default: '12' },
