@@ -1,0 +1,21 @@
+{
+    "name": "@tabletop/conduit-bots",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Bots for Conduit, served to the dev harness and played in batches",
+    "scripts": {
+        "start": "node src/botServer.ts",
+        "play": "node src/playGames.ts",
+        "check": "tsc --noEmit",
+        "test": "node --test src/*.test.ts"
+    },
+    "dependencies": {
+        "@tabletop/common": "workspace:*",
+        "@tabletop/conduit": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/node": "^24.3.1",
+        "typescript": "5.9.3"
+    }
+}
