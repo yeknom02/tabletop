@@ -1,12 +1,13 @@
 import * as Type from 'typebox'
 import { ConfigOptionType, type GameConfigOptions } from '@tabletop/common'
 
-export const DefaultCubesPerRound = 2
+export const DefaultCubesPerRound = 3
 export const DefaultMinimumBids = 2
 
 export type ConduitGameConfig = Type.Static<typeof ConduitGameConfig>
 // Rule variants the designer is testing with bots. Only cubes per round is offered when creating a
-// game; the rest take their defaults (the current printed rules) unless a bot study sets them.
+// game; the rest take their defaults (the current printed rules, v0.8.3) unless a bot study sets
+// them. A config without a setting means rules v0.8.3, not the rules it was created under.
 export enum RouteTarget {
     NextLetter = 'next',
     SameLetter = 'same'
@@ -38,16 +39,16 @@ export enum EmptyStations {
 }
 
 export enum MarketDeal {
-    // Fill the market from the A, B, C, D stacks in turn.
+    // Fill the market from the A, B, C, D stacks in turn (rules v0.8.2).
     Cycle = 'cycle',
-    // Shuffle every tile left after setup into one stack and deal from its top.
+    // Shuffle every tile left after setup into one stack and deal from its top (rules v0.8.3).
     Shuffled = 'shuffled'
 }
 
 export enum ExtraCubeCost {
     // Extra cubes on a new station are free (rules v0.8.1).
     Free = 'free',
-    // The first extra cube costs $1, the second $2, and so on, paid to the bank.
+    // The first extra cube costs $1, the second $2, and so on, paid to the bank (rules v0.8.3).
     Rising = 'rising',
     // Each extra cube costs $1, paid to the bank.
     Flat = 'flat'
@@ -85,7 +86,7 @@ export const ConduitGameConfig = Type.Object({
     biddingEnd: Type.Optional(Type.Enum(BiddingEnd)),
     // Added to every tile's price, paid to the bank.
     basePrice: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
-    // Most cubes a new station may hold, the winning cube included; absent means no cap.
+    // Most cubes a new station may hold, the winning cube included; 4 when absent.
     stationCubeCap: Type.Optional(Type.String({ pattern: '^[1-9]$' })),
     emptyStations: Type.Optional(Type.Enum(EmptyStations))
 })
@@ -120,7 +121,7 @@ export function startPlayerRuleOf(config: { startPlayer?: unknown }): StartPlaye
 }
 
 export function marketDealOf(config: { marketDeal?: unknown }): MarketDeal {
-    return config.marketDeal === MarketDeal.Shuffled ? MarketDeal.Shuffled : MarketDeal.Cycle
+    return config.marketDeal === MarketDeal.Cycle ? MarketDeal.Cycle : MarketDeal.Shuffled
 }
 
 export function cubesPerRound(config: { cubesPerRound?: unknown }): number {
@@ -136,7 +137,7 @@ export function minimumBidsOf(config: { minimumBids?: unknown }): number {
 export function extraCubeCostOf(config: { extraCubeCost?: unknown }): ExtraCubeCost {
     return Object.values(ExtraCubeCost).includes(config.extraCubeCost as ExtraCubeCost)
         ? (config.extraCubeCost as ExtraCubeCost)
-        : ExtraCubeCost.Free
+        : ExtraCubeCost.Rising
 }
 
 // What a player pays for this many extra cubes on one new station.
@@ -152,10 +153,10 @@ export function extraCubesPrice(extraCubes: number, cost: ExtraCubeCost): number
 }
 
 export const DefaultStartingCash = 5
-export const DefaultStartingCashStep = 1
+export const DefaultStartingCashStep = 0
 
-// Rules v0.8.2: the Start Player starts with $5 and each player clockwise with $1 more than the
-// one before. Seat 0 is the Start Player.
+// Rules v0.8.3: every player starts with $5. Rules v0.8.2 gave each player clockwise from the Start
+// Player (seat 0) $1 more than the one before (step 1).
 export function startingCashFor(
     config: { startingCash?: unknown; startingCashStep?: unknown },
     seat: number
@@ -190,19 +191,25 @@ export function routeTollOf(config: { routeToll?: unknown }): RouteToll {
 export function biddingEndOf(config: { biddingEnd?: unknown }): BiddingEnd {
     return Object.values(BiddingEnd).includes(config.biddingEnd as BiddingEnd)
         ? (config.biddingEnd as BiddingEnd)
-        : BiddingEnd.Minimum
+        : BiddingEnd.PassAfterOwn
 }
 
 export function emptyStationsOf(config: { emptyStations?: unknown }): EmptyStations {
-    return config.emptyStations === EmptyStations.Linger
-        ? EmptyStations.Linger
-        : EmptyStations.AtOnce
+    return config.emptyStations === EmptyStations.AtOnce
+        ? EmptyStations.AtOnce
+        : EmptyStations.Linger
 }
+
+export const DefaultBasePrice = 1
+// The winning cube and up to three extras (rules v0.8.3); 9 is effectively no cap.
+export const DefaultStationCubeCap = 4
 
 export function basePriceOf(config: { basePrice?: unknown }): number {
-    return typeof config.basePrice === 'string' ? Number(config.basePrice) : 0
+    return typeof config.basePrice === 'string' ? Number(config.basePrice) : DefaultBasePrice
 }
 
-export function stationCubeCapOf(config: { stationCubeCap?: unknown }): number | undefined {
-    return typeof config.stationCubeCap === 'string' ? Number(config.stationCubeCap) : undefined
+export function stationCubeCapOf(config: { stationCubeCap?: unknown }): number {
+    return typeof config.stationCubeCap === 'string'
+        ? Number(config.stationCubeCap)
+        : DefaultStationCubeCap
 }

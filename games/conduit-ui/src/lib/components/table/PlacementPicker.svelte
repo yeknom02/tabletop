@@ -9,9 +9,7 @@
     const tileId = $derived(gameSession.placement?.tileId)
     const rotations = $derived(gameSession.rotationsForChosenCell)
     const rotation = $derived(gameSession.chosenRotation)
-    const cubeChoices = $derived(
-        Array.from({ length: gameSession.mySupply + 1 }, (_, count) => count)
-    )
+    const cubeChoices = $derived(gameSession.extraCubeChoices)
 </script>
 
 {#if cell && tileId !== undefined && !gameSession.busy}
@@ -41,11 +39,15 @@
                 {#if rotation !== undefined}
                     <div class="title">Extra cubes</div>
                     <div class="row">
-                        {#each cubeChoices as count (count)}
+                        {#each cubeChoices as choice (choice.count)}
                             <button
                                 type="button"
                                 class="count"
-                                onclick={() => gameSession.chooseExtraCubes(count)}>{count}</button
+                                disabled={!choice.affordable}
+                                onclick={() => gameSession.chooseExtraCubes(choice.count)}
+                                >{choice.count}{#if choice.price > 0}<span class="cost"
+                                        >${choice.price}</span
+                                    >{/if}</button
                             >
                         {/each}
                     </div>
@@ -106,7 +108,7 @@
 
     .count {
         min-width: 36px;
-        height: 36px;
+        min-height: 40px;
         border-radius: 6px;
         font-size: 16px;
         font-weight: 700;
@@ -115,8 +117,28 @@
         box-shadow: inset 0 0 0 1px #33445a;
     }
 
+    .count {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 8px;
+        line-height: 1.05;
+    }
+
+    .cost {
+        font-size: 11px;
+        font-weight: 600;
+        color: #93a4b8;
+    }
+
+    .count:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+
     .turn:hover,
-    .count:hover {
+    .count:hover:not(:disabled) {
         background: #33445a;
     }
 </style>

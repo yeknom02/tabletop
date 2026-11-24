@@ -28,16 +28,16 @@
       }
     ],
     "config": {
-      "cubesPerRound": "2"
+      "cubesPerRound": "3"
     },
     "hotseat": false,
     "winningPlayerIds": [],
     "seed": 3367980177,
     "activePlayerIds": [],
-    "createdAt": "2026-11-23T20:34:07.663Z",
+    "createdAt": "2026-11-24T19:33:14.072Z",
     "storage": "remote",
     "category": "standard",
-    "startedAt": "2026-11-23T20:34:07.664Z",
+    "startedAt": "2026-11-24T19:33:14.072Z",
     "protectedInformation": true,
     "progress": {
       "fraction": 0,
@@ -46,7 +46,7 @@
   },
   "state": {
     "systemVersion": 3,
-    "id": "4Prc93ZPO-gsXYUWLRCSN",
+    "id": "5TMpH1fbbdU2QVCztW65C",
     "gameId": "scenario-stacked-offer",
     "seed": 3367980177,
     "prng": {
@@ -56,15 +56,15 @@
     "protectedPrng": {
       "algorithm": "chacha20-v1",
       "seed": "033aacbe6212a2c9bee0cb5c71682e564dd13d1188be676e6f5a533a83f821c3",
-      "invocations": 60
+      "invocations": 119
     },
     "masterSeed": "0123456789abcdef0123456789abcdef",
     "activePlayerIds": [
       "p0"
     ],
     "winningPlayerIds": [],
-    "actionCount": 8,
-    "actionChecksum": -190036423,
+    "actionCount": 10,
+    "actionChecksum": -235620619,
     "players": [
       {
         "playerId": "p0",
@@ -76,15 +76,15 @@
       {
         "playerId": "p1",
         "color": "purple",
-        "cash": 7,
+        "cash": 5,
         "supply": 3,
         "reserve": 10
       },
       {
         "playerId": "p2",
         "color": "red",
-        "cash": 6,
-        "supply": 2,
+        "cash": 5,
+        "supply": 3,
         "reserve": 10
       }
     ],
@@ -140,8 +140,20 @@
         },
         {
           "type": "turn",
+          "playerId": "p1",
+          "start": 8,
+          "end": 9
+        },
+        {
+          "type": "turn",
           "playerId": "p0",
-          "start": 8
+          "start": 9,
+          "end": 10
+        },
+        {
+          "type": "turn",
+          "playerId": "p0",
+          "start": 10
         }
       ],
       "turnOrder": [
@@ -150,8 +162,8 @@
         "p1"
       ],
       "turnCounts": {
-        "p0": 3,
-        "p1": 2,
+        "p0": 4,
+        "p1": 3,
         "p2": 3
       }
     },
@@ -167,87 +179,88 @@
     },
     "stacks": {
       "A": {
-        "items": [
-          2,
-          14,
-          3,
-          6,
-          13,
-          4,
-          8,
-          11,
-          5,
-          12,
-          7,
-          9,
-          16,
-          10
-        ],
-        "remaining": 14
+        "items": [],
+        "remaining": 0
       },
       "B": {
-        "items": [
-          21,
-          17,
-          26,
-          20,
-          24,
-          30,
-          27,
-          18,
-          22,
-          31,
-          29,
-          23,
-          32,
-          25
-        ],
-        "remaining": 14
+        "items": [],
+        "remaining": 0
       },
       "C": {
-        "items": [
-          47,
-          39,
-          33,
-          42,
-          45,
-          37,
-          38,
-          40,
-          41,
-          46,
-          48,
-          34,
-          44,
-          43
-        ],
-        "remaining": 14
+        "items": [],
+        "remaining": 0
       },
       "D": {
-        "items": [
-          60,
-          52,
-          58,
-          53,
-          49,
-          56,
-          57,
-          62,
-          50,
-          51,
-          64,
-          55,
-          59,
-          61,
-          63
-        ],
-        "remaining": 15
+        "items": [],
+        "remaining": 0
       }
     },
-    "nextLetter": "D",
+    "deck": {
+      "items": [
+        44,
+        2,
+        13,
+        60,
+        14,
+        26,
+        5,
+        19,
+        46,
+        40,
+        12,
+        38,
+        64,
+        24,
+        39,
+        59,
+        58,
+        8,
+        31,
+        41,
+        18,
+        42,
+        23,
+        32,
+        51,
+        29,
+        63,
+        55,
+        35,
+        45,
+        50,
+        25,
+        9,
+        43,
+        47,
+        10,
+        52,
+        57,
+        37,
+        3,
+        20,
+        21,
+        48,
+        53,
+        27,
+        4,
+        7,
+        62,
+        49,
+        61,
+        56,
+        34,
+        16,
+        17,
+        11,
+        30,
+        15
+      ],
+      "remaining": 57
+    },
+    "nextLetter": "A",
     "market": [
       {
-        "tileId": 15,
+        "tileId": 33,
         "bids": [
           "p0",
           "p0",
@@ -256,7 +269,7 @@
         ]
       },
       {
-        "tileId": 19,
+        "tileId": 6,
         "bids": [
           "p2",
           "p1",
@@ -264,10 +277,8 @@
         ]
       },
       {
-        "tileId": 35,
-        "bids": [
-          "p2"
-        ]
+        "tileId": 22,
+        "bids": []
       }
     ],
     "board": {
@@ -313,7 +324,13 @@
           "cubes": 0
         }
       ]
-    }
+    },
+    "basePrice": 1,
+    "bidPasses": [
+      "p2",
+      "p1",
+      "p0"
+    ]
   },
   "actions": [
     {
@@ -323,7 +340,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-23T20:34:07.674Z",
+      "createdAt": "2026-11-24T19:33:14.074Z",
       "index": 0,
       "undoPatch": [
         {
@@ -372,7 +389,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-23T20:34:07.675Z",
+      "createdAt": "2026-11-24T19:33:14.074Z",
       "index": 1,
       "undoPatch": [
         {
@@ -421,7 +438,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-23T20:34:07.676Z",
+      "createdAt": "2026-11-24T19:33:14.074Z",
       "index": 2,
       "undoPatch": [
         {
@@ -470,7 +487,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-23T20:34:07.677Z",
+      "createdAt": "2026-11-24T19:33:14.075Z",
       "index": 3,
       "undoPatch": [
         {
@@ -519,7 +536,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-23T20:34:07.688Z",
+      "createdAt": "2026-11-24T19:33:14.075Z",
       "index": 4,
       "undoPatch": [
         {
@@ -568,7 +585,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-23T20:34:07.690Z",
+      "createdAt": "2026-11-24T19:33:14.076Z",
       "index": 5,
       "undoPatch": [
         {
@@ -617,7 +634,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-23T20:34:07.691Z",
+      "createdAt": "2026-11-24T19:33:14.076Z",
       "index": 6,
       "undoPatch": [
         {
@@ -664,9 +681,8 @@
       "gameId": "scenario-stacked-offer",
       "playerId": "p2",
       "source": "user",
-      "type": "placeBid",
-      "slot": 2,
-      "createdAt": "2026-11-23T20:34:07.696Z",
+      "type": "passBid",
+      "createdAt": "2026-11-24T19:33:14.077Z",
       "index": 7,
       "undoPatch": [
         {
@@ -685,11 +701,6 @@
           "value": 2144702087
         },
         {
-          "op": "replace",
-          "path": "/players/2/supply",
-          "value": 3
-        },
-        {
           "op": "remove",
           "path": "/turnManager/series/7/end"
         },
@@ -703,13 +714,94 @@
           "value": 2
         },
         {
+          "op": "remove",
+          "path": "/bidPasses"
+        }
+      ]
+    },
+    {
+      "id": "stacked-offer-8",
+      "gameId": "scenario-stacked-offer",
+      "playerId": "p1",
+      "source": "user",
+      "type": "passBid",
+      "createdAt": "2026-11-24T19:33:14.077Z",
+      "index": 8,
+      "undoPatch": [
+        {
+          "op": "replace",
+          "path": "/activePlayerIds/0",
+          "value": "p1"
+        },
+        {
+          "op": "replace",
+          "path": "/actionCount",
+          "value": 8
+        },
+        {
+          "op": "replace",
+          "path": "/actionChecksum",
+          "value": -190036423
+        },
+        {
+          "op": "remove",
+          "path": "/turnManager/series/8/end"
+        },
+        {
+          "op": "remove",
+          "path": "/turnManager/series/9"
+        },
+        {
+          "op": "replace",
+          "path": "/turnManager/turnCounts/p1",
+          "value": 2
+        },
+        {
+          "op": "remove",
+          "path": "/bidPasses/1"
+        }
+      ]
+    },
+    {
+      "id": "stacked-offer-9",
+      "gameId": "scenario-stacked-offer",
+      "playerId": "p0",
+      "source": "user",
+      "type": "passBid",
+      "createdAt": "2026-11-24T19:33:14.078Z",
+      "index": 9,
+      "undoPatch": [
+        {
+          "op": "replace",
+          "path": "/actionCount",
+          "value": 9
+        },
+        {
+          "op": "replace",
+          "path": "/actionChecksum",
+          "value": -1673837937
+        },
+        {
+          "op": "remove",
+          "path": "/turnManager/series/9/end"
+        },
+        {
+          "op": "remove",
+          "path": "/turnManager/series/10"
+        },
+        {
+          "op": "replace",
+          "path": "/turnManager/turnCounts/p0",
+          "value": 3
+        },
+        {
           "op": "replace",
           "path": "/machineState",
           "value": "Bidding"
         },
         {
           "op": "remove",
-          "path": "/market/2/bids/0"
+          "path": "/bidPasses/2"
         }
       ]
     }

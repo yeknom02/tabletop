@@ -61,7 +61,7 @@ export class ConduitGameInitializer
             newPlayerState(player.id, colors[index])
         )
         const turnManager = HydratedTurnManager.generate(players, prng.random, assignment)
-        // The Start Player starts with $5 and each player clockwise with $1 more (rules v0.8.2).
+        // Every player starts with $5 (rules v0.8.3); a bot study may add more per seat clockwise.
         for (const player of players) {
             player.cash = startingCashFor(
                 game.config,

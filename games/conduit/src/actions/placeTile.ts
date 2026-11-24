@@ -89,7 +89,7 @@ export class HydratedPlaceTile extends HydratableAction<typeof PlaceTile> implem
         const cubesAllowed = placement.faceUp
             ? action.extraCubes <= player.supply &&
               extraPrice <= player.cash &&
-              (cap === undefined || 1 + action.extraCubes <= cap)
+              1 + action.extraCubes <= cap
             : action.extraCubes === 0
         return cubesAllowed && state.grid().isLegalPlacement(face, action.cell)
     }

@@ -1,6 +1,6 @@
 # Conduit
 
-## by Dan Domme Rules of Play v. 0.8.2, November 23, 2026
+## by Dan Domme Rules of Play v. 0.8.3, November 24, 2026
 
 ## Overview
 
@@ -20,11 +20,11 @@ _Note: play money is not provided. It is suggested to use poker chips or similar
 
 ## Setup
 
-Divide the tiles into stacks by letter, shuffling each separately and placing them face-down. Place the Central Station tile in the center, as well as one tile each from stacks A–D to make a simple cross pattern: A to the North, B to the East, C to the South, and D to the West. Terminal orientations (black/red) should be random.
+Divide the tiles into stacks by letter, shuffling each separately and placing them face-down. Place the Central Station tile in the center, as well as one tile each from stacks A–D to make a simple cross pattern: A to the North, B to the East, C to the South, and D to the West. Terminal orientations (black/red) should be random. Mark all connections to the Central Station as blocked. Then, combine and shuffle all remaining tiles.
 
 Give each player all the cubes in their player color. Each player begins with 5 available cubes in supply, with the remaining 10 kept in a reserve.
 
-Assign a random player the Start Player marker. They receive \$5. Then, in clockwise order, each other player receives one more dollar than the previous player.
+Assign a random player the Start Player marker. Each player receives \$5.
 
 ## Order of Play
 
@@ -40,50 +40,49 @@ After each round, the Start Player marker moves to the next player clockwise.
 
 1. ## Fill the Tile Market
 
-The auction board has up to six spaces for tiles, each with its own bidding track. In alphabetical order, flip the top tile of each stack over to build a market of tiles that is one greater than the number of players, except in the first round when the tile count should match the player count exactly. Order is circulating, i.e., the A stack follows the D stack. Once the market is full, take note of the final tile, because the market will be filled starting with the next tile in order for the following round.
-
-_Ex: In a 4-player game, the first market will consist of tiles \[A, B, C, D, A\], followed by \[B, C, D, A, B\] in the following round, etc._
+The auction board has up to six spaces for tiles, each with its own bidding track. In order, flip the top tile of the stack over to build a market of tiles that is one greater than the number of players, except in the first round when the tile count should match the player count exactly.
 
 The station tiles feature a tile identification letter (A–D) and a section of the rectangular power grid network, with one branch connected to each tile edge. Each branch features one of two terminal colors: positive (red) or negative (black).
 
 2. ## Place Bids
 
-Beginning with the Start Player, each player in turn takes a single cube from their current available supply and places one on the lowest available space of a bidding track of their choice. Biding continues until the following conditions are both met: (1) at least 2 cubes have been placed by every player, and (2) all tiles have at least one bid. Passing is not allowed.
+Beginning with the Start Player, each player in turn takes a single cube from their current available supply and places it on the lowest available space of a bidding track of their choice. Bidding continues clockwise until all players have passed, and no player may pass until they have placed at least two cubes. Players may not re-enter bidding once they have passed.
 
 3. ## Resolve Bids
 
-Resolve tiles in order from left to right in the following manner. For each bid track, the player with the bottom-most cube on the track has the option of purchasing the tile for a price equal to the total number of cubes currently in the stack.
+Resolve tiles in order from left to right in the following manner. For each bid track, the player with the bottom-most cube on the track has the option of purchasing the tile for a price equal to \$1 plus the total number of cubes currently in the stack.
 
-If they purchase the tile, they pay \$1 to the owner of each other cube on the map, with each of their own cubes resulting in \$1 paid to the bank instead. Any cubes from other players are returned to their owners’ available supply along with their payment.
+If they purchase the tile, they pay \$1 to the owner of each other cube on the track, with each of their own cubes resulting in \$1 paid to the bank instead. Any cubes belonging to other players are returned to their owners’ supply as they are paid.
 
-If the player chooses not to pay for the tile, then they remove their lowest cube to their available supply and take \$1 from the bank. The choice then passes to the next player above them on the bidding track.
+If the active player chooses not to pay for the tile, then they remove their lowest cube to their available supply and take \$1 from the bank. The choice then passes to the next player above them on the bidding track. If the passing player finds their own cube next in line, they must remove it without any additional compensation until another player is given the choice to purchase.
 
 If all players pass on the tile, the current Start Player chooses how to add it to the tile to the network, as follows, albeit face down and therefore with only open connections.
 
 To add a tile to the network, it must be placed according to the following rules:
 
-- The tile must border at least one other tile, and the resulting grid must fit within a 6x6-tile square.
+- The tile must border at least one other tile, and the resulting total grid must fit within a 6x6-tile square.
 
 - If two connectors are of a similar color, or at least one of the tiles is face down, their connection is considered “open.” If the connectors are of opposite colors, the connection is considered “closed.” Place a blocking marker on each closed connection. You must place your tile such that you create at least one valid connection.
 
-Finally, the player winning the bid takes their winning cube and places it on their tile, as well as any additional cubes from their available supply that they wish. They may not place any cubes from their reserve or bidding tracks which are not yet resolved.
+Finally, the player winning the bid takes their winning cube and places it on their tile, as well as up to three additional cubes from their available supply that they wish. These additional cubes cost $1, $2, and $3 respectively to add. They may not place any cubes from their reserve or bidding tracks which are not yet resolved.
 
 Continue resolving bids in this manner until all are resolved.
 
 4. ## Calculate and Pay Revenue
 
-For each Power Station on the board:
+For each Power Station with one or more cubes on the board:
 
 1. The owning player traces the shortest possible non-branching route from their Power Station to another station of the next letter in the A, B, C, D sequence. This route cannot traverse closed connections or the Central Station.
 2. In the case that there are multiple candidates for shortest route, the station owner chooses which to use, except that they must maximize the number of stations traversed, and further must choose a route which has the least number of their own stations.
-3. The player earns \$1, plus \$1 per station on the route. Other players who own stations on this route gain \$1 per station traversed.
-4. After all income is counted, remove one cube from every tile, placing them in the matching player’s reserve.
+3. The player earns \$1, plus \$1 per station on the route. Other players who own stations on this route gain \$1 per station of theirs traversed.
 
 ## 5\. Infrastructure Loss
 
-After all income has been distributed, each station on the board which is devoid of cubes is flipped to its reverse side. This includes the original four stations bordering the Central Station at the end of Round 1\. All connections with a flipped tile are now open (except for those bordering the Central Station).
+After all income is counted, each station on the board which is devoid of cubes is flipped to its reverse side. This includes the original four stations bordering the Central Station at the end of Round 1\. All connections with a flipped tile are now open (except for those bordering the Central Station).
 
-Unless it is the end of the fifth round, all players now take two additional cubes from their reserve into their supply. The Start Player marker then passes clockwise.
+Remove one cube from every remaining tile, placing them in the matching player’s reserve.
+
+Unless it is the end of the fifth round, all players now take three additional cubes from their reserve into their supply. The Start Player marker then passes clockwise.
 
 ## End of the Game
 
@@ -91,5 +90,5 @@ The game ends after the fifth round. If any cubes remain on the board, repeat th
 
 The player with the most cash on hand wins. Ties are broken in favor of the player with the most remaining cubes in their available supply. In the case that there is still a tie, all tied players must share the victory.
 
-Designer note:  
+Designer note:
 Inspiration for this game and its mechanisms came from: _Die Speicherstadt_ by Stefan Feld, _Pipeline_ by Ryan Courtney, _Santiago_ by Claudia Hely & Roman Pelek, and in particular many games published by Winsome Games, who have published many works by truly great designers.

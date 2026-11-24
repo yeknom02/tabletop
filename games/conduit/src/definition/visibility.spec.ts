@@ -26,8 +26,8 @@ function playDecisions(session: TestSession, count: number, seed = 7) {
     }
 }
 
-function stages(count: number): ConduitProjectedState[] {
-    const session = startTestGame(count)
+function stages(count: number, config: { marketDeal?: MarketDeal } = {}): ConduitProjectedState[] {
+    const session = startTestGame(count, config)
     const atSetup = structuredClone(session.state)
     playDecisions(session, 40)
     const midGame = structuredClone(session.state)
@@ -51,24 +51,28 @@ describe.each([3, 4, 5])('what each Perspective sees with %i players', (count) =
                         remaining: state.stacks[letter].remaining
                     })
                 }
+                if (state.deck) {
+                    expect(view.deck).toEqual({ items: [], remaining: state.deck.remaining })
+                }
                 expect({
                     ...view,
                     stacks: state.stacks,
+                    ...(state.deck ? { deck: state.deck } : {}),
                     protectedPrng: state.protectedPrng
                 }).toEqual({ ...state, masterSeed: undefined })
             }
         }
     })
 
-    it('fills each stack for exploration with exactly the tiles nobody has seen', () => {
-        const [, midGame] = stages(count)
+    it('fills each letter stack for exploration with exactly the unseen tiles (rules v0.8.2)', () => {
+        const [, midGame] = stages(count, { marketDeal: MarketDeal.Cycle })
         const view = ConduitRuntime.visibility.state.project(
             midGame,
             { kind: 'player', playerId: 'p0' },
             { config: {} }
         )
         const explored = ConduitRuntime.exploration.createFromProjectedState({
-            game: createGame(count),
+            game: createGame(count, { marketDeal: MarketDeal.Cycle }),
             state: view,
             actions: [],
             perspective: { kind: 'player', playerId: 'p0' },
@@ -100,7 +104,7 @@ describe('the end-of-game result', () => {
     })
 })
 
-describe('the shuffled-market variant', () => {
+describe('the one shuffled stack (rules v0.8.3)', () => {
     it('deals from one hidden stack of every tile left after setup', () => {
         const session = startTestGame(4, { marketDeal: MarketDeal.Shuffled })
         const state = session.state

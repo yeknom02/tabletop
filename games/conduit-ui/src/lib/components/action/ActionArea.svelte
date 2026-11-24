@@ -43,10 +43,19 @@
             {/each}
         </ol>
     {:else if gameSession.isBidding}
-        <p class="prompt">Bid on a tile</p>
+        <p class="prompt">{gameSession.canPassBid ? 'Bid on a tile or pass' : 'Bid on a tile'}</p>
         <p class="detail">
-            Bids {myBids} of {minimumBids} · {gameSession.mySupply} in supply
+            {#if myBids < minimumBids}Bids {myBids} of {minimumBids} ·
+            {/if}{gameSession.mySupply} in supply
         </p>
+        {#if gameSession.canPassBid}
+            <div class="buttons">
+                <button type="button" class="choice" onclick={() => gameSession.passBid()}
+                    >Pass</button
+                >
+            </div>
+            <p class="detail">You can't bid again this round</p>
+        {/if}
     {:else if gameSession.isOffered && gameSession.offer}
         {@const offer = gameSession.offer}
         <p class="prompt">Buy the {letterOf(offer.tileId)} tile for ${offer.price}?</p>

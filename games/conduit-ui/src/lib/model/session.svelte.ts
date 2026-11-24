@@ -8,11 +8,15 @@ import {
 import {
     ActionType,
     BuyTile,
+    extraCubeCostOf,
+    extraCubesPrice,
+    PassBid,
     PassTile,
     PlaceBid,
     PlaceTile,
     isPayRevenue,
     routeTargetOf,
+    stationCubeCapOf,
     routeTollOf,
     stationEarnings,
     type Payment,
@@ -163,6 +167,7 @@ export class ConduitGameSession extends GameSession<
     readonly biddableSlots: number[] = $derived(
         this.isBidding ? this.gameState.biddableSlots() : []
     )
+    readonly canPassBid = $derived(this.canTake(ActionType.PassBid))
     readonly canBuy = $derived(this.canTake(ActionType.BuyTile))
     readonly canPass = $derived(this.canTake(ActionType.PassTile))
     readonly isOffered = $derived(this.canBuy || this.canPass)
@@ -183,6 +188,18 @@ export class ConduitGameSession extends GameSession<
         )?.rotations ?? []
     )
     readonly mySupply = $derived(this.myPlayerState?.supply ?? 0)
+    // Each extra-cube count the player may put on a new station, with what it costs: the supply,
+    // the station cap and the player's cash all limit it.
+    readonly extraCubeChoices: { count: number; price: number; affordable: boolean }[] =
+        $derived.by(() => {
+            const cost = extraCubeCostOf(this.game.config)
+            const most = Math.min(this.mySupply, stationCubeCapOf(this.game.config) - 1)
+            const cash = this.myPlayerState?.cash ?? 0
+            return Array.from({ length: Math.max(0, most) + 1 }, (_, count) => {
+                const price = extraCubesPrice(count, cost)
+                return { count, price, affordable: price <= cash }
+            })
+        })
 
     // Each revenue payout is its own history step, so stepping back shows the routes it paid.
     override shouldAutoStepAction(action: GameAction, next?: GameAction): boolean {
@@ -210,6 +227,10 @@ export class ConduitGameSession extends GameSession<
 
     async bid(slot: number) {
         await this.applyAction(this.createPlayerAction(PlaceBid, { slot }))
+    }
+
+    async passBid() {
+        await this.applyAction(this.createPlayerAction(PassBid))
     }
 
     async buyTile() {

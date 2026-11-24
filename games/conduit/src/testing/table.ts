@@ -103,6 +103,9 @@ export function createTestSession(game: TestGame, initialState: ConduitProjected
         pass(playerId: string = state.activePlayerIds[0]) {
             return act(playerId, ActionType.PassTile)
         },
+        passBid(playerId: string = state.activePlayerIds[0]) {
+            return act(playerId, ActionType.PassBid)
+        },
         place(
             cell: OffsetCoordinates,
             rotation: number,

@@ -5,6 +5,7 @@ import { createGame, createTestSession, TestMasterSeed } from '../testing/table.
 import { playRandomDecision } from '../testing/bot.js'
 import { ConduitRuntime } from './runtime.js'
 import { MachineState } from './states.js'
+import { startingCashFor } from './gameConfig.js'
 
 const engine = new GameEngine(ConduitRuntime)
 
@@ -29,11 +30,11 @@ describe.each([3, 4, 5])('Conduit tournaments with %i players', (count) => {
         for (const order of rotations([...normal.turnManager.turnOrder].reverse())) {
             const assigned = initialize(order)
             expect(assigned.turnManager.turnOrder).toEqual(order)
-            // Starting cash follows the seat: $5 for the Start Player, $1 more each clockwise.
+            // Starting cash follows the seat (rules v0.8.3 give everyone $5).
             const cashBySeat = order.map(
                 (playerId) => assigned.players.find((player) => player.playerId === playerId)?.cash
             )
-            expect(cashBySeat).toEqual(order.map((_, seat) => 5 + seat))
+            expect(cashBySeat).toEqual(order.map((_, seat) => startingCashFor(game.config, seat)))
             const withoutCash = (state: typeof normal) => ({
                 ...state,
                 turnManager: normal.turnManager,

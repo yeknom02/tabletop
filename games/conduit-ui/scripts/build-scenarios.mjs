@@ -17,6 +17,8 @@ import {
     ConduitInfo,
     ConduitRuntime,
     Definition,
+    extraCubeCostOf,
+    extraCubesPrice,
     MachineState
 } from '@tabletop/conduit'
 
@@ -62,30 +64,37 @@ function table(slug, playerCount) {
     }
     const hydrated = () => ConduitRuntime.hydrator.hydrateState(structuredClone(state))
 
-    // A plain player: bids along the spots, buys anything up to $3, places on the first legal cell
-    // with one extra cube.
+    // A plain player: bids along the spots and passes after two bids, buys anything up to $4,
+    // places on the first legal cell with one extra cube when it can pay for it.
     const step = () => {
         const view = hydrated()
         switch (state.machineState) {
             case MachineState.Bidding: {
+                const playerId = state.activePlayerIds[0]
+                if (view.bidsBy(playerId) >= 2) {
+                    act(ActionType.PassBid)
+                    return
+                }
                 const slots = view.biddableSlots()
                 act(ActionType.PlaceBid, { slot: slots[count % slots.length] })
                 return
             }
             case MachineState.Offering: {
                 const offer = view.currentOffer()
-                const buys = offer.price <= 3 && view.canAfford(offer.playerId)
+                const buys = offer.price <= 4 && view.canAfford(offer.playerId)
                 act(buys ? ActionType.BuyTile : ActionType.PassTile)
                 return
             }
             case MachineState.Placing: {
                 const placement = view.pendingPlacement()
                 const [option] = view.grid().legalPlacements(placement.tileId, placement.faceUp)
-                const supply = view.getPlayerState(placement.playerId).supply
+                const { supply, cash } = view.getPlayerState(placement.playerId)
+                const oneExtra = extraCubesPrice(1, extraCubeCostOf(started.startedGame.config))
+                const extra = placement.faceUp && supply > 0 && cash >= oneExtra ? 1 : 0
                 act(ActionType.PlaceTile, {
                     cell: option.cell,
                     rotation: option.rotations[0],
-                    extraCubes: placement.faceUp ? Math.min(1, supply) : 0
+                    extraCubes: extra
                 })
                 return
             }
@@ -123,10 +132,11 @@ function table(slug, playerCount) {
     const scenario = table('stacked-offer', 3)
     const order = scenario.hydrated().turnManager.turnOrder
     const [first, , third] = order
-    // The first market has three tiles; tile 3 stays unbid until the last bid, so bidding runs
-    // past two bids each.
-    const bids = [0, 1, 1, 0, 1, 0, 0, 2]
+    // The first market has three tiles. After two bids each the first bidder bids once more on
+    // spot 1, then everyone passes, leaving tile 3 unbid.
+    const bids = [0, 1, 1, 0, 1, 0, 0]
     for (const slot of bids) scenario.act(ActionType.PlaceBid, { slot })
+    for (let pass = 0; pass < 3; pass++) scenario.act(ActionType.PassBid)
     const view = scenario.hydrated()
     if (view.machineState !== MachineState.Offering) throw Error('stacked-offer: bidding goes on')
     if (view.market[0].bids.join() !== [first, first, third, first].join())

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { PlayerName } from '@tabletop/frontend-components'
+    import { MachineState } from '@tabletop/conduit'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
 
     let { playerId }: { playerId: string } = $props()
@@ -14,15 +15,23 @@
     const projected = $derived(gameSession.projectedIncome.get(playerId) ?? 0)
     const isStartPlayer = $derived(state.turnManager.turnOrder[0] === playerId)
     const isActive = $derived(state.activePlayerIds.includes(playerId))
+    const hasPassed = $derived(
+        state.machineState === MachineState.Bidding && (state.bidPasses ?? []).includes(playerId)
+    )
     const color = $derived(gameSession.colors.getPlayerBgColorValue(playerId))
 </script>
 
 <article class="meter" class:active={isActive} style:--player={color}>
     <header>
         <PlayerName {playerId} />
-        {#if isStartPlayer}
-            <span class="start" title="Start Player">Start</span>
-        {/if}
+        <span class="badges">
+            {#if hasPassed}
+                <span class="start" title="Done bidding this round">Passed</span>
+            {/if}
+            {#if isStartPlayer}
+                <span class="start" title="Start Player">Start</span>
+            {/if}
+        </span>
     </header>
     <div class="readout">
         <div class="cash">
@@ -72,6 +81,11 @@
         justify-content: space-between;
         padding: 6px 10px;
         background: var(--player);
+    }
+
+    .badges {
+        display: flex;
+        gap: 4px;
     }
 
     .start {

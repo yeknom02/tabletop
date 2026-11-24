@@ -3,6 +3,7 @@ import {
     isBuyTile,
     isFillMarket,
     isLoseInfrastructure,
+    isPassBid,
     isPassTile,
     isPayRevenue,
     isPlaceBid,
@@ -38,6 +39,9 @@ export function describeAction(action: GameAction, name: Name): string | undefin
     if (isPlaceBid(action)) {
         return `${who} bid on spot ${action.slot + 1}`
     }
+    if (isPassBid(action)) {
+        return `${who} passed`
+    }
     if (isBuyTile(action) && action.metadata) {
         const paid = action.metadata.payments
             .map((payment) => `${name(payment.playerId)} ${dollars(payment.amount)}`)
@@ -48,8 +52,9 @@ export function describeAction(action: GameAction, name: Name): string | undefin
         return `${who} passed on the ${tileName(action.metadata.tileId)}, taking $1 and ${cubes(action.metadata.cubes)} back`
     }
     if (isPlaceTile(action) && action.metadata) {
+        const paid = action.metadata.extraPrice
         return action.metadata.faceUp
-            ? `${who} placed it with ${cubes(1 + action.extraCubes)}`
+            ? `${who} placed it with ${cubes(1 + action.extraCubes)}${paid ? ` (paid ${dollars(paid)})` : ''}`
             : `${who} placed the ${tileName(action.metadata.tileId)} face down`
     }
     if (isFillMarket(action) && action.metadata) {
@@ -129,7 +134,8 @@ export function historyItems(actions: readonly GameAction[], name: Name): Histor
             items.push({ kind: 'divider', key: `round-${round}`, label: `Round ${round}` })
         }
         const tileId = tileOf(action)
-        const key = isPlaceBid(action)
+        const isBidding = isPlaceBid(action) || isPassBid(action)
+        const key = isBidding
             ? 'bidding'
             : tileId !== undefined
               ? `tile-${tileId}`
@@ -140,7 +146,7 @@ export function historyItems(actions: readonly GameAction[], name: Name): Histor
             open.lastIndex = actionIndex
             return
         }
-        const title = isPlaceBid(action)
+        const title = isBidding
             ? 'Bidding'
             : tileId !== undefined
               ? `The ${tileName(tileId)}`
