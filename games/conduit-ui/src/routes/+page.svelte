@@ -3,8 +3,13 @@
     import type { GameState, HydratedGameState } from '@tabletop/common'
     import { UiDefinition } from '../lib/definitions/definition.js'
     import { Harness } from '@tabletop/frontend-components'
+    import BotTools from './bots/BotTools.svelte'
     import '../app.css'
     const definition = UiDefinition as unknown as GameUiDefinition<GameState, HydratedGameState>
 </script>
 
-<Harness {definition} />
+<Harness {definition}>
+    {#snippet tools(harness)}
+        <BotTools {harness} />
+    {/snippet}
+</Harness>

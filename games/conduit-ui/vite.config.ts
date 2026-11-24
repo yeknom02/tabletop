@@ -12,7 +12,9 @@ export default defineProject(
             // devcontainer forwarding does - refuses the connection while the server is
             // running perfectly well.
             host: true,
-            port: 5240
+            port: 5240,
+            // The Bots bar asks the bot server (tools/conduit-bots) for moves.
+            proxy: { '/bots': process.env.CONDUIT_BOT_SERVER ?? 'http://127.0.0.1:4196' }
         }
     })
 )
