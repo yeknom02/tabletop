@@ -89,6 +89,10 @@ export class HabitBot implements Bot {
     private routeToll = RouteToll.None
     private marketSize = MarketSize.SmallFirst
     private stationCubeCap: number | undefined
+    // tileView depends only on the board, the tile and the player; bidding asks the same question
+    // many times over a board that does not change.
+    private viewCache = new Map<string, TileView>()
+    private viewBoard = ''
 
     constructor(
         readonly name: string,
@@ -117,6 +121,31 @@ export class HabitBot implements Bot {
 
     // What one payout of the tile would be worth to a player at its best spot now.
     private tileView(state: HydratedConduitGameState, tileId: number, playerId: string): TileView {
+        const board = state.board.stations
+            .map(
+                (station) =>
+                    `${station.tileId}@${station.cell.col},${station.cell.row}r${station.rotation}${
+                        station.faceUp ? (station.ownerId ?? '') : '-'
+                    }${station.cubes > 0 ? '+' : ''}`
+            )
+            .join(';')
+        if (board !== this.viewBoard) {
+            this.viewBoard = board
+            this.viewCache.clear()
+        }
+        const key = `${tileId}:${playerId}`
+        const cached = this.viewCache.get(key)
+        if (cached) return cached
+        const view = this.computeTileView(state, tileId, playerId)
+        this.viewCache.set(key, view)
+        return view
+    }
+
+    private computeTileView(
+        state: HydratedConduitGameState,
+        tileId: number,
+        playerId: string
+    ): TileView {
         const effects = placementEffects(
             state,
             tileId,
