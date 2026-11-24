@@ -231,7 +231,9 @@ export class HabitBot implements Bot {
             if (bids.length === 0) {
                 score = habits.want * (myValue - price)
             } else if (bids[0] === playerId) {
-                score = habits.want * (myValue - price) - 1
+                // A forced bid may as well go here; when passing is allowed, it only adds $1 to
+                // the bot's own price.
+                score = canPassBid ? -1 : habits.want * (myValue - price) - 1
             } else {
                 const theirValue = this.valueTo(
                     state,
