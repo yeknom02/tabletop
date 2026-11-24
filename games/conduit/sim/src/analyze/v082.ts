@@ -15,6 +15,8 @@ const LopsidedGap = gapAt >= 0 ? Number(args[gapAt + 1]) : 3
 const dirs = args.filter((_, index) => gapAt < 0 || (index !== gapAt && index !== gapAt + 1))
 
 const Obvious = 3
+const sum = (values: (number | null | undefined)[]) =>
+    values.reduce<number>((total, value) => total + (value ?? 0), 0)
 const mean = (values: number[]) => (values.length ? meanCI(values).mean : NaN)
 const pct = (part: number, whole: number) => (whole ? `${((100 * part) / whole).toFixed(0)}%` : '-')
 const share = <T>(items: T[], keep: (item: T) => boolean) =>
@@ -72,7 +74,10 @@ console.log(
         `lopsided rounds (gap>=${LopsidedGap})`,
         'top tile to SP / by seat from SP',
         'top price vs other',
-        'top buyer wins'
+        'top buyer wins',
+        'late bids/round',
+        'mean price',
+        'unbought/round'
     ].join(' | ')
 )
 for (const dir of dirs) {
@@ -89,7 +94,8 @@ for (const dir of dirs) {
     const bids = games.flatMap((game) => game.bidNotes ?? [])
     const offers = games.flatMap((game) => game.offers)
     const placements = games.flatMap((game) => game.placements.filter((entry) => entry.faceUp))
-    const withSpare = placements.filter((entry) => entry.supply > 0)
+    const allowed = (entry: { supply: number; allowed?: number }) => entry.allowed ?? entry.supply
+    const withSpare = placements.filter((entry) => allowed(entry) > 0)
     const gap = (entry: { best?: number; second?: number }) =>
         (entry.best ?? 0) - (entry.second ?? entry.best ?? 0)
     const lop = games.map(lopsidedRounds)
@@ -119,7 +125,7 @@ for (const dir of dirs) {
                 placements,
                 (entry) => entry.options > 1 && gap(entry) >= Obvious
             )}/${share(placements, (entry) => entry.options > 1 && gap(entry) === 0)}`,
-            `${share(withSpare, (entry) => entry.extraCubes >= entry.supply)}/${share(
+            `${share(withSpare, (entry) => entry.extraCubes >= allowed(entry))}/${share(
                 withSpare,
                 (entry) => entry.extraCubes === 0
             )}`,
@@ -128,7 +134,10 @@ for (const dir of dirs) {
             `$${mean(bought.map((entry) => entry.price)).toFixed(2)} vs $${mean(
                 lop.flatMap((entry) => entry.others)
             ).toFixed(2)}`,
-            share(bought, (entry) => entry.buyerWon)
+            share(bought, (entry) => entry.buyerWon),
+            mean(games.map((game) => sum(game.lateBids ?? []) / 5)).toFixed(1),
+            `$${mean(games.flatMap((game) => game.buys.map((entry) => entry.price))).toFixed(2)}`,
+            mean(games.map((game) => sum(game.unboughtByRound) / 5)).toFixed(2)
         ].join(' | ')
     )
 }

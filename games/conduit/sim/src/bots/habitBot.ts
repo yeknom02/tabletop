@@ -49,9 +49,15 @@ export type Habits = {
     // When extra cubes cost money: add the next extra cube only if the payout it adds beats its
     // price by at least this much. ignoreCubeCost stacks every affordable cube anyway.
     cubeMargin: number
+    // The margin the bot expects another player to need before buying a tile it bids under.
+    expectMargin: number
+    // Value another bidder's tile with this bot's own habits rather than the balanced ones.
+    mirror: boolean
     ignoreCubeCost: boolean
     // Random noise on the bid choice, so bots are not all identical.
     jitter: number
+    // When passing is allowed, pass unless the best bid scores at least this much.
+    passBelow: number
 }
 
 export const BalancedHabits: Habits = {
@@ -67,8 +73,11 @@ export const BalancedHabits: Habits = {
     focusBonus: 0,
     prospect: 0,
     cubeMargin: 0,
+    expectMargin: 0,
+    mirror: false,
     ignoreCubeCost: false,
-    jitter: 0.5
+    jitter: 0.5,
+    passBelow: 0.5
 }
 
 type TileView = { best?: PlacementEffect; perPayout: number }
@@ -79,6 +88,7 @@ export class HabitBot implements Bot {
     private extraCubeCost = ExtraCubeCost.Free
     private routeToll = RouteToll.None
     private marketSize = MarketSize.SmallFirst
+    private stationCubeCap: number | undefined
 
     constructor(
         readonly name: string,
@@ -92,6 +102,7 @@ export class HabitBot implements Bot {
         this.extraCubeCost = context.extraCubeCost
         this.routeToll = context.routeToll
         this.marketSize = context.marketSize
+        this.stationCubeCap = context.stationCubeCap
         switch (state.machineState) {
             case MachineState.Bidding:
                 return this.bid(context)
@@ -136,7 +147,10 @@ export class HabitBot implements Bot {
         cashAfter = state.getPlayerState(playerId).cash
     ): number {
         const supply = state.getPlayerState(playerId).supply
-        const cap = Math.max(0, Math.min(habits.maxExtra, supply - habits.keep))
+        const cap = Math.max(
+            0,
+            Math.min(habits.maxExtra, supply - habits.keep, (this.stationCubeCap ?? 99) - 1)
+        )
         if (this.extraCubeCost === ExtraCubeCost.Free) return cap
         const affordable = (count: number) =>
             extraCubesPrice(count, this.extraCubeCost) <= cashAfter
@@ -203,30 +217,47 @@ export class HabitBot implements Bot {
         return habits.prospect * total * focused
     }
 
-    private bid({ state, playerId, random }: BotContext) {
+    private bid({ state, playerId, random, canPassBid }: BotContext) {
         const habits = this.habits
+        const base = state.basePrice ?? 0
         const mine = new Map<number, number>()
         const scores = state.biddableSlots().map((slot) => {
             const { tileId, bids } = state.market[slot]
             assertExists(tileId, 'A biddable slot holds a tile')
             if (!mine.has(tileId)) mine.set(tileId, this.valueTo(state, tileId, playerId, habits))
             const myValue = mine.get(tileId) ?? 0
-            const price = bids.length + 1
+            const price = bids.length + 1 + base
             let score: number
             if (bids.length === 0) {
-                score = habits.want * (myValue - 1)
+                score = habits.want * (myValue - price)
             } else if (bids[0] === playerId) {
                 score = habits.want * (myValue - price) - 1
             } else {
-                const theirValue = this.valueTo(state, tileId, bids[0], BalancedHabits)
-                const likelyBuy = theirValue - price >= 0 ? 1 : 0
+                const theirValue = this.valueTo(
+                    state,
+                    tileId,
+                    bids[0],
+                    habits.mirror ? habits : BalancedHabits
+                )
+                const likelyBuy = theirValue - price >= habits.expectMargin ? 1 : 0
                 score =
                     habits.collect * likelyBuy +
                     habits.want * 0.25 * Math.max(0, myValue - price) * (1 - likelyBuy)
             }
-            return { slot, score: score + habits.jitter * random() }
+            return { slot, raw: score, score: score + habits.jitter * random() }
         })
         const choice = scores.reduce((best, entry) => (entry.score > best.score ? entry : best))
+        if (canPassBid) {
+            const bestRaw = Math.max(...scores.map((entry) => entry.raw))
+            const note = noteOf([...scores.map((entry) => entry.raw), habits.passBelow])
+            if (bestRaw < habits.passBelow) {
+                return { decision: { type: ActionType.PassBid } as const, note }
+            }
+            return {
+                decision: { type: ActionType.PlaceBid, slot: choice.slot } as const,
+                note
+            }
+        }
         return {
             decision: { type: ActionType.PlaceBid, slot: choice.slot } as const,
             note: noteOf(scores.map((entry) => entry.score))

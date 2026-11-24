@@ -8,6 +8,7 @@ import {
     routeTargetOf,
     routeTollOf,
     marketSizeOf,
+    biddingEndOf,
     startPlayerRuleOf
 } from '../../src/index.js'
 
@@ -28,6 +29,9 @@ const { values } = parseArgs({
         toll: { type: 'string', default: 'flat' },
         'cash-step': { type: 'string', default: '1' },
         market: { type: 'string', default: 'smallFirst' },
+        'bid-end': { type: 'string', default: 'minimum' },
+        'base-price': { type: 'string', default: '0' },
+        'cube-cap': { type: 'string' },
         start: { type: 'string', default: 'clockwise' },
         rotate: { type: 'boolean', default: false },
         workers: { type: 'string', default: '12' },
@@ -42,6 +46,8 @@ if (extraCubeCostOf({ extraCubeCost: values['cube-cost'] }) !== values['cube-cos
 if (marketSizeOf({ marketSize: values.market }) !== values.market)
     throw Error('--market: smallFirst|plusOne|players')
 if (routeTollOf({ routeToll: values.toll }) !== values.toll) throw Error('--toll: none|flat')
+if (biddingEndOf({ biddingEnd: values['bid-end'] }) !== values['bid-end'])
+    throw Error('--bid-end: minimum|allPass')
 if (startPlayerRuleOf({ startPlayer: values.start }) !== values.start)
     throw Error('--start: clockwise|richest')
 
@@ -81,6 +87,9 @@ writeFileSync(
             routeToll: values.toll,
             startingCashStep: Number(values['cash-step']),
             marketSize: values.market,
+            biddingEnd: values['bid-end'],
+            basePrice: Number(values['base-price']),
+            ...(values['cube-cap'] ? { stationCubeCap: Number(values['cube-cap']) } : {}),
             commit: git(['rev-parse', 'HEAD']),
             dirty: git(['status', '--porcelain', '--', 'games/conduit']) !== '',
             startedAt: new Date().toISOString()
@@ -106,7 +115,10 @@ const runs = Array.from({ length: workers }, (_, worker) => {
             startingCash: Number(values.cash),
             routeToll: values.toll,
             startingCashStep: Number(values['cash-step']),
-            marketSize: values.market
+            marketSize: values.market,
+            biddingEnd: values['bid-end'],
+            basePrice: Number(values['base-price']),
+            ...(values['cube-cap'] ? { stationCubeCap: Number(values['cube-cap']) } : {})
         }
     }
     return new Promise<void>((resolve, reject) => {

@@ -25,6 +25,7 @@ import {
     type ExtraCubeCost,
     type MarketDeal,
     MarketSize,
+    BiddingEnd,
     RouteToll,
     type RouteTarget,
     type StartPlayerRule
@@ -49,6 +50,9 @@ export type GameRecord = {
     startingCashStep: number
     routeToll: RouteToll
     marketSize: MarketSize
+    biddingEnd?: BiddingEnd
+    basePrice?: number
+    stationCubeCap?: number
     bots: string[]
     // The letters dealt to each round's market, in order.
     markets: string[][]
@@ -74,7 +78,15 @@ export type GameRecord = {
     passes: number[]
     bidNotes: NotedDecision[]
     offers: (NotedDecision & { price: number; bought: boolean; canPay: boolean })[]
-    placements: (NotedDecision & { faceUp: boolean; extraCubes: number; supply: number })[]
+    // allowed: the most extra cubes the player could have placed (supply, and the cap if any).
+    placements: (NotedDecision & {
+        faceUp: boolean
+        extraCubes: number
+        supply: number
+        allowed?: number
+    })[]
+    // Bids each seat placed after the minimum, in the bid-until-all-pass variant.
+    lateBids?: number[]
     revenues: { round: number; seat: number; letter: string; amount: number; stations: number }[]
     // Toll income per seat, and how many tolls each route paid out.
     tollIncome: number[]
@@ -97,6 +109,9 @@ export type Variant = {
     startingCashStep?: number
     routeToll?: RouteToll
     marketSize?: MarketSize
+    biddingEnd?: BiddingEnd
+    basePrice?: number
+    stationCubeCap?: number
 }
 
 export function playGame({
@@ -113,6 +128,9 @@ export function playGame({
     const routeToll = variant.routeToll ?? RouteToll.Flat
     const marketSize = variant.marketSize ?? MarketSize.SmallFirst
     const startingCashStep = variant.startingCashStep ?? 1
+    const biddingEnd = variant.biddingEnd ?? BiddingEnd.Minimum
+    const basePrice = variant.basePrice ?? 0
+    const stationCubeCap = variant.stationCubeCap
     const players = bots.length
     const playerIds = bots.map((_, seat) => `s${seat}`)
     const engine = new GameEngine(ConduitRuntime)
@@ -134,7 +152,10 @@ export function playGame({
                     : { startingCash: String(variant.startingCash) }),
                 startingCashStep: String(startingCashStep),
                 routeToll,
-                marketSize
+                marketSize,
+                biddingEnd,
+                basePrice: String(basePrice),
+                ...(stationCubeCap === undefined ? {} : { stationCubeCap: String(stationCubeCap) })
             }),
             players: playerIds.map((id) => ({
                 id,
@@ -163,6 +184,10 @@ export function playGame({
         startingCashStep,
         routeToll,
         marketSize,
+        biddingEnd,
+        basePrice,
+        ...(stationCubeCap === undefined ? {} : { stationCubeCap }),
+        lateBids: playerIds.map(() => 0),
         bots: bots.map((bot) => bot.name),
         markets: [],
         finalCash: [],
@@ -279,8 +304,20 @@ export function playGame({
             marketDeal,
             extraCubeCost,
             routeToll,
-            marketSize
+            marketSize,
+            canPassBid:
+                hydrated.machineState === MachineState.Bidding &&
+                hydrated.canPassBid(playerId, minimumBids, biddingEnd),
+            stationCubeCap
         })
+        if (
+            hydrated.machineState === MachineState.Bidding &&
+            decision.type === 'placeBid' &&
+            hydrated.isMinimumBiddingDone(minimumBids) &&
+            record.lateBids
+        ) {
+            record.lateBids[seat] += 1
+        }
         if (hydrated.machineState === MachineState.Bidding && note) {
             record.bidNotes.push({ ...note, round, seat })
         }
@@ -302,7 +339,11 @@ export function playGame({
                 seat,
                 faceUp: hydrated.pendingPlacement()?.faceUp ?? false,
                 extraCubes: decision.extraCubes,
-                supply: hydrated.getPlayerState(playerId).supply
+                supply: hydrated.getPlayerState(playerId).supply,
+                allowed: Math.min(
+                    hydrated.getPlayerState(playerId).supply,
+                    (stationCubeCap ?? 99) - 1
+                )
             })
             if (hydrated.pendingPlacement()?.faceUp) {
                 const grid = hydrated.grid()

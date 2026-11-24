@@ -7,10 +7,13 @@ import { placementChoices } from './evaluate.js'
 export class RandomBot implements Bot {
     readonly name = 'random'
 
-    decide({ state, playerId, random }: BotContext) {
+    decide({ state, playerId, random, canPassBid, stationCubeCap }: BotContext) {
         const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)]
         switch (state.machineState) {
             case MachineState.Bidding:
+                if (canPassBid && random() < 0.5) {
+                    return { decision: { type: ActionType.PassBid } as const }
+                }
                 return {
                     decision: {
                         type: ActionType.PlaceBid,
@@ -28,7 +31,10 @@ export class RandomBot implements Bot {
                 const placement = state.pendingPlacement()
                 assertExists(placement, 'A tile is waiting to be placed')
                 const choice = pick(placementChoices(state, placement.tileId, placement.faceUp))
-                const supply = state.getPlayerState(playerId).supply
+                const supply = Math.min(
+                    state.getPlayerState(playerId).supply,
+                    (stationCubeCap ?? 99) - 1
+                )
                 return {
                     decision: {
                         type: ActionType.PlaceTile,

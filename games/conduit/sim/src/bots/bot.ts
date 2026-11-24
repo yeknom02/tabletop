@@ -13,6 +13,7 @@ export type Decision =
     | { type: ActionType.PlaceBid; slot: number }
     | { type: ActionType.BuyTile }
     | { type: ActionType.PassTile }
+    | { type: ActionType.PassBid }
     | { type: ActionType.PlaceTile; cell: OffsetCoordinates; rotation: number; extraCubes: number }
 
 // What a bot saw when it chose, for the studies: how many options it had and how far apart the
@@ -35,6 +36,10 @@ export interface BotContext {
     extraCubeCost: ExtraCubeCost
     routeToll: RouteToll
     marketSize: MarketSize
+    // Whether the bot may pass instead of bidding (the bid-until-all-pass variant).
+    canPassBid: boolean
+    // Most cubes a new station may hold, the winning cube included.
+    stationCubeCap?: number
 }
 
 export interface Bot {

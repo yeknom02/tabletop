@@ -77,7 +77,8 @@ function row(label: string, games: GameRecord[]): string {
     const bids = games.flatMap((game) => game.bidNotes ?? [])
     const offers = games.flatMap((game) => game.offers)
     const placements = games.flatMap((game) => game.placements.filter((entry) => entry.faceUp))
-    const withSpare = placements.filter((entry) => entry.supply > 0)
+    const allowed = (entry: { supply: number; allowed?: number }) => entry.allowed ?? entry.supply
+    const withSpare = placements.filter((entry) => allowed(entry) > 0)
     const revenues = games.flatMap((game) => game.revenues)
     const challenger = games.flatMap((game) => {
         const seat = challengerSeat(game)
@@ -98,7 +99,7 @@ function row(label: string, games: GameRecord[]): string {
         share(offers, (entry) => entry.canPay && Math.abs(gap(entry)) >= Obvious),
         share(placements, (entry) => entry.options > 1 && gap(entry) >= Obvious),
         share(placements, (entry) => entry.options > 1 && gap(entry) === 0),
-        share(withSpare, (entry) => entry.extraCubes >= entry.supply),
+        share(withSpare, (entry) => entry.extraCubes >= allowed(entry)),
         lopsidedShare(games),
         challenger.length ? mean(challenger).toFixed(3) : '-'
     ].join(' | ')
