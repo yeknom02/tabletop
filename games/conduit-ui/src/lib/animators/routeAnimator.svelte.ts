@@ -152,9 +152,11 @@ export class RouteAnimator {
                     emblem: emblemOf(station),
                     caption: `${name}’s ${letter} → nearest ${search.target}`,
                     tie: candidates.length > 0 ? tieRule(search.candidates) : undefined,
+                    // A route pays $1 plus $1 per station it passes, both ends included;
+                    // face-down tiles on the way are not stations.
                     verdict:
                         route.length > 0
-                            ? `+$${revenue.amount} · ${route.length} stations`
+                            ? `+$${revenue.amount} · ${revenue.amount - 1} stations`
                             : `No ${search.target} in reach`,
                     layers: search.layers,
                     ends: search.candidates.map((candidate) => {
