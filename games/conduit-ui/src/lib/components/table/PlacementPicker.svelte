@@ -107,17 +107,17 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 48px;
+        width: 44px;
         height: 44px;
-        border-radius: 6px;
+        border-radius: 50%;
         color: #e8eef6;
         background: #222e3d;
         box-shadow: inset 0 0 0 1px #33445a;
     }
 
     .turn svg {
-        width: 24px;
-        height: 18px;
+        width: 22px;
+        height: 22px;
         fill: none;
         stroke: currentColor;
         stroke-width: 2.4;
