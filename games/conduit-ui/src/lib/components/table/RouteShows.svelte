@@ -4,6 +4,7 @@
     import { CellSize, cellOrigin, type BoardBounds } from '$lib/utils/boardLayout.js'
     import { centredTextShift } from '$lib/utils/tableLayout.js'
     import type { RouteShow } from '$lib/animators/routeAnimator.svelte.js'
+    import RouteFlow from './RouteFlow.svelte'
 
     // The revenue animation's drawing for each paying station, hidden until the route animator
     // reveals it: the search's segments and the cells it reached by distance, the destinations it
@@ -113,21 +114,22 @@
             ></polyline>
         {/each}
         {#if show.route.length > 1}
+            <!-- The route draws in, then becomes the glowing, flowing route as it pays. -->
+            <g data-show-glow={id} opacity="0">
+                <RouteFlow
+                    id="conduit-show-glow-{show.key}"
+                    line={show.route.map(centre)}
+                    color={show.color}
+                />
+            </g>
             <polyline
-                class="route-under"
+                class="route-draw"
                 data-show-route={id}
                 points={points(show.route)}
                 pathLength="1"
                 stroke-dasharray="1 1"
                 stroke-dashoffset="1"
-            ></polyline>
-            <polyline
-                class="route-over"
-                data-show-route={id}
-                points={points(show.route)}
-                pathLength="1"
-                stroke-dasharray="1 1"
-                stroke-dashoffset="1"
+                opacity="1"
             ></polyline>
         {/if}
         <circle class="station-ring" data-show-ring={id} cx={home.x} cy={home.y} r="44" opacity="0"
@@ -202,18 +204,10 @@
         stroke-linejoin: round;
     }
 
-    .route-under {
-        fill: none;
-        stroke: rgb(8 12 18 / 0.75);
-        stroke-width: 20;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-    }
-
-    .route-over {
+    .route-draw {
         fill: none;
         stroke: var(--owner);
-        stroke-width: 10;
+        stroke-width: 8;
         stroke-linecap: round;
         stroke-linejoin: round;
     }

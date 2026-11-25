@@ -323,6 +323,11 @@ export class RouteAnimator {
                 at
             )
         }
+        // The drawn route gives way to the glowing, flowing one.
+        this.fade(timeline, this.find(`[data-show-glow="${id}"]`), 1, at, 0.3)
+        for (const line of this.findAll(`[data-show-route="${id}"]`)) {
+            this.fade(timeline, line, 0, at, 0.3)
+        }
         const index = Number(id)
         timeline.call(() => this.pay(index), [], at)
     }

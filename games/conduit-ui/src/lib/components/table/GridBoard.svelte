@@ -13,6 +13,7 @@
     import { TileBackUrl, tileFaceUrl } from '$lib/utils/tileArt.js'
     import CentralStation from './CentralStation.svelte'
     import CubePile from './CubePile.svelte'
+    import RouteFlow from './RouteFlow.svelte'
     import RouteShows from './RouteShows.svelte'
 
     const gameSession = getGameSession()
@@ -26,15 +27,6 @@
     function centreOf(cell: OffsetCoordinates) {
         const origin = cellOrigin(cell, bounds)
         return { x: origin.x + half, y: origin.y + half }
-    }
-
-    function routePoints(cells: OffsetCoordinates[]): string {
-        return cells
-            .map((cell) => {
-                const point = centreOf(cell)
-                return `${point.x},${point.y}`
-            })
-            .join(' ')
     }
 
     // The Central Station draws its own blocked ends.
@@ -170,9 +162,12 @@
 {#each gameSession.shownRoutes as route (route.key)}
     {@const start = centreOf(route.cells[0])}
     {@const end = centreOf(route.cells[route.cells.length - 1])}
+    <RouteFlow
+        id="conduit-route-glow-{route.key}"
+        line={route.cells.map(centreOf)}
+        color={route.color}
+    />
     <g class="shown-route" style:--route={route.color}>
-        <polyline class="route-under" points={routePoints(route.cells)}></polyline>
-        <polyline class="route-over" points={routePoints(route.cells)}></polyline>
         <circle class="route-start" cx={start.x} cy={start.y} r="40"></circle>
         <circle class="route-end" cx={end.x} cy={end.y} r="40"></circle>
     </g>
@@ -271,22 +266,6 @@
 
     .shown-route {
         pointer-events: none;
-    }
-
-    .route-under {
-        fill: none;
-        stroke: rgb(8 12 18 / 0.7);
-        stroke-width: 20;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-    }
-
-    .route-over {
-        fill: none;
-        stroke: var(--route);
-        stroke-width: 9;
-        stroke-linecap: round;
-        stroke-linejoin: round;
     }
 
     .route-start,
