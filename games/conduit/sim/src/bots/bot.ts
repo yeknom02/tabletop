@@ -15,6 +15,7 @@ export type Decision =
     | { type: ActionType.PassTile }
     | { type: ActionType.PassBid }
     | { type: ActionType.PlaceTile; cell: OffsetCoordinates; rotation: number; extraCubes: number }
+    | { type: ActionType.ChooseRoute; tileId: number; option: number }
 
 // What a bot saw when it chose, for the studies: how many options it had and how far apart the
 // best and next best were by its own measure.

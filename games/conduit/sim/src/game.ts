@@ -8,6 +8,7 @@ import {
     type GameAction
 } from '@tabletop/common'
 import {
+    ActionType,
     ConduitInfo,
     ConduitRuntime,
     Definition,
@@ -307,21 +308,36 @@ export function playGame({
                 )
             })
         }
-        const { decision, note } = bots[seat].decide({
-            state: hydrated,
-            playerId,
-            random,
-            cubesPerRound,
-            routeTarget,
-            marketDeal,
-            extraCubeCost,
-            routeToll,
-            marketSize,
-            canPassBid:
-                hydrated.machineState === MachineState.Bidding &&
-                hydrated.canPassBid(playerId, minimumBids, biddingEnd),
-            stationCubeCap
-        })
+        // A tie that decides who gets a toll: the owner takes the first option, so studies stay
+        // reproducible; the bots have no habit for it yet.
+        const choice =
+            hydrated.machineState === MachineState.ChoosingRoutes
+                ? hydrated.pendingRouteChoice()
+                : undefined
+        const { decision, note } = choice
+            ? {
+                  decision: {
+                      type: ActionType.ChooseRoute as const,
+                      tileId: choice.tileId,
+                      option: 0
+                  },
+                  note: undefined
+              }
+            : bots[seat].decide({
+                  state: hydrated,
+                  playerId,
+                  random,
+                  cubesPerRound,
+                  routeTarget,
+                  marketDeal,
+                  extraCubeCost,
+                  routeToll,
+                  marketSize,
+                  canPassBid:
+                      hydrated.machineState === MachineState.Bidding &&
+                      hydrated.canPassBid(playerId, minimumBids, biddingEnd),
+                  stationCubeCap
+              })
         if (
             hydrated.machineState === MachineState.Bidding &&
             decision.type === 'placeBid' &&
