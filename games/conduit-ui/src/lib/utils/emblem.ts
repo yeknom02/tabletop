@@ -1,49 +1,55 @@
 import { StationLetter } from '@tabletop/conduit'
 
-// The outline of a station tile's central emblem, a few units outside the printed shape, centred
-// on (0, 0) in the tile's printed orientation (tile = 100 units). Read from the art: A is a
-// chamfered square, B a chamfered diamond, C a hexagon with a point at the top, D an octagon.
-export function emblemOutline(letter: StationLetter): string {
-    const points = emblemPoints(letter)
-    return points.map(([x, y]) => `${round(x)},${round(y)}`).join(' ')
-}
-
-function emblemPoints(letter: StationLetter): [number, number][] {
-    switch (letter) {
-        case StationLetter.A:
-            return chamfered(25, 5)
-        case StationLetter.B:
-            return turned45(chamfered(23, 3))
-        case StationLetter.C:
-            return Array.from({ length: 6 }, (_, index) => {
-                const angle = ((-90 + index * 60) * Math.PI) / 180
-                return [32 * Math.cos(angle), 32 * Math.sin(angle)] as [number, number]
-            })
-        default:
-            return chamfered(31, 12)
-    }
-}
-
-// A square of half-width `half` with each corner cut back by `cut`.
-function chamfered(half: number, cut: number): [number, number][] {
-    const near = half - cut
-    return [
-        [-near, -half],
-        [near, -half],
-        [half, -near],
-        [half, near],
-        [near, half],
-        [-near, half],
-        [-half, near],
-        [-half, -near]
+// The outline of a station tile's central emblem, centred on (0, 0) in the tile's printed
+// orientation (tile = 100 units): A a chamfered square, B a chamfered diamond, C a hexagon with a
+// point at the top, D an octagon. Measured from the tile art by
+// tmp/conduit/scripts/measure-emblems.mjs, which finds how far each emblem reaches toward each of
+// its edges and runs the outline's stroke centre 5.25 units outside every edge, so a 4.5-unit
+// stroke leaves an even 3-unit gap all round.
+const Outlines: Record<string, [number, number][]> = {
+    [StationLetter.A]: [
+        [26.9, 19.9],
+        [19.9, 26.9],
+        [-19.9, 26.9],
+        [-26.9, 19.9],
+        [-26.9, -19.9],
+        [-19.9, -26.9],
+        [19.9, -26.9],
+        [26.9, -19.9]
+    ],
+    [StationLetter.B]: [
+        [33.2, 5.1],
+        [5.1, 33.2],
+        [-5.1, 33.2],
+        [-33.2, 5.1],
+        [-33.2, -5.1],
+        [-5.1, -33.2],
+        [5.1, -33.2],
+        [33.2, -5.1]
+    ],
+    [StationLetter.C]: [
+        [29.5, 17.1],
+        [0, 34.1],
+        [-29.5, 17.1],
+        [-29.5, -17.1],
+        [0, -34.1],
+        [29.5, -17.1]
+    ],
+    [StationLetter.D]: [
+        [32.4, 13.1],
+        [13.1, 32.4],
+        [-12.9, 32.4],
+        [-32.4, 12.9],
+        [-32.4, -12.9],
+        [-12.9, -32.4],
+        [12.9, -32.4],
+        [32.4, -12.9]
     ]
 }
 
-function turned45(points: [number, number][]): [number, number][] {
-    const c = Math.SQRT1_2
-    return points.map(([x, y]) => [c * (x - y), c * (x + y)])
-}
+export const EmblemStroke = 4.5
 
-function round(value: number): number {
-    return Math.round(value * 100) / 100
+export function emblemOutline(letter: StationLetter): string {
+    const points = Outlines[letter] ?? Outlines[StationLetter.D]
+    return points.map(([x, y]) => `${x},${y}`).join(' ')
 }
