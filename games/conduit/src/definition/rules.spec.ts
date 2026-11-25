@@ -17,7 +17,7 @@ import { isPayRevenue } from '../actions/payRevenue.js'
 import { isPlaceTile } from '../actions/placeTile.js'
 import { isLoseInfrastructure } from '../actions/loseInfrastructure.js'
 import { StationLetter, stationTile } from '../components/tiles.js'
-import { type ConduitProjectedState, Rounds } from '../model/gameState.js'
+import { BidTrackSpaces, type ConduitProjectedState, Rounds } from '../model/gameState.js'
 import { startTestGame, type TestSession } from '../testing/table.js'
 
 const letters = (tileIds: (number | undefined)[]) =>
@@ -247,7 +247,7 @@ describe('bidding', () => {
     it('refuses a full track', () => {
         const session = startTestGame(3)
         session.edit((draft) => {
-            draft.market[0].bids = Array.from({ length: 9 }, () => 'p1')
+            draft.market[0].bids = Array.from({ length: BidTrackSpaces }, () => 'p1')
         })
         expect(() => session.bid(0)).toThrow()
     })
