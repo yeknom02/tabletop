@@ -10,7 +10,11 @@
 
     const gameSession = getGameSession()
     const geometry = $derived(
-        tableGeometry(gameSession.tableState.board, gameSession.auctionColumns)
+        tableGeometry(
+            gameSession.tableState.board,
+            gameSession.auctionColumns,
+            gameSession.tableBeside
+        )
     )
     const flying = $derived(gameSession.tableAnimator.flyingTile)
     const pile = cubeShape(PileCubeSize)

@@ -39,6 +39,7 @@ export type FlyingTile = {
 
 type Session = {
     readonly auctionColumns: number
+    readonly tableBeside: boolean
     readonly gameState: HydratedConduitGameState
     addGameStateChangeListener(listener: GameStateChangeListener<HydratedConduitGameState>): void
     removeGameStateChangeListener(listener: GameStateChangeListener<HydratedConduitGameState>): void
@@ -291,7 +292,11 @@ export class TableAnimator {
     ) {
         const placement = from.pendingPlacement()
         if (!placement) return
-        const before = tableGeometry(from.board, this.session.auctionColumns)
+        const before = tableGeometry(
+            from.board,
+            this.session.auctionColumns,
+            this.session.tableBeside
+        )
         const cubes = faceUp ? 1 + action.extraCubes : 0
         this.flyingTile = {
             slot: placement.slot,

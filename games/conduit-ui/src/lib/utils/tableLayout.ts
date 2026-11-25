@@ -30,11 +30,13 @@ export function centredTextShift(fontSize: number): number {
 }
 
 // Where the auction board and the grid sit in the table's one SVG, for a given board. On a phone
-// the auction spots wrap into rows, so the table is narrow enough to show at a readable size.
+// the auction spots wrap into rows, so the table is narrow enough to show at a readable size. On a
+// wide screen the auction board stands beside the grid, on its left.
 export interface TableGeometry {
     width: number
     height: number
     auctionColumns: number
+    beside: boolean
     auction: Point
     grid: Point
     bounds: BoardBounds
@@ -55,15 +57,31 @@ export function spotOrigin(slot: number, columns: number): Point {
     }
 }
 
-export function tableGeometry(board: Board, auctionColumns: number): TableGeometry {
+export function tableGeometry(board: Board, auctionColumns: number, beside = false): TableGeometry {
     const bounds = boardBounds(board)
     const grid = boardSize(bounds)
     const auction = auctionSize(auctionColumns)
+    if (beside) {
+        const height = Math.max(auction.height, grid.height) + 2 * TableMargin
+        return {
+            width: auction.width + AuctionToBoardGap + grid.width + 2 * TableMargin,
+            height,
+            auctionColumns,
+            beside,
+            auction: { x: TableMargin, y: (height - auction.height) / 2 },
+            grid: {
+                x: TableMargin + auction.width + AuctionToBoardGap,
+                y: (height - grid.height) / 2
+            },
+            bounds
+        }
+    }
     const width = Math.max(auction.width, grid.width) + 2 * TableMargin
     return {
         width,
         height: auction.height + AuctionToBoardGap + grid.height + 2 * TableMargin,
         auctionColumns,
+        beside,
         auction: { x: (width - auction.width) / 2, y: TableMargin },
         grid: { x: (width - grid.width) / 2, y: TableMargin + auction.height + AuctionToBoardGap },
         bounds

@@ -54,7 +54,10 @@ export class ConduitGameSession extends GameSession<
     HydratedConduitGameState
 > {
     private readonly phone = new MediaQuery('max-width: 639px')
-    readonly auctionColumns = $derived(this.phone.current ? 3 : AuctionSpots)
+    private readonly wide = new MediaQuery('min-aspect-ratio: 5/4')
+    // A wide screen puts the auction board, in two columns, beside the grid instead of above it.
+    readonly tableBeside = $derived(!this.phone.current && this.wide.current)
+    readonly auctionColumns = $derived(this.phone.current ? 3 : this.tableBeside ? 2 : AuctionSpots)
     readonly tableAnimator = new TableAnimator(this)
     readonly routePace = new RoutePace()
     readonly routeAnimator = new RouteAnimator(this)
