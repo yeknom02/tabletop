@@ -98,6 +98,11 @@ function table(slug, playerCount) {
                 })
                 return
             }
+            case MachineState.ChoosingRoutes: {
+                // A tie deciding who gets a toll: the first option.
+                act(ActionType.ChooseRoute, { tileId: view.pendingRouteChoice().tileId, option: 0 })
+                return
+            }
             default:
                 throw Error(`No decision in ${state.machineState}`)
         }
@@ -173,6 +178,18 @@ function table(slug, playerCount) {
             view.round === 5 &&
             view.machineState === MachineState.Placing &&
             view.market.filter((slot) => slot.tileId !== undefined).length === 1
+    )
+    scenario.write()
+}
+
+// An owner choosing which of two equally good routes their station takes: the routes pay their
+// tolls to different players (designer ruling, 2026-11-25).
+{
+    const scenario = table('route-choice', 4)
+    scenario.playUntil((view) => view.machineState === MachineState.ChoosingRoutes)
+    const choice = scenario.hydrated().pendingRouteChoice()
+    console.log(
+        `route-choice: round ${scenario.hydrated().round}, ${choice.playerId}'s tile ${choice.tileId}, options ${choice.options.map((option) => option.tolls.join('+') || 'none').join(' / ')}`
     )
     scenario.write()
 }

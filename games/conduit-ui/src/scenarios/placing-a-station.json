@@ -40,10 +40,10 @@
     "winningPlayerIds": [],
     "seed": 3367980177,
     "activePlayerIds": [],
-    "createdAt": "2026-11-24T19:33:14.079Z",
+    "createdAt": "2026-11-25T15:36:32.484Z",
     "storage": "remote",
     "category": "standard",
-    "startedAt": "2026-11-24T19:33:14.079Z",
+    "startedAt": "2026-11-25T15:36:32.485Z",
     "protectedInformation": true,
     "progress": {
       "fraction": 0,
@@ -52,7 +52,7 @@
   },
   "state": {
     "systemVersion": 3,
-    "id": "rg4WrpGEV7FpZIdx23_f6",
+    "id": "uRhpOS-nHl1LlMnkVdV7R",
     "gameId": "scenario-placing-a-station",
     "seed": 3367980177,
     "prng": {
@@ -741,7 +741,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-24T19:33:14.081Z",
+      "createdAt": "2026-11-25T15:36:32.486Z",
       "index": 0,
       "undoPatch": [
         {
@@ -790,7 +790,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-24T19:33:14.082Z",
+      "createdAt": "2026-11-25T15:36:32.487Z",
       "index": 1,
       "undoPatch": [
         {
@@ -839,7 +839,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 2,
-      "createdAt": "2026-11-24T19:33:14.082Z",
+      "createdAt": "2026-11-25T15:36:32.488Z",
       "index": 2,
       "undoPatch": [
         {
@@ -888,7 +888,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 3,
-      "createdAt": "2026-11-24T19:33:14.083Z",
+      "createdAt": "2026-11-25T15:36:32.489Z",
       "index": 3,
       "undoPatch": [
         {
@@ -937,7 +937,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-24T19:33:14.084Z",
+      "createdAt": "2026-11-25T15:36:32.490Z",
       "index": 4,
       "undoPatch": [
         {
@@ -986,7 +986,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-24T19:33:14.084Z",
+      "createdAt": "2026-11-25T15:36:32.490Z",
       "index": 5,
       "undoPatch": [
         {
@@ -1035,7 +1035,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 2,
-      "createdAt": "2026-11-24T19:33:14.085Z",
+      "createdAt": "2026-11-25T15:36:32.491Z",
       "index": 6,
       "undoPatch": [
         {
@@ -1084,7 +1084,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 3,
-      "createdAt": "2026-11-24T19:33:14.085Z",
+      "createdAt": "2026-11-25T15:36:32.491Z",
       "index": 7,
       "undoPatch": [
         {
@@ -1132,7 +1132,7 @@
       "playerId": "p1",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.086Z",
+      "createdAt": "2026-11-25T15:36:32.492Z",
       "index": 8,
       "undoPatch": [
         {
@@ -1175,7 +1175,7 @@
       "playerId": "p0",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.087Z",
+      "createdAt": "2026-11-25T15:36:32.492Z",
       "index": 9,
       "undoPatch": [
         {
@@ -1218,7 +1218,7 @@
       "playerId": "p3",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.087Z",
+      "createdAt": "2026-11-25T15:36:32.493Z",
       "index": 10,
       "undoPatch": [
         {
@@ -1261,7 +1261,7 @@
       "playerId": "p2",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.087Z",
+      "createdAt": "2026-11-25T15:36:32.494Z",
       "index": 11,
       "undoPatch": [
         {
@@ -1309,7 +1309,7 @@
       "playerId": "p1",
       "source": "user",
       "type": "buyTile",
-      "createdAt": "2026-11-24T19:33:14.088Z",
+      "createdAt": "2026-11-25T15:36:32.494Z",
       "metadata": {
         "tileId": 33,
         "price": 3,
@@ -1380,7 +1380,7 @@
       },
       "rotation": 0,
       "extraCubes": 1,
-      "createdAt": "2026-11-24T19:33:14.089Z",
+      "createdAt": "2026-11-25T15:36:32.495Z",
       "metadata": {
         "tileId": 33,
         "faceUp": true,
@@ -1452,7 +1452,7 @@
       "playerId": "p0",
       "source": "user",
       "type": "buyTile",
-      "createdAt": "2026-11-24T19:33:14.090Z",
+      "createdAt": "2026-11-25T15:36:32.498Z",
       "metadata": {
         "tileId": 6,
         "price": 3,
@@ -1523,7 +1523,7 @@
       },
       "rotation": 1,
       "extraCubes": 1,
-      "createdAt": "2026-11-24T19:33:14.090Z",
+      "createdAt": "2026-11-25T15:36:32.503Z",
       "metadata": {
         "tileId": 6,
         "faceUp": true,
@@ -1595,7 +1595,7 @@
       "playerId": "p3",
       "source": "user",
       "type": "buyTile",
-      "createdAt": "2026-11-24T19:33:14.091Z",
+      "createdAt": "2026-11-25T15:36:32.505Z",
       "metadata": {
         "tileId": 22,
         "price": 3,
@@ -1666,7 +1666,7 @@
       },
       "rotation": 0,
       "extraCubes": 1,
-      "createdAt": "2026-11-24T19:33:14.092Z",
+      "createdAt": "2026-11-25T15:36:32.506Z",
       "metadata": {
         "tileId": 22,
         "faceUp": true,
@@ -1738,7 +1738,7 @@
       "playerId": "p2",
       "source": "user",
       "type": "buyTile",
-      "createdAt": "2026-11-24T19:33:14.092Z",
+      "createdAt": "2026-11-25T15:36:32.507Z",
       "metadata": {
         "tileId": 15,
         "price": 3,
@@ -1809,7 +1809,7 @@
       },
       "rotation": 1,
       "extraCubes": 1,
-      "createdAt": "2026-11-24T19:33:14.093Z",
+      "createdAt": "2026-11-25T15:36:32.510Z",
       "metadata": {
         "tileId": 15,
         "faceUp": true,
@@ -1881,7 +1881,7 @@
       "gameId": "scenario-placing-a-station",
       "source": "system",
       "type": "payRevenue",
-      "createdAt": "2026-11-24T19:33:14.093Z",
+      "createdAt": "2026-11-25T15:36:32.511Z",
       "metadata": {
         "revenues": [
           {
@@ -1967,7 +1967,7 @@
       "gameId": "scenario-placing-a-station",
       "source": "system",
       "type": "loseInfrastructure",
-      "createdAt": "2026-11-24T19:33:14.094Z",
+      "createdAt": "2026-11-25T15:36:32.512Z",
       "metadata": {
         "flippedTileIds": [
           1,
@@ -2113,7 +2113,7 @@
       "source": "system",
       "type": "fillMarket",
       "revealsInfo": true,
-      "createdAt": "2026-11-24T19:33:14.094Z",
+      "createdAt": "2026-11-25T15:36:32.512Z",
       "metadata": {
         "round": 2,
         "tileIds": [
@@ -2255,7 +2255,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-24T19:33:14.095Z",
+      "createdAt": "2026-11-25T15:36:32.514Z",
       "index": 23,
       "undoPatch": [
         {
@@ -2304,7 +2304,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-24T19:33:14.096Z",
+      "createdAt": "2026-11-25T15:36:32.515Z",
       "index": 24,
       "undoPatch": [
         {
@@ -2353,7 +2353,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 2,
-      "createdAt": "2026-11-24T19:33:14.097Z",
+      "createdAt": "2026-11-25T15:36:32.517Z",
       "index": 25,
       "undoPatch": [
         {
@@ -2402,7 +2402,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 3,
-      "createdAt": "2026-11-24T19:33:14.098Z",
+      "createdAt": "2026-11-25T15:36:32.518Z",
       "index": 26,
       "undoPatch": [
         {
@@ -2451,7 +2451,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 4,
-      "createdAt": "2026-11-24T19:33:14.099Z",
+      "createdAt": "2026-11-25T15:36:32.519Z",
       "index": 27,
       "undoPatch": [
         {
@@ -2500,7 +2500,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-24T19:33:14.100Z",
+      "createdAt": "2026-11-25T15:36:32.520Z",
       "index": 28,
       "undoPatch": [
         {
@@ -2549,7 +2549,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-24T19:33:14.101Z",
+      "createdAt": "2026-11-25T15:36:32.520Z",
       "index": 29,
       "undoPatch": [
         {
@@ -2598,7 +2598,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 2,
-      "createdAt": "2026-11-24T19:33:14.102Z",
+      "createdAt": "2026-11-25T15:36:32.521Z",
       "index": 30,
       "undoPatch": [
         {
@@ -2646,7 +2646,7 @@
       "playerId": "p0",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.103Z",
+      "createdAt": "2026-11-25T15:36:32.522Z",
       "index": 31,
       "undoPatch": [
         {
@@ -2689,7 +2689,7 @@
       "playerId": "p3",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.103Z",
+      "createdAt": "2026-11-25T15:36:32.522Z",
       "index": 32,
       "undoPatch": [
         {
@@ -2732,7 +2732,7 @@
       "playerId": "p2",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.104Z",
+      "createdAt": "2026-11-25T15:36:32.523Z",
       "index": 33,
       "undoPatch": [
         {
@@ -2775,7 +2775,7 @@
       "playerId": "p1",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.105Z",
+      "createdAt": "2026-11-25T15:36:32.524Z",
       "index": 34,
       "undoPatch": [
         {
@@ -2823,7 +2823,7 @@
       "playerId": "p0",
       "source": "user",
       "type": "buyTile",
-      "createdAt": "2026-11-24T19:33:14.106Z",
+      "createdAt": "2026-11-25T15:36:32.525Z",
       "metadata": {
         "tileId": 30,
         "price": 3,
@@ -2904,7 +2904,7 @@
       },
       "rotation": 0,
       "extraCubes": 1,
-      "createdAt": "2026-11-24T19:33:14.107Z",
+      "createdAt": "2026-11-25T15:36:32.526Z",
       "metadata": {
         "tileId": 30,
         "faceUp": true,
@@ -2976,7 +2976,7 @@
       "playerId": "p3",
       "source": "user",
       "type": "passTile",
-      "createdAt": "2026-11-24T19:33:14.108Z",
+      "createdAt": "2026-11-25T15:36:32.527Z",
       "metadata": {
         "tileId": 11,
         "price": 3,
@@ -3035,7 +3035,7 @@
       "playerId": "p2",
       "source": "user",
       "type": "buyTile",
-      "createdAt": "2026-11-24T19:33:14.108Z",
+      "createdAt": "2026-11-25T15:36:32.528Z",
       "metadata": {
         "tileId": 11,
         "price": 2,
@@ -3100,7 +3100,7 @@
       },
       "rotation": 0,
       "extraCubes": 1,
-      "createdAt": "2026-11-24T19:33:14.109Z",
+      "createdAt": "2026-11-25T15:36:32.529Z",
       "metadata": {
         "tileId": 11,
         "faceUp": true,
@@ -3167,7 +3167,7 @@
       "playerId": "p2",
       "source": "user",
       "type": "passTile",
-      "createdAt": "2026-11-24T19:33:14.112Z",
+      "createdAt": "2026-11-25T15:36:32.530Z",
       "metadata": {
         "tileId": 17,
         "price": 3,
@@ -3226,7 +3226,7 @@
       "playerId": "p1",
       "source": "user",
       "type": "passTile",
-      "createdAt": "2026-11-24T19:33:14.112Z",
+      "createdAt": "2026-11-25T15:36:32.531Z",
       "metadata": {
         "tileId": 17,
         "price": 2,
@@ -3296,7 +3296,7 @@
       },
       "rotation": 0,
       "extraCubes": 0,
-      "createdAt": "2026-11-24T19:33:14.113Z",
+      "createdAt": "2026-11-25T15:36:32.532Z",
       "metadata": {
         "tileId": 17,
         "faceUp": false
@@ -3353,7 +3353,7 @@
       "playerId": "p1",
       "source": "user",
       "type": "buyTile",
-      "createdAt": "2026-11-24T19:33:14.114Z",
+      "createdAt": "2026-11-25T15:36:32.533Z",
       "metadata": {
         "tileId": 16,
         "price": 2,
@@ -3418,7 +3418,7 @@
       },
       "rotation": 0,
       "extraCubes": 0,
-      "createdAt": "2026-11-24T19:33:14.115Z",
+      "createdAt": "2026-11-25T15:36:32.534Z",
       "metadata": {
         "tileId": 16,
         "faceUp": true
@@ -3479,7 +3479,7 @@
       "playerId": "p0",
       "source": "user",
       "type": "passTile",
-      "createdAt": "2026-11-24T19:33:14.116Z",
+      "createdAt": "2026-11-25T15:36:32.536Z",
       "metadata": {
         "tileId": 34,
         "price": 2,
@@ -3544,7 +3544,7 @@
       },
       "rotation": 0,
       "extraCubes": 0,
-      "createdAt": "2026-11-24T19:33:14.117Z",
+      "createdAt": "2026-11-25T15:36:32.538Z",
       "metadata": {
         "tileId": 34,
         "faceUp": false
@@ -3601,7 +3601,7 @@
       "gameId": "scenario-placing-a-station",
       "source": "system",
       "type": "payRevenue",
-      "createdAt": "2026-11-24T19:33:14.117Z",
+      "createdAt": "2026-11-25T15:36:32.538Z",
       "metadata": {
         "revenues": [
           {
@@ -3819,7 +3819,7 @@
       "gameId": "scenario-placing-a-station",
       "source": "system",
       "type": "loseInfrastructure",
-      "createdAt": "2026-11-24T19:33:14.118Z",
+      "createdAt": "2026-11-25T15:36:32.539Z",
       "metadata": {
         "flippedTileIds": [],
         "refills": [
@@ -3980,7 +3980,7 @@
       "source": "system",
       "type": "fillMarket",
       "revealsInfo": true,
-      "createdAt": "2026-11-24T19:33:14.118Z",
+      "createdAt": "2026-11-25T15:36:32.540Z",
       "metadata": {
         "round": 3,
         "tileIds": [
@@ -4120,7 +4120,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 4,
-      "createdAt": "2026-11-24T19:33:14.120Z",
+      "createdAt": "2026-11-25T15:36:32.542Z",
       "index": 50,
       "undoPatch": [
         {
@@ -4169,7 +4169,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-24T19:33:14.120Z",
+      "createdAt": "2026-11-25T15:36:32.544Z",
       "index": 51,
       "undoPatch": [
         {
@@ -4218,7 +4218,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-24T19:33:14.121Z",
+      "createdAt": "2026-11-25T15:36:32.545Z",
       "index": 52,
       "undoPatch": [
         {
@@ -4267,7 +4267,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 2,
-      "createdAt": "2026-11-24T19:33:14.122Z",
+      "createdAt": "2026-11-25T15:36:32.547Z",
       "index": 53,
       "undoPatch": [
         {
@@ -4316,7 +4316,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 3,
-      "createdAt": "2026-11-24T19:33:14.123Z",
+      "createdAt": "2026-11-25T15:36:32.548Z",
       "index": 54,
       "undoPatch": [
         {
@@ -4365,7 +4365,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 4,
-      "createdAt": "2026-11-24T19:33:14.124Z",
+      "createdAt": "2026-11-25T15:36:32.550Z",
       "index": 55,
       "undoPatch": [
         {
@@ -4414,7 +4414,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 0,
-      "createdAt": "2026-11-24T19:33:14.125Z",
+      "createdAt": "2026-11-25T15:36:32.551Z",
       "index": 56,
       "undoPatch": [
         {
@@ -4463,7 +4463,7 @@
       "source": "user",
       "type": "placeBid",
       "slot": 1,
-      "createdAt": "2026-11-24T19:33:14.125Z",
+      "createdAt": "2026-11-25T15:36:32.552Z",
       "index": 57,
       "undoPatch": [
         {
@@ -4511,7 +4511,7 @@
       "playerId": "p3",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.126Z",
+      "createdAt": "2026-11-25T15:36:32.553Z",
       "index": 58,
       "undoPatch": [
         {
@@ -4554,7 +4554,7 @@
       "playerId": "p2",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.127Z",
+      "createdAt": "2026-11-25T15:36:32.554Z",
       "index": 59,
       "undoPatch": [
         {
@@ -4597,7 +4597,7 @@
       "playerId": "p1",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.128Z",
+      "createdAt": "2026-11-25T15:36:32.556Z",
       "index": 60,
       "undoPatch": [
         {
@@ -4640,7 +4640,7 @@
       "playerId": "p0",
       "source": "user",
       "type": "passBid",
-      "createdAt": "2026-11-24T19:33:14.129Z",
+      "createdAt": "2026-11-25T15:36:32.557Z",
       "index": 61,
       "undoPatch": [
         {
@@ -4688,7 +4688,7 @@
       "playerId": "p2",
       "source": "user",
       "type": "buyTile",
-      "createdAt": "2026-11-24T19:33:14.130Z",
+      "createdAt": "2026-11-25T15:36:32.558Z",
       "metadata": {
         "tileId": 56,
         "price": 3,

@@ -1,6 +1,7 @@
 import type { GameAction } from '@tabletop/common'
 import {
     isBuyTile,
+    isChooseRoute,
     isFillMarket,
     isLoseInfrastructure,
     isPassBid,
@@ -56,6 +57,13 @@ export function describeAction(action: GameAction, name: Name): string | undefin
         return action.metadata.faceUp
             ? `${who} placed it with ${cubes(1 + action.extraCubes)}${paid ? ` (paid ${dollars(paid)})` : ''}`
             : `${who} placed the ${tileName(action.metadata.tileId)} face down`
+    }
+    if (isChooseRoute(action) && action.metadata) {
+        const paid = new Map<string, number>()
+        for (const playerId of action.metadata.tolls)
+            paid.set(playerId, (paid.get(playerId) ?? 0) + 1)
+        const to = [...paid].map(([playerId, amount]) => `${name(playerId)} ${dollars(amount)}`)
+        return `${who} chose the route from the ${stationTile(action.tileId).letter} station paying ${to.length > 0 ? to.join(', ') : 'no toll'}`
     }
     if (isFillMarket(action) && action.metadata) {
         return `Market: ${action.metadata.tileIds.map((tileId) => stationTile(tileId).letter).join(' ')}`
@@ -137,9 +145,11 @@ export function historyItems(actions: readonly GameAction[], name: Name): Histor
         const isBidding = isPlaceBid(action) || isPassBid(action)
         const key = isBidding
             ? 'bidding'
-            : tileId !== undefined
-              ? `tile-${tileId}`
-              : `${action.type}-${index}`
+            : isChooseRoute(action)
+              ? 'route-choices'
+              : tileId !== undefined
+                ? `tile-${tileId}`
+                : `${action.type}-${index}`
         const actionIndex = action.index ?? index
         if (open && groupKey === key) {
             open.lines.push(...lines)
@@ -148,13 +158,15 @@ export function historyItems(actions: readonly GameAction[], name: Name): Histor
         }
         const title = isBidding
             ? 'Bidding'
-            : tileId !== undefined
-              ? `The ${tileName(tileId)}`
-              : isFillMarket(action)
-                ? 'New market'
-                : isPayRevenue(action)
-                  ? 'Revenue'
-                  : 'Infrastructure loss'
+            : isChooseRoute(action)
+              ? 'Route choice'
+              : tileId !== undefined
+                ? `The ${tileName(tileId)}`
+                : isFillMarket(action)
+                  ? 'New market'
+                  : isPayRevenue(action)
+                    ? 'Revenue'
+                    : 'Infrastructure loss'
         open = { kind: 'entry', key: action.id, title, lines, lastIndex: actionIndex }
         groupKey = key
         items.push(open)

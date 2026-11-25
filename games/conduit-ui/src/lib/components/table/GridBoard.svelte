@@ -38,6 +38,26 @@
         )
     )
 
+    // A route being chosen, and who the option in focus would pay: each other player's station on
+    // it with a cube, the destination included.
+    const choice = $derived(gameSession.isViewingHistory ? undefined : gameSession.shownRouteChoice)
+    const focusedTolls = $derived.by(() => {
+        const option =
+            choice && gameSession.focusedOption !== undefined
+                ? choice.options[gameSession.focusedOption]
+                : undefined
+        if (!choice || !option) return []
+        return option.cells.slice(1).flatMap((cell) => {
+            const passed = gameSession.grid.stationAt(cell)
+            return passed?.ownerId !== undefined &&
+                passed.ownerId !== choice.playerId &&
+                passed.faceUp &&
+                passed.cubes > 0
+                ? [{ cell, color: gameSession.colors.getPlayerBgColorValue(passed.ownerId) }]
+                : []
+        })
+    })
+
     // A single highlighted route dims the stations it doesn't pass.
     const focusRoute = $derived(
         gameSession.shownRoutes.length === 1 ? gameSession.shownRoutes[0] : undefined
@@ -159,12 +179,37 @@
     <rect class="dim" x={origin.x} y={origin.y} width={CellSize} height={CellSize}></rect>
 {/each}
 
+{#if choice}
+    <!-- The other tied routes, faint, beneath the one in focus. -->
+    {#each choice.options as option, index (index)}
+        {#if index !== gameSession.focusedOption}
+            <polyline
+                class="other-option"
+                points={option.cells
+                    .map(centreOf)
+                    .map((point) => `${point.x},${point.y}`)
+                    .join(' ')}
+                style:--route={gameSession.colors.getPlayerBgColorValue(choice.playerId)}
+            ></polyline>
+        {/if}
+    {/each}
+{/if}
+
 {#each gameSession.shownRoutes as route (route.key)}
     <RouteFlow
         id="conduit-route-glow-{route.key}"
         line={route.cells.map(centreOf)}
         color={route.color}
     />
+{/each}
+
+<!-- The tolls the route in focus would pay, on the stations they go to. -->
+{#each focusedTolls as toll (cellKey(toll.cell))}
+    {@const point = centreOf(toll.cell)}
+    <g class="toll-chip" transform="translate({point.x} {point.y - 30})">
+        <rect x="-24" y="-14" width="48" height="28" rx="14" style:fill={toll.color}></rect>
+        <text text-anchor="middle" dy={centredTextShift(16)}>+$1</text>
+    </g>
 {/each}
 
 {#each sticks as closed (`${cellKey(closed.cell)}-${closed.side}`)}
@@ -251,6 +296,35 @@
         font-size: 14px;
         font-weight: 800;
         fill: #f5c542;
+    }
+
+    .other-option {
+        fill: none;
+        stroke: var(--route);
+        stroke-width: 6;
+        stroke-dasharray: 4 10;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.55;
+        pointer-events: none;
+    }
+
+    .toll-chip {
+        pointer-events: none;
+    }
+
+    .toll-chip rect {
+        stroke: #1b1505;
+        stroke-width: 1.5;
+    }
+
+    .toll-chip text {
+        font-size: 16px;
+        font-weight: 800;
+        fill: #fff;
+        stroke: #000;
+        stroke-width: 3px;
+        paint-order: stroke;
     }
 
     .dim {

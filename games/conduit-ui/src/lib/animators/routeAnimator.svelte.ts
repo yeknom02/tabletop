@@ -125,6 +125,8 @@ export class RouteAnimator {
             const name = this.session.nameOf(revenue.playerId)
             const route = revenue.route.length > 1 ? revenue.route : []
             const candidates = search.candidates.length > 1 ? search.candidates : []
+            // An owner who chose among tied routes: show the routes they chose between.
+            const chose = from.routeChoices?.find((choice) => choice.tileId === station.tileId)
             const tolls = revenue.tolls?.length
                 ? route.slice(1).flatMap((cell) => {
                       const passed = grid.stationAt(cell)
@@ -151,7 +153,11 @@ export class RouteAnimator {
                     station: station.cell,
                     emblem: emblemOf(station),
                     caption: `${name}’s ${letter} → nearest ${search.target}`,
-                    tie: candidates.length > 0 ? tieRule(search.candidates) : undefined,
+                    tie: chose
+                        ? `Tie: ${name} chose who gets the toll`
+                        : candidates.length > 0
+                          ? tieRule(search.candidates)
+                          : undefined,
                     // A route pays $1 plus $1 per station it passes, both ends included;
                     // face-down tiles on the way are not stations.
                     verdict:
@@ -163,7 +169,9 @@ export class RouteAnimator {
                         const cell = candidate.cells.at(-1)!
                         return { cell, emblem: emblemOf(grid.stationAt(cell) ?? station) }
                     }),
-                    candidates: candidates.map((candidate) => candidate.cells),
+                    candidates: chose
+                        ? chose.options.map((option) => option.cells)
+                        : candidates.map((candidate) => candidate.cells),
                     route,
                     amount: revenue.amount,
                     tolls,

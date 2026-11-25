@@ -24,13 +24,14 @@ the third player and the Start Player.
 
 ## Placing a station
 
-Four players, round 2. A bought tile waits to be placed, and the grid already spans six tiles one
+Four players, round 3. A bought tile waits to be placed, and the grid already spans six tiles one
 way.
 
 - Every lit cell borders a tile, and none would stretch the grid past 6×6: the cells beyond the
   six-tile side stay dark.
-- Choose a cell, then a turn and the extra cubes: the station shows its cubes and revenue badge.
-- Undo steps back through the cube, turn and cell choices before undoing anything played.
+- Choose a cell: the tile shows in its first legal turn. Turn it with the arrows (illegal turns
+  are skipped), then choose the extra cubes: the station shows its cubes and revenue badge.
+- Undo puts the tile back in its first turn, then clears the cell, before undoing anything played.
 
 ## Last tile
 
@@ -38,3 +39,15 @@ Three players, the last tile of round 5.
 
 - Place it: revenue and infrastructure loss repeat until no cubes are left, the history shows
   Final payouts, and the game ends with the most cash winning.
+
+## Route choice
+
+Four players, round 4, before revenue. Ada's D has two equally good routes (same length, same
+stations, same number of her own), one paying its $1 toll to Dev and one to Cleo, so she chooses
+(designer ruling, 2026-11-25). Another owner has a choice after hers.
+
+- Hover each button ("Dev +$1", "Cleo +$1"): the route flows on the board with a +$1 chip on the
+  station it pays; the other route shows faint.
+- Choose Cleo: the next owner chooses, then revenue draws Ada's route to Cleo's station, captioned
+  as her choice, and Cleo gets the $1.
+- Undo returns to Ada's choice.

@@ -19,6 +19,14 @@
         return action ? describeAction(action, name) : undefined
     })
     const myBids = $derived(gameSession.myPlayer ? state.bidsBy(gameSession.myPlayer.id) : 0)
+
+    // Who a route's tolls pay, as "Ada +$1, Ben +$2", or "No toll".
+    function tollLabel(tolls: string[]): string {
+        if (tolls.length === 0) return 'No toll'
+        const totals = new Map<string, number>()
+        for (const playerId of tolls) totals.set(playerId, (totals.get(playerId) ?? 0) + 1)
+        return [...totals].map(([playerId, amount]) => `${name(playerId)} +$${amount}`).join(', ')
+    }
 </script>
 
 <section class="card" class:settling={gameSession.busy} aria-label="Actions">
@@ -83,6 +91,32 @@
         {#if !placement.faceUp}
             <p class="detail">Nobody bought it</p>
         {/if}
+    {:else if gameSession.routeChoice}
+        {@const choice = gameSession.routeChoice}
+        <p class="prompt">Who gets the toll from your {letterOf(choice.tileId)} station?</p>
+        <p class="detail">These routes tie; you choose</p>
+        <div class="buttons">
+            {#each choice.options as option, index (index)}
+                <button
+                    type="button"
+                    class="choice"
+                    class:focused={gameSession.focusedOption === index}
+                    onclick={() => gameSession.chooseRoute(index)}
+                    onmouseenter={() => gameSession.previewRoute(index)}
+                    onfocus={() => gameSession.previewRoute(index)}
+                    onmouseleave={() => gameSession.previewRoute(undefined)}
+                    onblur={() => gameSession.previewRoute(undefined)}
+                    >{tollLabel(option.tolls)}</button
+                >
+            {/each}
+        </div>
+    {:else if state.machineState === MachineState.ChoosingRoutes && gameSession.shownRouteChoice}
+        {@const choice = gameSession.shownRouteChoice}
+        <p class="prompt">
+            {name(choice.playerId)} is choosing who gets the toll from their {letterOf(
+                choice.tileId
+            )} station
+        </p>
     {:else if state.machineState === MachineState.Bidding && activeId}
         <p class="prompt">{name(activeId)} is bidding</p>
     {:else if state.machineState === MachineState.Offering && gameSession.offer}
@@ -144,6 +178,10 @@
         color: var(--conduit-ink);
         background: var(--conduit-panel-raised);
         box-shadow: inset 0 0 0 1px var(--conduit-line);
+    }
+
+    .choice.focused {
+        box-shadow: inset 0 0 0 2px var(--conduit-live);
     }
 
     .choice.buy {

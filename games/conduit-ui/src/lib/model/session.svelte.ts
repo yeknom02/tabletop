@@ -8,6 +8,7 @@ import {
 import {
     ActionType,
     BuyTile,
+    ChooseRoute,
     extraCubeCostOf,
     extraCubesPrice,
     PassBid,
@@ -15,6 +16,7 @@ import {
     PlaceBid,
     PlaceTile,
     isPayRevenue,
+    MachineState,
     routeTargetOf,
     stationCubeCapOf,
     routeTollOf,
@@ -60,6 +62,8 @@ export class ConduitGameSession extends GameSession<
     inspectedCell: OffsetCoordinates | undefined = $state()
     // A station under the mouse previews its route until the pointer leaves.
     hoveredCell: OffsetCoordinates | undefined = $state()
+    // The route option under the mouse while an owner chooses a route.
+    previewOption: number | undefined = $state()
 
     private selection: PlacementSelection = $state({})
 
@@ -140,7 +144,35 @@ export class ConduitGameSession extends GameSession<
             : undefined
     )
 
+    // A route being chosen, for everyone at the table, and the player's own choice to make.
+    readonly shownRouteChoice = $derived(
+        this.tableState.machineState === MachineState.ChoosingRoutes
+            ? this.tableState.pendingRouteChoice()
+            : undefined
+    )
+    readonly routeChoice = $derived(
+        // Not while a chain of actions animates: the published state still holds the old choice.
+        this.canTake(ActionType.ChooseRoute) && !this.busy
+            ? this.gameState.pendingRouteChoice()
+            : undefined
+    )
+    // The option the board shows brightly: the one under the mouse, else the first.
+    readonly focusedOption = $derived(this.shownRouteChoice ? (this.previewOption ?? 0) : undefined)
+
     readonly shownRoutes: ShownRoute[] = $derived.by(() => {
+        const choice = this.shownRouteChoice
+        if (choice && this.focusedOption !== undefined && !this.isViewingHistory) {
+            const option = choice.options[this.focusedOption]
+            return option
+                ? [
+                      {
+                          key: `choice-${choice.tileId}-${this.focusedOption}`,
+                          color: this.colors.getPlayerBgColorValue(choice.playerId),
+                          cells: option.cells
+                      }
+                  ]
+                : []
+        }
         if (this.paidRevenues) {
             return this.paidRevenues
                 .filter((revenue) => revenue.route.length > 1)
@@ -249,6 +281,7 @@ export class ConduitGameSession extends GameSession<
     }
 
     override beforeNewState() {
+        this.previewOption = undefined
         this.tableAnimator.settle()
         this.routeAnimator.settle()
     }
@@ -282,6 +315,18 @@ export class ConduitGameSession extends GameSession<
 
     async buyTile() {
         await this.applyAction(this.createPlayerAction(BuyTile))
+    }
+
+    async chooseRoute(option: number) {
+        const choice = this.routeChoice
+        if (!choice) return
+        await this.applyAction(
+            this.createPlayerAction(ChooseRoute, { tileId: choice.tileId, option })
+        )
+    }
+
+    previewRoute(option: number | undefined) {
+        this.previewOption = option
     }
 
     async passTile() {
