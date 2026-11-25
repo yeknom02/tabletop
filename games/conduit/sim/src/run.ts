@@ -34,6 +34,7 @@ const { values } = parseArgs({
         'bid-end': { type: 'string', default: 'passAfterOwn' },
         'base-price': { type: 'string', default: '1' },
         'cube-cap': { type: 'string', default: '4' },
+        'track-spaces': { type: 'string', default: '9' },
         'empty-stations': { type: 'string', default: 'linger' },
         start: { type: 'string', default: 'clockwise' },
         rotate: { type: 'boolean', default: false },
@@ -95,6 +96,7 @@ writeFileSync(
             biddingEnd: values['bid-end'],
             basePrice: Number(values['base-price']),
             ...(values['cube-cap'] ? { stationCubeCap: Number(values['cube-cap']) } : {}),
+            trackSpaces: Number(values['track-spaces']),
             emptyStations: values['empty-stations'],
             commit: git(['rev-parse', 'HEAD']),
             dirty: git(['status', '--porcelain', '--', 'games/conduit']) !== '',
@@ -125,6 +127,7 @@ const runs = Array.from({ length: workers }, (_, worker) => {
             biddingEnd: values['bid-end'],
             basePrice: Number(values['base-price']),
             ...(values['cube-cap'] ? { stationCubeCap: Number(values['cube-cap']) } : {}),
+            trackSpaces: Number(values['track-spaces']),
             emptyStations: values['empty-stations']
         }
     }

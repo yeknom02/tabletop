@@ -32,6 +32,7 @@ import {
     DefaultBasePrice,
     DefaultStartingCashStep,
     DefaultStationCubeCap,
+    DefaultTrackSpaces,
     emptyStationsOf,
     RouteToll,
     type RouteTarget,
@@ -60,6 +61,7 @@ export type GameRecord = {
     biddingEnd?: BiddingEnd
     basePrice?: number
     stationCubeCap?: number
+    trackSpaces?: number
     emptyStations?: EmptyStations
     bots: string[]
     // The letters dealt to each round's market, in order.
@@ -98,6 +100,8 @@ export type GameRecord = {
     revenues: { round: number; seat: number; letter: string; amount: number; stations: number }[]
     // Toll income per seat, and how many tolls each route paid out.
     tollIncome: number[]
+    // Cubes on each bid track when bidding ends, per round, in market order.
+    trackHeights?: number[][]
     tollsPerRoute: number[]
     // Ties settled by an owner choosing who gets the toll (designer ruling, 2026-11-25).
     routeChoices?: number
@@ -122,6 +126,7 @@ export type Variant = {
     biddingEnd?: BiddingEnd
     basePrice?: number
     stationCubeCap?: number
+    trackSpaces?: number
     emptyStations?: EmptyStations
 }
 
@@ -143,6 +148,7 @@ export function playGame({
     const biddingEnd = variant.biddingEnd ?? biddingEndOf({})
     const basePrice = variant.basePrice ?? DefaultBasePrice
     const stationCubeCap = variant.stationCubeCap ?? DefaultStationCubeCap
+    const trackSpaces = variant.trackSpaces ?? DefaultTrackSpaces
     const emptyStations = variant.emptyStations ?? emptyStationsOf({})
     const players = bots.length
     const playerIds = bots.map((_, seat) => `s${seat}`)
@@ -169,6 +175,7 @@ export function playGame({
                 biddingEnd,
                 basePrice: String(basePrice),
                 stationCubeCap: String(stationCubeCap),
+                trackSpaces: String(trackSpaces),
                 emptyStations
             }),
             players: playerIds.map((id) => ({
@@ -201,6 +208,7 @@ export function playGame({
         biddingEnd,
         basePrice,
         stationCubeCap,
+        trackSpaces,
         emptyStations,
         lateBids: playerIds.map(() => 0),
         bots: bots.map((bot) => bot.name),
@@ -237,6 +245,7 @@ export function playGame({
         )
     let lastRoundSeen = 0
     let lastRoundValued = 0
+    let lastRoundTracked = 0
     let roundsEnded = 0
 
     const observe = (actions: GameAction[]) => {
@@ -309,6 +318,15 @@ export function playGame({
                     )
                 )
             })
+        }
+        if (hydrated.machineState !== MachineState.Bidding && round !== lastRoundTracked) {
+            lastRoundTracked = round
+            record.trackHeights = record.trackHeights ?? []
+            record.trackHeights.push(
+                hydrated.market.flatMap((slot) =>
+                    slot.tileId === undefined ? [] : [slot.bids.length]
+                )
+            )
         }
         const context = {
             state: hydrated,
