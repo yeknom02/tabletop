@@ -46,7 +46,7 @@ The station tiles feature a tile identification letter (A–D) and a section of 
 
 2. ## Place Bids
 
-Beginning with the Start Player, each player in turn takes a single cube from their current available supply and places one on the lowest available space of a bidding track of their choice. Biding continues until all players have passed, and no player may pass until they have placed at least two cubes. Players may not re-enter bidding once they have passed.
+Beginning with the Start Player, each player in turn takes a single cube from their current available supply and places it on the lowest available space of a bidding track of their choice. Bidding continues clockwise until all players have passed, and no player may pass until they have placed at least two cubes. Players may not re-enter bidding once they have passed.
 
 3. ## Resolve Bids
 
@@ -64,7 +64,7 @@ To add a tile to the network, it must be placed according to the following rules
 
 - If two connectors are of a similar color, or at least one of the tiles is face down, their connection is considered “open.” If the connectors are of opposite colors, the connection is considered “closed.” Place a blocking marker on each closed connection. You must place your tile such that you create at least one valid connection, if able.
 
-Finally, the player winning the bid takes their winning cube and places it on their tile, as well as any additional cubes from their available supply that they wish. These additional cubes cost \$1, \$2, and \$3 respectively to add. They may not place any cubes from their reserve or from bidding tracks which are not yet resolved.
+Finally, the player winning the bid takes their winning cube and places it on the tile, as well as up to three additional cubes from their available supply, if they so choose. These extra cubes cost \$1, \$2, and \$3 respectively to add. They may not place any cubes from their reserve or from bidding tracks which are not yet resolved.
 
 Continue resolving bids in this manner until all are resolved.
 
