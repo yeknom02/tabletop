@@ -218,12 +218,17 @@ export class ConduitGameSession extends GameSession<
             : []
     )
     readonly chosenCell = $derived(this.selection.cell?.value)
-    readonly chosenRotation = $derived(this.selection.rotation?.value)
     readonly rotationsForChosenCell: number[] = $derived(
         this.placementOptions.find(
             (option) => this.chosenCell && sameCoordinates(option.cell, this.chosenCell)
         )?.rotations ?? []
     )
+    // A chosen cell shows the tile in its first legal turn until the player turns it.
+    readonly chosenRotation: number | undefined = $derived(
+        this.selection.rotation?.value ?? this.rotationsForChosenCell[0]
+    )
+    // Which way the last press turned the tile, so the preview turns the same way.
+    turnedTo: { rotation: number; direction: 1 | -1 } | undefined = $state()
     readonly mySupply = $derived(this.myPlayerState?.supply ?? 0)
     // Each extra-cube count the player may put on a new station, with what it costs: the supply,
     // the station cap and the player's cash all limit it.
@@ -283,8 +288,8 @@ export class ConduitGameSession extends GameSession<
         await this.applyAction(this.createPlayerAction(PassTile))
     }
 
-    // A face-down tile has nothing more to choose. A face-up tile then takes a turn, picked for
-    // the player when only one fits, and the extra cubes, skipped when the supply is empty.
+    // A face-down tile has nothing more to choose. A face-up tile shows in its first legal turn,
+    // to be turned and given extra cubes; with one turn and no cubes to add, it goes straight down.
     async chooseCell(cell: OffsetCoordinates) {
         const placement = this.placement
         if (!placement || this.busy) return
@@ -300,24 +305,23 @@ export class ConduitGameSession extends GameSession<
             sameCoordinates(candidate.cell, cell)
         )
         assertExists(option, 'The chosen cell is a legal placement')
-        const [only, other] = option.rotations
-        if (other === undefined && this.mySupply === 0) {
-            await this.place(cell, only, 0)
+        if (option.rotations.length === 1 && this.mySupply === 0) {
+            await this.place(cell, option.rotations[0], 0)
             return
         }
-        const chosen = chooseCell(this.selection, cell)
-        this.selection = other === undefined ? chooseRotation(chosen, only, 'auto') : chosen
+        this.selection = chooseCell(this.selection, cell)
     }
 
-    async chooseRotation(rotation: number) {
-        const cell = this.chosenCell
-        assertExists(cell, 'A turn is chosen for a chosen cell')
-        if (this.busy) return
-        if (this.mySupply === 0) {
-            await this.place(cell, rotation, 0)
-            return
-        }
-        this.selection = chooseRotation(this.selection, rotation, 'manual')
+    // Turns the tile to its next legal turn clockwise (1) or anticlockwise (-1). Each press
+    // replaces the last, so one Undo puts the tile back in its first turn.
+    turnTile(direction: 1 | -1) {
+        const rotations = this.rotationsForChosenCell
+        const current = this.chosenRotation
+        if (this.busy || current === undefined || rotations.length < 2) return
+        const index = rotations.indexOf(current)
+        const next = rotations[(index + direction + rotations.length) % rotations.length]
+        this.turnedTo = { rotation: next, direction }
+        this.selection = chooseRotation(this.selection, next, 'manual')
     }
 
     async chooseExtraCubes(extraCubes: number) {

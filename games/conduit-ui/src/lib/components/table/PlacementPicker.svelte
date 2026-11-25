@@ -2,7 +2,6 @@
     import { Floater } from '@tabletop/frontend-components'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { cellElementId } from '$lib/utils/boardLayout.js'
-    import { tileFaceUrl } from '$lib/utils/tileArt.js'
 
     const gameSession = getGameSession()
     const cell = $derived(gameSession.chosenCell)
@@ -17,26 +16,42 @@
         <Floater placement="right" reference="#{cellElementId(cell)}" trigger="manual">
             <div class="picker">
                 {#if rotations.length > 1}
-                    <div class="title">Turn the tile</div>
-                    <div class="row">
-                        {#each rotations as choice (choice)}
-                            <button
-                                type="button"
-                                class="turn"
-                                class:selected={rotation === choice}
-                                aria-label="Turn {choice * 90} degrees"
-                                onclick={() => gameSession.chooseRotation(choice)}
-                            >
-                                <img
-                                    src={tileFaceUrl(tileId)}
-                                    alt=""
-                                    style:transform="rotate({choice * 90}deg)"
-                                />
-                            </button>
-                        {/each}
+                    <div class="row turns">
+                        <button
+                            type="button"
+                            class="turn"
+                            aria-label="Turn the tile left"
+                            title="Turn left"
+                            onclick={() => gameSession.turnTile(-1)}
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M9 4 4 9l5 5"></path>
+                                <path d="M4 9h9a7 7 0 0 1 0 14h-3"></path>
+                            </svg>
+                        </button>
+                        <button
+                            type="button"
+                            class="turn"
+                            aria-label="Turn the tile right"
+                            title="Turn right"
+                            onclick={() => gameSession.turnTile(1)}
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m15 4 5 5-5 5"></path>
+                                <path d="M20 9h-9a7 7 0 0 0 0 14h3"></path>
+                            </svg>
+                        </button>
                     </div>
                 {/if}
-                {#if rotation !== undefined}
+                {#if rotation !== undefined && cubeChoices.length === 1}
+                    <div class="row">
+                        <button
+                            type="button"
+                            class="count place"
+                            onclick={() => gameSession.chooseExtraCubes(0)}>Place</button
+                        >
+                    </div>
+                {:else if rotation !== undefined}
                     <div class="title">Extra cubes</div>
                     <div class="row">
                         {#each cubeChoices as choice (choice.count)}
@@ -89,21 +104,33 @@
     }
 
     .turn {
-        width: 52px;
-        height: 52px;
-        padding: 2px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 44px;
         border-radius: 6px;
+        color: #e8eef6;
         background: #222e3d;
         box-shadow: inset 0 0 0 1px #33445a;
     }
 
-    .turn img {
-        width: 100%;
-        height: 100%;
+    .turn svg {
+        width: 24px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
     }
 
-    .turn.selected {
-        box-shadow: inset 0 0 0 3px #f5c542;
+    .turns + .title {
+        margin-top: 10px;
+    }
+
+    .place {
+        padding: 0 16px;
     }
 
     .count {

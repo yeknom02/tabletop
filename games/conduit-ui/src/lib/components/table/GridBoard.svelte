@@ -84,16 +84,20 @@
         gameSession.hoverStation(station?.cell)
     }
 
-    // The preview tile turns the short way round to each newly chosen turn, so its quarter turns
-    // keep counting past a full circle rather than unwinding.
+    // The preview tile turns the way the player turned it, the short way round otherwise (Undo),
+    // so its quarter turns keep counting past a full circle rather than unwinding.
     let turnsSoFar = 0
     const previewTurns = $derived.by(() => {
         const rotation = gameSession.chosenRotation
         if (rotation === undefined) return turnsSoFar
         const current = ((turnsSoFar % 4) + 4) % 4
-        let step = rotation - current
-        if (step > 2) step -= 4
-        if (step < -2) step += 4
+        const turned = gameSession.turnedTo
+        let step = (((rotation - current) % 4) + 4) % 4
+        if (turned?.rotation === rotation && turned.direction === -1) {
+            step = step === 0 ? 0 : step - 4
+        } else if (turned?.rotation !== rotation && step > 2) {
+            step -= 4
+        }
         turnsSoFar += step
         return turnsSoFar
     })
