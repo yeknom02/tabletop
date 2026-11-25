@@ -19,6 +19,7 @@ import {
     spotTileOrigin,
     tableGeometry,
     TileInSpot,
+    TileOrigin,
     TrackCell,
     trackCellOrigin
 } from '$lib/utils/tableLayout.js'
@@ -219,10 +220,9 @@ export class TableAnimator {
         const cube = cubeShape(TrackCubeSize)
         const start = trackCellOrigin(0)
         const onTile = {
-            x: TrackCell + 6 + TileInSpot / 2 - (start.x + TrackCell / 2),
+            x: TileOrigin.x + TileInSpot / 2 - (start.x + TrackCell / 2),
             y:
-                TrackCell +
-                10 +
+                TileOrigin.y +
                 TileInSpot / 2 -
                 cube.height / 2 -
                 (start.y + (TrackCell - cube.height) / 2)

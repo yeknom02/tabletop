@@ -1,20 +1,27 @@
 import type { OffsetCoordinates, Point } from '@tabletop/common'
-import type { Board } from '@tabletop/conduit'
+import { BidTrackSpaces, type Board } from '@tabletop/conduit'
 import { boardBounds, boardSize, cellOrigin, type BoardBounds } from './boardLayout.js'
 
-// Each auction spot has a tile and an L-shaped bid track of nine spaces: six up the left side from
-// the bottom, then three along the top.
+// Each auction spot has a bid track beside its tile: two columns offset by half a space, so each
+// space sits half a space above the one before, filled from the bottom.
 export const TrackCell = 30
-export const SpotWidth = 4 * TrackCell + 16
-export const SpotHeight = 6 * TrackCell + 34
+export const TrackWidth = 2 * TrackCell
+export const TrackHeight = ((BidTrackSpaces + 1) * TrackCell) / 2
+export const TileInSpot = 92
+const SpotPadding = 8
+const TrackToTile = 8
+export const SpotWidth = 2 * SpotPadding + TrackWidth + TrackToTile + TileInSpot
+export const SpotHeight = 2 * SpotPadding + TrackHeight
 export const SpotGap = 12
 export const AuctionSpots = 6
 export const TableMargin = 20
 export const AuctionToBoardGap = 34
-export const TileInSpot = 3 * TrackCell - 4
+
+// Inside a spot's padding: the tile's top left corner, level with the bottom of the track.
+export const TileOrigin: Point = { x: TrackWidth + TrackToTile, y: TrackHeight - TileInSpot }
 
 export function trackCellOrigin(index: number): Point {
-    return index <= 5 ? { x: 0, y: (5 - index) * TrackCell } : { x: (index - 5) * TrackCell, y: 0 }
+    return { x: (index % 2) * TrackCell, y: ((BidTrackSpaces - 1 - index) * TrackCell) / 2 }
 }
 
 // SVG text sits on its alphabetic baseline, shifted by a share of its size to look centred.
@@ -66,8 +73,8 @@ export function tableGeometry(board: Board, auctionColumns: number): TableGeomet
 export function spotTileOrigin(slot: number, geometry: TableGeometry): Point {
     const spot = spotOrigin(slot, geometry.auctionColumns)
     return {
-        x: geometry.auction.x + spot.x + 8 + TrackCell + 6,
-        y: geometry.auction.y + spot.y + 8 + TrackCell + 10
+        x: geometry.auction.x + spot.x + SpotPadding + TileOrigin.x,
+        y: geometry.auction.y + spot.y + SpotPadding + TileOrigin.y
     }
 }
 

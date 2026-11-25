@@ -7,6 +7,7 @@
         SpotHeight,
         TrackCell,
         TileInSpot,
+        TileOrigin,
         trackCellOrigin,
         centredTextShift
     } from '$lib/utils/tableLayout.js'
@@ -30,6 +31,9 @@
     )
     const columns = $derived(gameSession.auctionColumns)
     const tracks = Array.from({ length: BidTrackSpaces }, (_, index) => index)
+    // A tile's price when its track holds this many cubes.
+    const basePrice = $derived(gameSession.tableState.basePrice ?? 0)
+    const tileCentre = { x: TileOrigin.x + TileInSpot / 2, y: TileOrigin.y + TileInSpot / 2 }
 
     function activate(event: KeyboardEvent, slot: number) {
         if (event.key !== 'Enter' && event.key !== ' ') return
@@ -83,21 +87,26 @@
                             />
                         </g>
                     </g>
-                {:else if biddable && index === spot?.bids.length && myColor}
-                    <g
-                        class="ghost"
-                        transform="translate({origin.x + cubeInset.x} {origin.y + cubeInset.y})"
+                {:else if spot?.tileId !== undefined}
+                    <text
+                        class="space-price"
+                        x={origin.x + TrackCell / 2}
+                        y={origin.y + TrackCell / 2}
+                        dy={centredTextShift(11)}
+                        text-anchor="middle">${index + 1 + basePrice}</text
                     >
-                        <Cube size={TrackCubeSize} color={myColor} />
-                    </g>
+                    {#if biddable && index === spot.bids.length && myColor}
+                        <g
+                            class="ghost"
+                            transform="translate({origin.x + cubeInset.x} {origin.y + cubeInset.y})"
+                        >
+                            <Cube size={TrackCubeSize} color={myColor} />
+                        </g>
+                    {/if}
                 {/if}
             {/each}
             {#if spot?.tileId !== undefined && gameSession.tableAnimator.flyingTile?.slot !== slot}
-                <g
-                    transform="translate({TrackCell + 6 + TileInSpot / 2} {TrackCell +
-                        10 +
-                        TileInSpot / 2})"
-                >
+                <g transform="translate({tileCentre.x} {tileCentre.y})">
                     <g data-market-tile={slot}>
                         <image
                             href={tileFaceUrl(spot.tileId)}
@@ -120,19 +129,15 @@
             {#if offerSlot === slot && offerPrice !== undefined}
                 <text
                     class="price"
-                    x={TrackCell + 6 + TileInSpot / 2}
-                    y={TrackCell + 10 + TileInSpot + 24}
+                    x={tileCentre.x}
+                    y={TileOrigin.y - 24}
                     dy={centredTextShift(20)}
                     text-anchor="middle">${offerPrice}</text
                 >
             {/if}
         </g>
-        <text
-            class="number"
-            x={SpotWidth - 10}
-            y={SpotHeight - 12}
-            dy={centredTextShift(14)}
-            text-anchor="end">{slot + 1}</text
+        <text class="number" x={SpotWidth - 10} y="18" dy={centredTextShift(14)} text-anchor="end"
+            >{slot + 1}</text
         >
         {#if biddable}
             <rect
@@ -175,6 +180,13 @@
         fill: #222e3d;
         stroke: #4a5d75;
         stroke-width: 1;
+    }
+
+    .space-price {
+        font-size: 11px;
+        font-weight: 700;
+        fill: #5d6f86;
+        pointer-events: none;
     }
 
     .bottom {
