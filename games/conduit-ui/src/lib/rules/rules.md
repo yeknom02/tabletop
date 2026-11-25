@@ -1,6 +1,8 @@
 # Conduit
 
-## by Dan Domme Rules of Play v. 0.8.4, November 25, 2026
+## by Dan Domme
+
+## Rules of Play v. 0.8.4 - November 25, 2026
 
 ## Overview
 
