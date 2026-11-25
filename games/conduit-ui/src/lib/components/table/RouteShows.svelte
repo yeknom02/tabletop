@@ -130,7 +130,7 @@
                 stroke-dashoffset="1"
             ></polyline>
         {/if}
-        <circle class="ring" data-show-ring={id} cx={home.x} cy={home.y} r="44" opacity="0"
+        <circle class="station-ring" data-show-ring={id} cx={home.x} cy={home.y} r="44" opacity="0"
         ></circle>
         {#each show.ends as end (`${end.col},${end.row}`)}
             {@const point = centre(end)}
@@ -218,7 +218,7 @@
         stroke-linejoin: round;
     }
 
-    .ring {
+    .station-ring {
         fill: none;
         stroke: var(--owner);
         stroke-width: 5;

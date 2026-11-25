@@ -209,7 +209,8 @@
                 </g>
             </g>
         {/if}
-        <rect class="outline" x="4" y="4" width={CellSize - 8} height={CellSize - 8} rx="8"></rect>
+        <rect class="target-frame" x="4" y="4" width={CellSize - 8} height={CellSize - 8} rx="8"
+        ></rect>
     </g>
 {/each}
 
@@ -303,15 +304,15 @@
         cursor: pointer;
     }
 
-    .outline {
+    .target-frame {
         fill: rgb(87 211 255 / 0.12);
         stroke: #57d3ff;
         stroke-width: 2.5;
         stroke-dasharray: 8 6;
     }
 
-    .target:hover .outline,
-    .target:focus-visible .outline {
+    .target:hover .target-frame,
+    .target:focus-visible .target-frame {
         fill: rgb(87 211 255 / 0.28);
     }
 
@@ -319,7 +320,7 @@
         outline: none;
     }
 
-    .target.chosen .outline {
+    .target.chosen .target-frame {
         fill: none;
         stroke: #f5c542;
         stroke-dasharray: none;

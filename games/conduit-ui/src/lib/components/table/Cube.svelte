@@ -12,14 +12,14 @@
 <polygon class="face" points={shape.left} style:fill={color}></polygon>
 <polygon class="face" points={shape.right} style:fill="color-mix(in srgb, {color} 62%, black)"
 ></polygon>
-<polygon class="outline" points={shape.outline}></polygon>
+<polygon class="rim" points={shape.outline}></polygon>
 
 <style>
     .face {
         stroke: none;
     }
 
-    .outline {
+    .rim {
         fill: none;
         stroke: rgb(0 0 0 / 0.65);
         stroke-width: 1.2;
