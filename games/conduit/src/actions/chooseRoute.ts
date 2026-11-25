@@ -1,6 +1,6 @@
 import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
-import { GameAction, HydratableAction } from '@tabletop/common'
+import { GameAction, HydratableAction, OffsetCoordinates } from '@tabletop/common'
 import { ActionType } from '../definition/actions.js'
 import { HydratedConduitGameState } from '../model/gameState.js'
 
@@ -11,7 +11,7 @@ export const RouteChosen = Type.Object({
 })
 
 // Before revenue, the owner of a station whose equally good routes would pay tolls to different
-// players chooses which route it takes (designer ruling, 2026-11-25).
+// players chooses which route it takes (designer ruling, 2026-11-25), naming it by its cells.
 export type ChooseRoute = Type.Static<typeof ChooseRoute>
 export const ChooseRoute = Type.Evaluate(
     Type.Intersect([
@@ -20,7 +20,7 @@ export const ChooseRoute = Type.Evaluate(
             type: Type.Literal(ActionType.ChooseRoute),
             playerId: Type.String(),
             tileId: Type.Integer(),
-            option: Type.Integer({ minimum: 0 }),
+            route: Type.Array(OffsetCoordinates),
             metadata: Type.Optional(RouteChosen)
         })
     ])
@@ -39,7 +39,7 @@ export class HydratedChooseRoute
     declare type: ActionType.ChooseRoute
     declare playerId: string
     declare tileId: number
-    declare option: number
+    declare route: OffsetCoordinates[]
     declare metadata?: RouteChosen
 
     constructor(data: ChooseRoute) {
@@ -52,13 +52,12 @@ export class HydratedChooseRoute
             choice !== undefined &&
             choice.playerId === action.playerId &&
             choice.tileId === action.tileId &&
-            action.option < choice.options.length
+            state.routeOption(choice, action.route) !== undefined
         )
     }
 
     apply(state: HydratedConduitGameState) {
-        const choice = state.pendingRouteChoice()
-        state.chooseRoute(this.playerId, this.tileId, this.option)
-        this.metadata = { tolls: choice?.options[this.option]?.tolls ?? [] }
+        const option = state.chooseRoute(this.playerId, this.tileId, this.route)
+        this.metadata = { tolls: option.tolls }
     }
 }

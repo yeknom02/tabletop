@@ -13,27 +13,15 @@ import {
 import {
     type ConduitGameState,
     type ConduitProjectedState,
-    HydratedConduitGameState,
-    HydratedStationStack,
-    type Stacks,
-    type StationStack
+    HydratedConduitGameState
 } from '../model/gameState.js'
 import { newPlayerState } from '../model/playerState.js'
 import { CentralCell, neighborCell, type PlacedStation } from '../model/board.js'
 import { BaseLetters, Side, StationLetter, tileIdsOfLetter } from '../components/tiles.js'
 import { MachineState } from './states.js'
-import {
-    basePriceOf,
-    DefaultTrackSpaces,
-    trackSpacesOf,
-    MarketDeal,
-    marketDealOf,
-    marketSizeOf,
-    startingCashFor
-} from './gameConfig.js'
 import { ConduitColors } from './colors.js'
 
-// One tile from each of the A-D stacks forms a cross around the Central Station: A to the North,
+// One tile from each of the A-D groups forms a cross around the Central Station: A to the North,
 // B to the East, C to the South and D to the West, each turned at random.
 const SetupCross = [
     { letter: StationLetter.A, side: Side.North },
@@ -54,7 +42,7 @@ export class ConduitGameInitializer
         assignment?: StartingPositionAssignment
     ): HydratedConduitGameState {
         const prng = new Prng(state.prng)
-        assertExists(state.protectedPrng, 'Shuffling the stacks requires protectedPrng')
+        assertExists(state.protectedPrng, 'Shuffling the tiles requires protectedPrng')
         const protectedPrng = new Prng(state.protectedPrng)
 
         const colors = structuredClone(ConduitColors)
@@ -63,18 +51,17 @@ export class ConduitGameInitializer
             newPlayerState(player.id, colors[index])
         )
         const turnManager = HydratedTurnManager.generate(players, prng.random, assignment)
-        // Every player starts with $5 (rules v0.8.3); a bot study may add more per seat clockwise.
-        for (const player of players) {
-            player.cash = startingCashFor(
-                game.config,
-                turnManager.turnOrder.indexOf(player.playerId)
-            )
-        }
-        const stacks = this.shuffleStacks(protectedPrng)
-        const stations = SetupCross.map(({ letter, side }): PlacedStation => {
-            const stack = new HydratedStationStack(stacks[letter])
-            const tileId = stack.draw()
-            stacks[letter] = stack.dehydrate()
+
+        // Each letter's tiles are shuffled apart for the cross; the rest are shuffled together into
+        // one stack.
+        const groups = BaseLetters.map((letter) => {
+            const tileIds = tileIdsOfLetter(letter)
+            shuffle(tileIds, protectedPrng.random)
+            return tileIds
+        })
+        const stations = SetupCross.map(({ side }, index): PlacedStation => {
+            const tileId = groups[index].shift()
+            assertExists(tileId, 'Every letter has tiles')
             return {
                 cell: neighborCell(CentralCell, side),
                 tileId,
@@ -83,50 +70,21 @@ export class ConduitGameInitializer
                 cubes: 0
             }
         })
-
-        const deck =
-            marketDealOf(game.config) === MarketDeal.Shuffled
-                ? this.gatherDeck(stacks, protectedPrng)
-                : undefined
+        const rest = groups.flat()
+        shuffle(rest, protectedPrng.random)
 
         const conduitState: ConduitGameState = Object.assign(state, {
             players,
             turnManager,
             machineState: MachineState.Bidding,
             roundManager: HydratedRoundManager.generate(),
-            stacks,
-            ...(deck ? { deck } : {}),
-            nextLetter: BaseLetters[0],
+            deck: { items: rest, remaining: rest.length },
             market: [],
             board: { stations },
-            ...(basePriceOf(game.config) > 0 ? { basePrice: basePriceOf(game.config) } : {}),
-            ...(trackSpacesOf(game.config) !== DefaultTrackSpaces
-                ? { trackSpaces: trackSpacesOf(game.config) }
-                : {})
+            bidPasses: []
         })
         const hydrated = new HydratedConduitGameState(conduitState)
-        hydrated.fillMarket(marketSizeOf(game.config))
+        hydrated.fillMarket()
         return hydrated
-    }
-
-    // The shuffled-market variant: every tile left after setup goes into one shuffled stack, and the
-    // letter stacks are left empty.
-    private gatherDeck(stacks: Stacks, protectedPrng: Prng): StationStack {
-        const tileIds = BaseLetters.flatMap((letter) => {
-            const items = stacks[letter].items
-            stacks[letter] = { items: [], remaining: 0 }
-            return items
-        })
-        shuffle(tileIds, protectedPrng.random)
-        return { items: tileIds, remaining: tileIds.length }
-    }
-
-    private shuffleStacks(protectedPrng: Prng): Stacks {
-        const [a, b, c, d] = BaseLetters.map((letter) => {
-            const tileIds = tileIdsOfLetter(letter)
-            shuffle(tileIds, protectedPrng.random)
-            return { items: tileIds, remaining: tileIds.length }
-        })
-        return { A: a, B: b, C: c, D: d }
     }
 }

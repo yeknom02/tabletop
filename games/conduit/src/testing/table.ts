@@ -1,14 +1,12 @@
 import {
     ActionSource,
-    defaultGameConfig,
+    assertExists,
     GameEngine,
-    normalizeGameConfig,
     type OffsetCoordinates,
     PlayerStatus,
     type GameAction
 } from '@tabletop/common'
 import { ActionType } from '../definition/actions.js'
-import type { ConduitGameConfig } from '../definition/gameConfig.js'
 import { Definition } from '../definition/definition.js'
 import { ConduitInfo } from '../definition/info.js'
 import { ConduitRuntime } from '../definition/runtime.js'
@@ -16,16 +14,13 @@ import type { ConduitProjectedState } from '../model/gameState.js'
 
 export const TestMasterSeed = '0123456789abcdef0123456789abcdef'
 
-export function createGame(count: number, config: Partial<ConduitGameConfig> = {}) {
+export function createGame(count: number) {
     return ConduitRuntime.initializer.initializeGame(
         {
             id: 'conduit-test',
             typeId: ConduitInfo.id,
             ownerId: 'owner',
-            config: normalizeGameConfig({
-                ...defaultGameConfig(ConduitInfo.configurator?.options ?? []),
-                ...config
-            }),
+            config: {},
             players: Array.from({ length: count }, (_, index) => ({
                 id: `p${index}`,
                 name: `Player ${index}`,
@@ -39,13 +34,9 @@ export function createGame(count: number, config: Partial<ConduitGameConfig> = {
 
 export type TestGame = ReturnType<typeof createGame>
 
-export function startTestGame(
-    count: number,
-    config: Partial<ConduitGameConfig> = {},
-    masterSeed: string = TestMasterSeed
-) {
+export function startTestGame(count: number, masterSeed: string = TestMasterSeed) {
     const engine = new GameEngine(ConduitRuntime)
-    const { initialState, startedGame } = engine.startGame(createGame(count, config), {
+    const { initialState, startedGame } = engine.startGame(createGame(count), {
         masterSeed
     })
     return createTestSession(startedGame, initialState)
@@ -114,11 +105,15 @@ export function createTestSession(game: TestGame, initialState: ConduitProjected
         ) {
             return act(playerId, ActionType.PlaceTile, { cell, rotation, extraCubes })
         },
+        // Chooses the pending choice's option at this position.
         chooseRoute(option: number, playerId: string = state.activePlayerIds[0]) {
-            const tileId = ConduitRuntime.hydrator
+            const choice = ConduitRuntime.hydrator
                 .hydrateState(structuredClone(state))
-                .pendingRouteChoice()?.tileId
-            return act(playerId, ActionType.ChooseRoute, { tileId, option })
+                .pendingRouteChoice()
+            assertExists(choice, 'A route is waiting to be chosen')
+            const route = choice.options[option]?.cells
+            assertExists(route, `The choice has an option ${option}`)
+            return act(playerId, ActionType.ChooseRoute, { tileId: choice.tileId, route })
         }
     }
 }

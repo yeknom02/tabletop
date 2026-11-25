@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { assert, MachineContext, Prng, validateGameResult, type Visibility } from '@tabletop/common'
-import { BaseLetters } from '../components/tiles.js'
-import { ConduitGameStateValidator, type ConduitProjectedState } from '../model/gameState.js'
+import {
+    ConduitGameStateValidator,
+    type ConduitProjectedState,
+    HydratedConduitGameState
+} from '../model/gameState.js'
 import { createGame, startTestGame, type TestSession } from '../testing/table.js'
-import { MarketDeal } from './gameConfig.js'
 import { playRandomDecision } from '../testing/bot.js'
 import { ConduitRuntime } from './runtime.js'
 import { MachineState } from './states.js'
@@ -26,8 +28,8 @@ function playDecisions(session: TestSession, count: number, seed = 7) {
     }
 }
 
-function stages(count: number, config: { marketDeal?: MarketDeal } = {}): ConduitProjectedState[] {
-    const session = startTestGame(count, config)
+function stages(count: number): ConduitProjectedState[] {
+    const session = startTestGame(count)
     const atSetup = structuredClone(session.state)
     playDecisions(session, 40)
     const midGame = structuredClone(session.state)
@@ -37,7 +39,7 @@ function stages(count: number, config: { marketDeal?: MarketDeal } = {}): Condui
 }
 
 describe.each([3, 4, 5])('what each Perspective sees with %i players', (count) => {
-    it('hides the order of the stacks and shows everything else', () => {
+    it('hides the order of the stack, shows everything else, and hydrates', () => {
         for (const state of stages(count)) {
             assert(ConduitGameStateValidator.Check(state), 'Projection starts from canonical state')
             for (const perspective of perspectivesFor(state)) {
@@ -45,45 +47,56 @@ describe.each([3, 4, 5])('what each Perspective sees with %i players', (count) =
                     config: {}
                 })
                 expect(view).not.toHaveProperty('masterSeed')
-                for (const letter of BaseLetters) {
-                    expect(view.stacks[letter]).toEqual({
-                        items: [],
-                        remaining: state.stacks[letter].remaining
-                    })
-                }
-                if (state.deck) {
-                    expect(view.deck).toEqual({ items: [], remaining: state.deck.remaining })
-                }
+                expect(view.deck).toEqual({ items: [], remaining: state.deck.remaining })
                 expect({
                     ...view,
-                    stacks: state.stacks,
-                    ...(state.deck ? { deck: state.deck } : {}),
+                    deck: state.deck,
                     protectedPrng: state.protectedPrng
                 }).toEqual({ ...state, masterSeed: undefined })
+
+                // The projected state hydrates, and the rules read it as they read the real one.
+                const hydrated = new HydratedConduitGameState(structuredClone(view))
+                const real = new HydratedConduitGameState(structuredClone(state))
+                expect(hydrated.deck.items).toEqual([])
+                expect(hydrated.market).toEqual(real.market)
+                expect(hydrated.currentOffer()).toEqual(real.currentOffer())
+                expect(hydrated.pendingPlacement()).toEqual(real.pendingPlacement())
+                expect(hydrated.leadingPlayerIds()).toEqual(real.leadingPlayerIds())
             }
         }
     })
 
-    it('fills each letter stack for exploration with exactly the unseen tiles (rules v0.8.2)', () => {
-        const [, midGame] = stages(count, { marketDeal: MarketDeal.Cycle })
+    it('fills the stack for exploration with exactly the unseen tiles', () => {
+        const [, midGame] = stages(count)
         const view = ConduitRuntime.visibility.state.project(
             midGame,
             { kind: 'player', playerId: 'p0' },
             { config: {} }
         )
         const explored = ConduitRuntime.exploration.createFromProjectedState({
-            game: createGame(count, { marketDeal: MarketDeal.Cycle }),
+            game: createGame(count),
             state: view,
             actions: [],
             perspective: { kind: 'player', playerId: 'p0' },
             random: new Prng({ seed: 3, invocations: 0 }).random
         })
         assert(ConduitGameStateValidator.Check(explored), 'Exploration is canonical')
-        for (const letter of BaseLetters) {
-            expect(explored.stacks[letter].items.toSorted((a, b) => a - b)).toEqual(
-                midGame.stacks[letter].items.toSorted((a, b) => a - b)
-            )
-        }
+        expect(explored.deck.items.toSorted((a, b) => a - b)).toEqual(
+            midGame.deck.items.toSorted((a, b) => a - b)
+        )
+    })
+})
+
+describe('the stack', () => {
+    it('holds every tile left after setup, hidden from every player', () => {
+        const state = startTestGame(4).state
+        expect(state.deck.remaining).toBe(60 - 4)
+        const view = ConduitRuntime.visibility.state.project(
+            state,
+            { kind: 'player', playerId: 'p0' },
+            { config: {} }
+        )
+        expect(view.deck).toEqual({ items: [], remaining: 56 })
     })
 })
 
@@ -101,42 +114,5 @@ describe('the end-of-game result', () => {
         )
         expect(state.winningPlayerIds).toEqual(['p0', 'p1', 'p2'])
         expect(() => validateGameResult(state.dehydrate())).not.toThrow()
-    })
-})
-
-describe('the one shuffled stack (rules v0.8.3)', () => {
-    it('deals from one hidden stack of every tile left after setup', () => {
-        const session = startTestGame(4, { marketDeal: MarketDeal.Shuffled })
-        const state = session.state
-        expect(state.deck?.remaining).toBe(60 - 4)
-        for (const letter of BaseLetters) {
-            expect(state.stacks[letter].remaining).toBe(0)
-        }
-        const view = ConduitRuntime.visibility.state.project(
-            state,
-            { kind: 'player', playerId: 'p0' },
-            { config: {} }
-        )
-        expect(view.deck).toEqual({ items: [], remaining: 56 })
-    })
-
-    it('refills the one stack with exactly the unseen tiles for exploration', () => {
-        const session = startTestGame(4, { marketDeal: MarketDeal.Shuffled })
-        playDecisions(session, 40)
-        const view = ConduitRuntime.visibility.state.project(
-            session.state,
-            { kind: 'player', playerId: 'p0' },
-            { config: {} }
-        )
-        const explored = ConduitRuntime.exploration.createFromProjectedState({
-            game: createGame(4, { marketDeal: MarketDeal.Shuffled }),
-            state: view,
-            actions: [],
-            perspective: { kind: 'player', playerId: 'p0' },
-            random: new Prng({ seed: 3, invocations: 0 }).random
-        })
-        expect(explored.deck?.items.toSorted((a, b) => a - b)).toEqual(
-            session.state.deck?.items.toSorted((a, b) => a - b)
-        )
     })
 })

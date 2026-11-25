@@ -1,8 +1,7 @@
 import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
-import { GameAction, HydratableAction, type MachineContext } from '@tabletop/common'
+import { GameAction, HydratableAction } from '@tabletop/common'
 import { ActionType } from '../definition/actions.js'
-import { marketSizeOf } from '../definition/gameConfig.js'
 import { HydratedConduitGameState } from '../model/gameState.js'
 
 export type MarketFilled = Type.Static<typeof MarketFilled>
@@ -11,7 +10,7 @@ export const MarketFilled = Type.Object({
     tileIds: Type.Array(Type.Integer())
 })
 
-// Turning over tiles from the stacks is a reveal, so Undo cannot step back past it.
+// Turning over tiles from the stack is a reveal, so Undo cannot step back past it.
 export type FillMarket = Type.Static<typeof FillMarket>
 export const FillMarket = Type.Evaluate(
     Type.Intersect([
@@ -39,8 +38,8 @@ export class HydratedFillMarket extends HydratableAction<typeof FillMarket> impl
         super(data, FillMarketValidator)
     }
 
-    apply(state: HydratedConduitGameState, context?: MachineContext) {
-        const tileIds = state.fillMarket(marketSizeOf(context?.gameConfig ?? {}))
+    apply(state: HydratedConduitGameState) {
+        const tileIds = state.fillMarket()
         this.metadata = { round: state.round, tileIds }
     }
 }

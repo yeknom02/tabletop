@@ -1,13 +1,7 @@
 import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
-import {
-    assertExists,
-    GameAction,
-    HydratableAction,
-    type MachineContext,
-    OffsetCoordinates
-} from '@tabletop/common'
-import { extraCubeCostOf, extraCubesPrice, stationCubeCapOf } from '../definition/gameConfig.js'
+import { assertExists, GameAction, HydratableAction, OffsetCoordinates } from '@tabletop/common'
+import { extraCubesPrice, MaxExtraCubes } from '../model/rules.js'
 import { ActionType } from '../definition/actions.js'
 import { HydratedConduitGameState } from '../model/gameState.js'
 
@@ -15,7 +9,7 @@ export type TilePlaced = Type.Static<typeof TilePlaced>
 export const TilePlaced = Type.Object({
     tileId: Type.Integer(),
     faceUp: Type.Boolean(),
-    // Paid for extra cubes in the rising-cost variant.
+    // Paid for extra cubes: $1, $2 and $3 for the first, second and third.
     extraPrice: Type.Optional(Type.Integer({ minimum: 0 }))
 })
 
@@ -54,14 +48,10 @@ export class HydratedPlaceTile extends HydratableAction<typeof PlaceTile> implem
         super(data, PlaceTileValidator)
     }
 
-    apply(state: HydratedConduitGameState, context?: MachineContext) {
+    apply(state: HydratedConduitGameState) {
         const placement = state.pendingPlacement()
         assertExists(placement, 'A tile is waiting to be placed')
-        const extraPrice = extraCubesPrice(
-            this.extraCubes,
-            extraCubeCostOf(context?.gameConfig ?? {})
-        )
-        state.placeTile(this.playerId, this.cell, this.rotation, this.extraCubes, extraPrice)
+        const extraPrice = state.placeTile(this.playerId, this.cell, this.rotation, this.extraCubes)
         this.metadata = {
             tileId: placement.tileId,
             faceUp: placement.faceUp,
@@ -69,11 +59,7 @@ export class HydratedPlaceTile extends HydratableAction<typeof PlaceTile> implem
         }
     }
 
-    static canPlaceTile(
-        state: HydratedConduitGameState,
-        action: PlaceTile,
-        config: { extraCubeCost?: unknown; stationCubeCap?: unknown } = {}
-    ): boolean {
+    static canPlaceTile(state: HydratedConduitGameState, action: PlaceTile): boolean {
         const placement = state.pendingPlacement()
         if (placement?.playerId !== action.playerId) {
             return false
@@ -84,12 +70,10 @@ export class HydratedPlaceTile extends HydratableAction<typeof PlaceTile> implem
             faceUp: placement.faceUp
         }
         const player = state.getPlayerState(action.playerId)
-        const extraPrice = extraCubesPrice(action.extraCubes, extraCubeCostOf(config))
-        const cap = stationCubeCapOf(config)
         const cubesAllowed = placement.faceUp
             ? action.extraCubes <= player.supply &&
-              extraPrice <= player.cash &&
-              1 + action.extraCubes <= cap
+              action.extraCubes <= MaxExtraCubes &&
+              extraCubesPrice(action.extraCubes) <= player.cash
             : action.extraCubes === 0
         return cubesAllowed && state.grid().isLegalPlacement(face, action.cell)
     }

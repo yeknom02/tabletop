@@ -11,27 +11,24 @@ import {
     OffsetCoordinates,
     PrngState,
     RoundManager,
+    sameCoordinates,
     Visibility
 } from '@tabletop/common'
 import * as Type from 'typebox'
 import { Compile } from 'typebox/compile'
 import { MachineState } from '../definition/states.js'
-import { BaseLetters, type BaseLetter, StationLetter } from '../components/tiles.js'
-import {
-    BiddingEnd,
-    DefaultTrackSpaces,
-    EmptyStations,
-    MarketSize,
-    marketTiles,
-    RouteTarget,
-    RouteToll,
-    StartPlayerRule
-} from '../definition/gameConfig.js'
 import { Board, Grid, type PlacedStation, type Route } from './board.js'
 import { ConduitPlayerState, HydratedConduitPlayerState } from './playerState.js'
-
-export const Rounds = 5
-export const BidTrackSpaces = DefaultTrackSpaces
+import {
+    BasePrice,
+    BidTrackSpaces,
+    CubesPerRound,
+    extraCubesPrice,
+    marketTiles,
+    MaxExtraCubes,
+    MinimumBids,
+    Rounds
+} from './rules.js'
 
 export type StationStack = Type.Static<typeof StationStack>
 export const StationStack = DrawBag(Type.Integer())
@@ -46,21 +43,6 @@ export class HydratedStationStack
         super(data, StationStackValidator)
     }
 }
-
-export type Stacks = Type.Static<typeof Stacks>
-export const Stacks = Type.Object({
-    [StationLetter.A]: StationStack,
-    [StationLetter.B]: StationStack,
-    [StationLetter.C]: StationStack,
-    [StationLetter.D]: StationStack
-})
-
-export const BaseLetterSchema = Type.Union([
-    Type.Literal(StationLetter.A),
-    Type.Literal(StationLetter.B),
-    Type.Literal(StationLetter.C),
-    Type.Literal(StationLetter.D)
-])
 
 // A spot on the auction board. Bids list the cube owners from the bottom of the track up.
 export type MarketSlot = Type.Static<typeof MarketSlot>
@@ -82,7 +64,7 @@ export const StationRevenue = Type.Object({
     tileId: Type.Integer(),
     route: Type.Array(OffsetCoordinates),
     amount: Type.Integer(),
-    // Tolls paid to other players' Power Stations on the route, in the route-toll variant.
+    // Tolls paid to other players' Power Stations on the route.
     tolls: Type.Optional(Type.Array(Payment))
 })
 
@@ -95,7 +77,7 @@ export interface Offer {
 
 // A station whose equally good routes would pay tolls to different players: its owner chooses
 // among them before revenue (designer ruling, 2026-11-25). Each option is one route for each
-// distinct set of players its tolls would pay.
+// distinct set of players its tolls would pay; the owner names the one they choose by its cells.
 export type RouteOption = Type.Static<typeof RouteOption>
 export const RouteOption = Type.Object({
     cells: Type.Array(OffsetCoordinates),
@@ -108,7 +90,7 @@ export const RouteChoice = Type.Object({
     tileId: Type.Integer(),
     playerId: Type.String(),
     options: Type.Array(RouteOption),
-    chosen: Type.Optional(Type.Integer({ minimum: 0 }))
+    chosen: Type.Optional(Type.Array(OffsetCoordinates))
 })
 
 export interface PendingPlacement {
@@ -126,18 +108,12 @@ export const ConduitGameState = Type.Evaluate(
             players: Type.Array(ConduitPlayerState),
             machineState: Type.Enum(MachineState),
             roundManager: RoundManager,
-            stacks: Stacks,
-            // In the shuffled-market variant, every tile left after setup in one stack.
-            deck: Type.Optional(StationStack),
-            nextLetter: BaseLetterSchema,
+            // Every tile left after setup, shuffled into one stack.
+            deck: StationStack,
             market: Type.Array(MarketSlot),
             board: Board,
-            // Added to every tile's price in the base-price variant.
-            basePrice: Type.Optional(Type.Integer({ minimum: 0 })),
-            // Spaces on each bid track when a bot study changes them from BidTrackSpaces.
-            trackSpaces: Type.Optional(Type.Integer({ minimum: 1 })),
-            // Players out of this round's bidding, in the bid-until-all-pass variant.
-            bidPasses: Type.Optional(Type.Array(Type.String())),
+            // Players who have passed in this round's bidding.
+            bidPasses: Type.Array(Type.String()),
             // Routes owners are choosing, or have chosen, for the revenue about to be paid.
             routeChoices: Type.Optional(Type.Array(RouteChoice))
         })
@@ -166,14 +142,10 @@ export class HydratedConduitGameState
     declare result?: GameResult
     declare winningPlayerIds: string[]
     declare roundManager: HydratedRoundManager
-    declare stacks: Stacks
-    declare deck?: StationStack
-    declare nextLetter: BaseLetter
+    declare deck: StationStack
     declare market: MarketSlot[]
     declare board: Board
-    declare basePrice?: number
-    declare trackSpaces?: number
-    declare bidPasses?: string[]
+    declare bidPasses: string[]
     declare routeChoices?: RouteChoice[]
 
     constructor(data: ConduitProjectedState) {
@@ -199,32 +171,17 @@ export class HydratedConduitGameState
         return new Grid(this.board)
     }
 
-    // The market is drawn from the stacks in letter order, carrying on from where the last fill
-    // stopped, or from the top of the one shuffled stack.
-    fillMarket(size: MarketSize = MarketSize.SmallFirst): number[] {
+    // The market is drawn from the top of the stack.
+    fillMarket(): number[] {
         this.roundManager.startRound(this.actionCount)
-        const count = marketTiles(size, this.players.length, this.round)
-        const tileIds = Array.from({ length: count }, () => this.drawNextTile())
+        const deck = new HydratedStationStack(this.deck)
+        const count = marketTiles(this.players.length, this.round)
+        assert(deck.remaining >= count, 'The stack has run out')
+        const tileIds = Array.from({ length: count }, () => deck.draw())
+        this.deck = deck.dehydrate()
         this.market = tileIds.map((tileId) => ({ tileId, bids: [] }))
-        if (this.bidPasses) this.bidPasses = []
+        this.bidPasses = []
         return tileIds
-    }
-
-    private drawNextTile(): number {
-        if (this.deck) {
-            const deck = new HydratedStationStack(this.deck)
-            assert(!deck.isEmpty(), 'The stack has run out')
-            const tileId = deck.draw()
-            this.deck = deck.dehydrate()
-            return tileId
-        }
-        const letter = this.nextLetter
-        this.nextLetter = BaseLetters[(BaseLetters.indexOf(letter) + 1) % BaseLetters.length]
-        const stack = new HydratedStationStack(this.stacks[letter])
-        assert(!stack.isEmpty(), `The ${letter} stack has run out`)
-        const tileId = stack.draw()
-        this.stacks[letter] = stack.dehydrate()
-        return tileId
     }
 
     bidsBy(playerId: string): number {
@@ -237,11 +194,7 @@ export class HydratedConduitGameState
     biddableSlots(): number[] {
         return this.market
             .map((slot, index) => ({ slot, index }))
-            .filter(
-                ({ slot }) =>
-                    slot.tileId !== undefined &&
-                    slot.bids.length < (this.trackSpaces ?? BidTrackSpaces)
-            )
+            .filter(({ slot }) => slot.tileId !== undefined && slot.bids.length < BidTrackSpaces)
             .map(({ index }) => index)
     }
 
@@ -249,42 +202,23 @@ export class HydratedConduitGameState
         return (
             this.getPlayerState(playerId).supply > 0 &&
             this.biddableSlots().length > 0 &&
-            !this.bidPasses?.includes(playerId)
+            !this.bidPasses.includes(playerId)
         )
     }
 
-    // Every player has placed the minimum (two cubes in rules v0.8.1, three before), or has no
-    // cube left, and every tile has a bid.
-    isMinimumBiddingDone(minimumBids: number): boolean {
-        const everyPlayerDone = this.players.every(
-            (player) => this.bidsBy(player.playerId) >= minimumBids || player.supply === 0
-        )
-        return everyPlayerDone && this.market.every((slot) => slot.bids.length > 0)
+    // Bidding goes on until everyone has passed or cannot bid. A player with an empty supply is
+    // skipped (designer ruling).
+    isBiddingOver(): boolean {
+        return !this.players.some((player) => this.canBid(player.playerId))
     }
 
-    // Bidding goes on until the minimum is done. A player with an empty supply is skipped, so
-    // bidding also ends once no one can bid (designer rulings). In the bid-until-all-pass variant
-    // it goes on past the minimum until everyone has passed or cannot bid; in rules v0.8.3 each
-    // player may pass once they have placed the minimum themselves.
-    isBiddingOver(minimumBids: number, end: BiddingEnd = BiddingEnd.Minimum): boolean {
-        const anyoneCanBid = this.players.some((player) => this.canBid(player.playerId))
-        if (end !== BiddingEnd.Minimum) return !anyoneCanBid
-        return this.isMinimumBiddingDone(minimumBids) || !anyoneCanBid
-    }
-
-    canPassBid(playerId: string, minimumBids: number, end: BiddingEnd): boolean {
-        switch (end) {
-            case BiddingEnd.AllPass:
-                return this.isMinimumBiddingDone(minimumBids) && this.canBid(playerId)
-            case BiddingEnd.PassAfterOwn:
-                return this.bidsBy(playerId) >= minimumBids && this.canBid(playerId)
-            default:
-                return false
-        }
+    // A player may pass once they have placed the minimum themselves, even with tiles unbid.
+    canPassBid(playerId: string): boolean {
+        return this.bidsBy(playerId) >= MinimumBids && this.canBid(playerId)
     }
 
     passBid(playerId: string) {
-        this.bidPasses = [...(this.bidPasses ?? []), playerId]
+        this.bidPasses = [...this.bidPasses, playerId]
     }
 
     placeBid(playerId: string, slot: number) {
@@ -307,7 +241,7 @@ export class HydratedConduitGameState
         if (tileId === undefined || buyerId !== undefined || bids.length === 0) {
             return undefined
         }
-        return { slot, tileId, playerId: bids[0], price: bids.length + (this.basePrice ?? 0) }
+        return { slot, tileId, playerId: bids[0], price: BasePrice + bids.length }
     }
 
     // A bought tile is placed face up by its buyer. A tile no one bought goes face down, placed by
@@ -332,9 +266,10 @@ export class HydratedConduitGameState
         return this.unresolvedSlot() === undefined
     }
 
-    // The price is one dollar per cube on the track, plus the base price if any, paid to the bank. Each other player's cube earns its owner a
-    // dollar and goes back to their supply; each of the buyer's own goes to the bank. The bottom
-    // cube will go onto the tile; the buyer's other cubes go back to their supply (designer ruling).
+    // The price is $1 plus a dollar per cube on the track. Each other player's cube earns its owner
+    // a dollar and goes back to their supply; each of the buyer's own pays a dollar to the bank. The
+    // bottom cube will go onto the tile; the buyer's other cubes go back to their supply (designer
+    // ruling).
     buyTile(playerId: string): Payment[] {
         const offer = this.currentOffer()
         assertExists(offer, 'A tile is on offer')
@@ -380,22 +315,23 @@ export class HydratedConduitGameState
         return offer !== undefined && this.getPlayerState(playerId).cash >= offer.price
     }
 
-    // Extra cubes are free unless the variant being tested charges for them (extraCubesPrice).
+    // The buyer may add up to three extra cubes from supply, at $1, $2 and $3. Returns their price.
     placeTile(
         playerId: string,
         cell: OffsetCoordinates,
         rotation: number,
-        extraCubes: number,
-        extraPrice = 0
-    ) {
+        extraCubes: number
+    ): number {
         const placement = this.pendingPlacement()
         assertExists(placement, 'A tile is waiting to be placed')
         assert(placement.playerId === playerId, `Player ${playerId} is not placing the tile`)
         const face = { tileId: placement.tileId, rotation, faceUp: placement.faceUp }
         assert(this.grid().isLegalPlacement(face, cell), 'The tile cannot go there')
         assert(placement.faceUp || extraCubes === 0, 'A face-down tile takes no cubes')
+        assert(extraCubes <= MaxExtraCubes, `At most ${MaxExtraCubes} extra cubes`)
 
         const station: PlacedStation = { cell, ...face, cubes: 0 }
+        const extraPrice = placement.faceUp ? extraCubesPrice(extraCubes) : 0
         if (placement.faceUp) {
             const player = this.getPlayerState(playerId)
             assert(player.cash >= extraPrice, 'The player cannot pay for the extra cubes')
@@ -406,20 +342,20 @@ export class HydratedConduitGameState
         }
         this.board.stations.push(station)
         this.market[placement.slot] = { bids: [] }
+        return extraPrice
     }
 
     // The stations whose owners must choose a route before revenue: those whose equally good
     // routes would pay tolls to different players. Owners choose in turn order from the Start
-    // Player; one owner's stations in board order. Without tolls there is nothing to choose.
-    findRouteChoices(routeTarget: RouteTarget, routeToll: RouteToll): RouteChoice[] {
-        if (routeToll !== RouteToll.Flat) return []
+    // Player; one owner's stations in board order.
+    findRouteChoices(): RouteChoice[] {
         const grid = this.grid()
         const choices: RouteChoice[] = []
         for (const station of this.ownedStations()) {
             const ownerId = station.ownerId
             if (ownerId === undefined) continue
             const options = new Map<string, RouteOption>()
-            for (const route of grid.bestRoutes(station.cell, routeTarget)) {
+            for (const route of grid.bestRoutes(station.cell)) {
                 const tolls = tollPayees(grid, route.cells, ownerId).toSorted()
                 const key = tolls.join(',')
                 if (!options.has(key)) options.set(key, { cells: route.cells, tolls })
@@ -440,22 +376,28 @@ export class HydratedConduitGameState
         return this.routeChoices?.find((choice) => choice.chosen === undefined)
     }
 
-    chooseRoute(playerId: string, tileId: number, option: number) {
+    // The option whose route follows these cells, if the pending choice offers one.
+    routeOption(choice: RouteChoice, route: OffsetCoordinates[]): RouteOption | undefined {
+        return choice.options.find((option) => sameRoute(option.cells, route))
+    }
+
+    // Returns the option chosen.
+    chooseRoute(playerId: string, tileId: number, route: OffsetCoordinates[]): RouteOption {
         const choice = this.pendingRouteChoice()
         assertExists(choice, 'A route is waiting to be chosen')
         assert(choice.playerId === playerId, `Player ${playerId} is not choosing a route`)
         assert(choice.tileId === tileId, `Tile ${tileId} is not the route being chosen`)
-        assert(option >= 0 && option < choice.options.length, `No route option ${option}`)
-        choice.chosen = option
+        const option = this.routeOption(choice, route)
+        assertExists(option, 'The route is one of the options')
+        choice.chosen = option.cells
+        return option
     }
 
     // The routes owners chose, by station tile.
     chosenRoutes(): Map<number, OffsetCoordinates[]> {
         return new Map(
             (this.routeChoices ?? []).flatMap((choice) =>
-                choice.chosen === undefined
-                    ? []
-                    : [[choice.tileId, choice.options[choice.chosen].cells] as const]
+                choice.chosen === undefined ? [] : [[choice.tileId, choice.chosen] as const]
             )
         )
     }
@@ -464,27 +406,15 @@ export class HydratedConduitGameState
         return this.board.stations.filter((station) => station.ownerId !== undefined)
     }
 
-    // Each Power Station pays $1 plus $1 per station on its route, then loses a cube to its owner's
-    // reserve. A station with no route earns nothing but still loses the cube. With the route toll,
-    // every other player's Power Station on the route also earns its owner $1. Every station's
-    // earnings are worked out before any cube is removed. When empty stations linger (rules
-    // v0.8.3), the cube comes off during infrastructure loss instead.
-    payRevenue(
-        routeTarget: RouteTarget,
-        routeToll = RouteToll.None,
-        emptyStations = EmptyStations.AtOnce
-    ): StationRevenue[] {
-        const earnings = stationEarnings(this.board, routeTarget, routeToll, this.chosenRoutes())
+    // Each Power Station earns $1 plus $1 per station on its route, and every other player's Power
+    // Station on the route earns its owner $1. A station with no route earns nothing.
+    payRevenue(): StationRevenue[] {
+        const earnings = stationEarnings(this.board, this.chosenRoutes())
         this.routeChoices = undefined
-        for (const { station, ownerId, amount, tolls } of earnings) {
-            const owner = this.getPlayerState(ownerId)
-            owner.earn(amount)
+        for (const { ownerId, amount, tolls } of earnings) {
+            this.getPlayerState(ownerId).earn(amount)
             for (const toll of tolls) {
                 this.getPlayerState(toll.playerId).earn(toll.amount)
-            }
-            if (emptyStations === EmptyStations.AtOnce) {
-                station.cubes -= 1
-                owner.retireCube()
             }
         }
         return earnings.map(({ station, ownerId, route, amount, tolls }) => ({
@@ -496,11 +426,12 @@ export class HydratedConduitGameState
         }))
     }
 
-    // Stations left without cubes flip face down, the setup cross included, so the cross flips at
-    // the end of round 1 (rules v0.8.2). When empty stations linger (rules v0.8.3), every other
-    // station then loses a cube to its owner's reserve; one left empty stays face up with no owner
-    // (no cube marks it) until the next infrastructure loss. Returns the tiles flipped.
-    loseInfrastructure(emptyStations = EmptyStations.AtOnce): number[] {
+    // Stations without cubes flip face down, the setup cross included, so the cross flips at the
+    // end of round 1. Every other station then loses a cube to its owner's reserve; one left empty
+    // stays face up with no owner until the next infrastructure loss (designer ruling): it earns
+    // nothing and collects no toll, but other routes still count it and may end on it. Returns the
+    // tiles flipped.
+    loseInfrastructure(): number[] {
         const flipped = this.board.stations.filter(
             (station) => station.faceUp && station.cubes === 0
         )
@@ -508,15 +439,13 @@ export class HydratedConduitGameState
             station.faceUp = false
             delete station.ownerId
         }
-        if (emptyStations === EmptyStations.Linger) {
-            for (const station of this.board.stations) {
-                if (station.cubes === 0) continue
-                station.cubes -= 1
-                if (station.ownerId !== undefined) {
-                    this.getPlayerState(station.ownerId).retireCube()
-                }
-                if (station.cubes === 0) delete station.ownerId
+        for (const station of this.board.stations) {
+            if (station.cubes === 0) continue
+            station.cubes -= 1
+            if (station.ownerId !== undefined) {
+                this.getPlayerState(station.ownerId).retireCube()
             }
+            if (station.cubes === 0) delete station.ownerId
         }
         return flipped.map((station) => station.tileId)
     }
@@ -527,34 +456,16 @@ export class HydratedConduitGameState
 
     // The round ends with every player moving cubes from reserve to supply, except after the fifth
     // round, and the Start Player marker passing clockwise.
-    endRound(cubesPerRound: number, startPlayerRule: StartPlayerRule): Payment[] {
+    endRound(): Payment[] {
         this.roundManager.endRound(this.actionCount)
         const refills = this.isPayingOut()
             ? []
             : this.players.map((player) => ({
                   playerId: player.playerId,
-                  amount: player.refillSupply(cubesPerRound)
+                  amount: player.refillSupply(CubesPerRound)
               }))
-        this.turnManager.newFirstPlayer(this.nextStartPlayerId(startPlayerRule))
+        this.turnManager.newFirstPlayer(this.turnManager.nextPlayer(this.startPlayerId()))
         return refills
-    }
-
-    // The marker passes clockwise. In the variant being tested it goes to the player with the most
-    // cash, the first of them clockwise from the current Start Player's left on a tie.
-    private nextStartPlayerId(rule: StartPlayerRule): string {
-        const next = this.turnManager.nextPlayer(this.startPlayerId())
-        if (rule === StartPlayerRule.Clockwise) {
-            return next
-        }
-        const order = this.turnManager.turnOrder
-        const fromNext = [
-            ...order.slice(order.indexOf(next)),
-            ...order.slice(0, order.indexOf(next))
-        ]
-        const most = Math.max(...this.players.map((player) => player.cash))
-        const richest = fromNext.find((playerId) => this.getPlayerState(playerId).cash === most)
-        assertExists(richest, 'Someone has the most cash')
-        return richest
     }
 
     // Most cash wins; ties go to the most cubes in supply, and players still tied share the win.
@@ -583,12 +494,10 @@ export interface StationEarning {
 
 // What each owned station would earn if revenue were paid now. A toll goes to every Power Station
 // (face up, with a cube) on the route that another player owns, the destination included; the
-// unowned setup tiles never collect.
-// A station's owner's chosen route, where they had a choice, replaces the one the search finds.
+// unowned setup tiles never collect. A station's owner's chosen route, where they had a choice,
+// replaces the one the search finds.
 export function stationEarnings(
     board: Board,
-    routeTarget: RouteTarget,
-    routeToll: RouteToll = RouteToll.None,
     chosen: ReadonlyMap<number, OffsetCoordinates[]> = new Map()
 ): StationEarning[] {
     const grid = new Grid(board)
@@ -603,14 +512,10 @@ export function stationEarnings(
                   cells,
                   stations: cells.filter((cell) => grid.stationAt(cell)?.faceUp).length
               }
-            : grid.bestRoute(station.cell, routeTarget)
-        const tolls =
-            routeToll === RouteToll.Flat && route
-                ? tollPayees(grid, route.cells, ownerId).map((playerId) => ({
-                      playerId,
-                      amount: 1
-                  }))
-                : []
+            : grid.bestRoute(station.cell)
+        const tolls = route
+            ? tollPayees(grid, route.cells, ownerId).map((playerId) => ({ playerId, amount: 1 }))
+            : []
         return [{ station, ownerId, route, amount: revenueFor(route), tolls }]
     })
 }
@@ -627,6 +532,10 @@ function tollPayees(grid: Grid, cells: OffsetCoordinates[], ownerId: string): st
             ? [passed.ownerId]
             : []
     })
+}
+
+function sameRoute(a: OffsetCoordinates[], b: OffsetCoordinates[]): boolean {
+    return a.length === b.length && a.every((cell, index) => sameCoordinates(cell, b[index]))
 }
 
 function compareRanks(a: number[], b: number[]): number {

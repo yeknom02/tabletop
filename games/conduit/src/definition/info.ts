@@ -1,5 +1,4 @@
 import { GameVisibility, type GameInfo } from '@tabletop/common'
-import { ConduitConfigurator } from './configurator.js'
 import { GAME_VERSION } from './version.js'
 
 export const ConduitInfo: GameInfo = {
@@ -20,6 +19,5 @@ export const ConduitInfo: GameInfo = {
         beta: true,
         // A prototype in playtesting: only alpha testers and developers see it.
         visibility: GameVisibility.Alpha
-    },
-    configurator: new ConduitConfigurator()
+    }
 }

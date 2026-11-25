@@ -1,23 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { assertExists } from '@tabletop/common'
 import { MachineState } from './states.js'
-import {
-    BiddingEnd,
-    biddingEndOf,
-    EmptyStations,
-    ExtraCubeCost,
-    MarketDeal,
-    MarketSize,
-    minimumBidsOf,
-    StartPlayerRule
-} from './gameConfig.js'
 import { ActionType } from './actions.js'
 import { isBuyTile } from '../actions/buyTile.js'
 import { isPayRevenue } from '../actions/payRevenue.js'
 import { isPlaceTile } from '../actions/placeTile.js'
 import { isLoseInfrastructure } from '../actions/loseInfrastructure.js'
-import { StationLetter, stationTile } from '../components/tiles.js'
-import { BidTrackSpaces, type ConduitProjectedState, Rounds } from '../model/gameState.js'
+import { stationTile } from '../components/tiles.js'
+import type { ConduitProjectedState } from '../model/gameState.js'
+import { BidTrackSpaces, Rounds } from '../model/rules.js'
 import { startTestGame, type TestSession } from '../testing/table.js'
 
 const letters = (tileIds: (number | undefined)[]) =>
@@ -26,29 +17,15 @@ const letters = (tileIds: (number | undefined)[]) =>
 // Each bidder in turn bids on the next spot along, wrapping around, and passes as soon as the
 // rules allow, until bidding ends.
 function bidAround(session: TestSession) {
-    const config = session.game.config
     let spot = 0
     while (session.state.machineState === MachineState.Bidding) {
-        const playerId = session.activePlayerId()
-        if (session.hydrated().canPassBid(playerId, minimumBidsOf(config), biddingEndOf(config))) {
+        if (session.hydrated().canPassBid(session.activePlayerId())) {
             session.passBid()
         } else {
             session.bid(spot % session.state.market.length)
             spot += 1
         }
     }
-}
-
-// The printed rules before v0.8.3, for the tests of rules that changed.
-const Rules082 = {
-    marketDeal: MarketDeal.Cycle,
-    startingCashStep: '1',
-    cubesPerRound: '2',
-    biddingEnd: BiddingEnd.Minimum,
-    basePrice: '0',
-    stationCubeCap: '9',
-    extraCubeCost: ExtraCubeCost.Free,
-    emptyStations: EmptyStations.AtOnce
 }
 
 // Rewrites the track of the tile on offer and hands the offer to its new bottom cube.
@@ -112,8 +89,7 @@ describe('setup', () => {
         ])
         expect(state.market).toHaveLength(4)
         // Every tile left after the cross goes into one shuffled stack.
-        expect(state.deck?.remaining).toBe(60 - 4)
-        expect(state.stacks.A.remaining).toBe(0)
+        expect(state.deck.remaining).toBe(60 - 4)
         expect(
             state.turnManager.turnOrder.map((playerId) => {
                 const seat = player(state, playerId)
@@ -129,62 +105,16 @@ describe('setup', () => {
         expect(state.activePlayerIds).toEqual([state.turnManager.turnOrder[0]])
     })
 
-    it('dealt from letter stacks with rising starting cash in rules v0.8.2', () => {
-        const session = startTestGame(4, Rules082)
-        const state = session.state
-        expect(letters(state.board.stations.map((station) => station.tileId))).toEqual([
-            'A',
-            'B',
-            'C',
-            'D'
-        ])
-        expect(state.board.stations.map((station) => station.cell)).toEqual([
-            { col: 0, row: -1 },
-            { col: 1, row: 0 },
-            { col: 0, row: 1 },
-            { col: -1, row: 0 }
-        ])
-        expect(letters(state.market.map((slot) => slot.tileId))).toEqual(['A', 'B', 'C', 'D'])
-        expect(state.nextLetter).toBe(StationLetter.A)
-        expect(state.stacks.A.remaining).toBe(14)
-        expect(state.stacks.B.remaining).toBe(14)
-        // The Start Player starts with $5 and each player clockwise with $1 more.
-        expect(
-            state.turnManager.turnOrder.map((playerId) => {
-                const seat = player(state, playerId)
-                return [seat.cash, seat.supply, seat.reserve]
-            })
-        ).toEqual([
-            [5, 5, 10],
-            [6, 5, 10],
-            [7, 5, 10],
-            [8, 5, 10]
-        ])
-    })
-
-    it('carried the letter stacks on from where the last market stopped (rules v0.8.2)', () => {
-        const state = startTestGame(4, Rules082).hydrated()
-        expect(letters(state.fillMarket())).toEqual(['A', 'B', 'C', 'D', 'A'])
-    })
-
     it('puts one tile per player in the first market and one more after that', () => {
         expect(startTestGame(3).state.market).toHaveLength(3)
         expect(startTestGame(5).state.market).toHaveLength(5)
         expect(startTestGame(5).hydrated().fillMarket()).toHaveLength(6)
     })
-
-    it('sizes the market by the variant being tested', () => {
-        const plusOne = { marketSize: MarketSize.PlusOne }
-        expect(startTestGame(3, plusOne).state.market).toHaveLength(4)
-        const players = startTestGame(3, { marketSize: MarketSize.Players }).hydrated()
-        expect(players.market).toHaveLength(3)
-        expect(players.fillMarket(MarketSize.Players)).toHaveLength(3)
-    })
 })
 
 describe('bidding', () => {
-    // Four tiles for three players, so a tile can be left without a bid.
-    const PlusOneMarket = { marketSize: MarketSize.PlusOne }
+    const passBid = (session: TestSession) =>
+        session.act(session.activePlayerId(), ActionType.PassBid)
 
     it('goes clockwise from the Start Player, one cube from supply at a time', () => {
         const session = startTestGame(3)
@@ -206,42 +136,62 @@ describe('bidding', () => {
         expect(session.state.machineState).toBe(MachineState.Offering)
     })
 
-    it('ended once every player had two bids and every tile a bid (rules v0.8.2)', () => {
-        const session = startTestGame(3, { ...Rules082, ...PlusOneMarket })
-        bidAround(session)
-        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([2, 2, 1, 1])
-        expect(session.state.machineState).toBe(MachineState.Offering)
-    })
-
-    it('asks for three bids each in the older minimum (rules v0.8b)', () => {
-        const session = startTestGame(3, { ...Rules082, ...PlusOneMarket, minimumBids: '3' })
-        bidAround(session)
-        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([3, 2, 2, 2])
-    })
-
-    it('went on past two bids while a tile had none (rules v0.8.2)', () => {
-        const session = startTestGame(3, { ...Rules082, ...PlusOneMarket })
-        for (let bid = 0; bid < 6; bid++) {
-            session.bid(bid % 3)
-        }
-        expect(session.state.machineState).toBe(MachineState.Bidding)
-        session.bid(3)
-        expect(session.state.machineState).toBe(MachineState.Offering)
-    })
-
     it('skips a player with an empty supply, who is then done bidding', () => {
-        const session = startTestGame(3, { ...Rules082, ...PlusOneMarket })
+        const session = startTestGame(3)
         const [first, second, third] = session.state.turnManager.turnOrder
         session.edit((draft) => {
             player(draft, second).supply = 0
         })
         session.bid(0)
         expect(session.activePlayerId()).toBe(third)
-        for (let bid = 0; bid < 4; bid++) {
-            session.bid(bid % 4)
-        }
+        session.bid(1)
+        expect(session.activePlayerId()).toBe(first)
+        expect(session.hydrated().canBid(second)).toBe(false)
+    })
+
+    it('refuses a pass before the player has placed two cubes', () => {
+        const session = startTestGame(3)
+        session.bid(0)
+        session.bid(0)
+        session.bid(0)
+        expect(() => passBid(session)).toThrow()
+    })
+
+    it('lets players pass with tiles still unbid, which then go face down', () => {
+        const session = startTestGame(3)
+        for (let bid = 0; bid < 6; bid++) session.bid(0)
+        for (let pass = 0; pass < 3; pass++) passBid(session)
         expect(session.state.machineState).toBe(MachineState.Offering)
-        expect(player(session.state, first).supply).toBe(2)
+        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([6, 0, 0])
+        for (let pass = 0; pass < 6; pass++) session.pass()
+        expect(session.hydrated().pendingPlacement()).toMatchObject({ faceUp: false })
+    })
+
+    it('goes on past two bids until everyone has passed', () => {
+        const session = startTestGame(3)
+        const [first, second, third] = session.state.turnManager.turnOrder
+        for (let bid = 0; bid < 6; bid++) session.bid(bid % 3)
+        expect(session.state.machineState).toBe(MachineState.Bidding)
+        expect(session.activePlayerId()).toBe(first)
+        passBid(session)
+        session.bid(0)
+        passBid(session)
+        expect(session.activePlayerId()).toBe(second)
+        session.bid(1)
+        expect(session.activePlayerId()).toBe(second)
+        passBid(session)
+        expect(session.state.machineState).toBe(MachineState.Offering)
+        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([3, 3, 2])
+        expect(session.state.bidPasses).toEqual([first, third, second])
+    })
+
+    it('lets a passed player back into bidding next round', () => {
+        const session = startTestGame(3)
+        for (let bid = 0; bid < 6; bid++) session.bid(bid % 3)
+        for (let pass = 0; pass < 3; pass++) passBid(session)
+        resolveAll(session, () => 'pass')
+        expect(session.state.machineState).toBe(MachineState.Bidding)
+        expect(session.state.bidPasses).toEqual([])
     })
 
     it('refuses a full track', () => {
@@ -312,15 +262,6 @@ describe('offers', () => {
         expect(isPlaceTile(placed) && placed.metadata?.extraPrice).toBe(3)
     })
 
-    it('starts players with the configured cash in the starting-cash variants', () => {
-        const cashBySeat = (state: ConduitProjectedState) =>
-            state.turnManager.turnOrder.map((playerId) => player(state, playerId).cash)
-        expect(cashBySeat(startTestGame(3).state)).toEqual([5, 5, 5])
-        expect(cashBySeat(startTestGame(3, { startingCashStep: '1' }).state)).toEqual([5, 6, 7])
-        const rich = startTestGame(3, { startingCash: '10', startingCashStep: '1' })
-        expect(cashBySeat(rich.state)).toEqual([10, 11, 12])
-    })
-
     it('refuses extra cubes the player cannot pay for', () => {
         const session = startTestGame(3)
         bidAround(session)
@@ -380,8 +321,8 @@ describe('offers', () => {
 })
 
 describe('revenue and infrastructure loss', () => {
-    function roundWithOneStation(config: Partial<typeof Rules082> = {}) {
-        const session = startTestGame(3, config)
+    function roundWithOneStation() {
+        const session = startTestGame(3)
         bidAround(session)
         setOfferTrack(session, ['p0'])
         session.buy()
@@ -389,19 +330,6 @@ describe('revenue and infrastructure loss', () => {
         resolveAll(session, () => 'pass')
         return session
     }
-
-    it('pays each Power Station its best route and moves a cube to the reserve', () => {
-        const session = roundWithOneStation()
-        const paid = session.actions.find(isPayRevenue)
-        expect(paid?.metadata).toMatchObject({ revenues: [{ playerId: 'p0' }] })
-    })
-
-    it('flipped stations left without cubes, the setup cross included (rules v0.8.2)', () => {
-        const session = roundWithOneStation(Rules082)
-        expect(session.state.board.stations.some((station) => station.faceUp)).toBe(false)
-        const lost = session.actions.find(isLoseInfrastructure)
-        expect(lost?.metadata).toMatchObject({ roundEnded: true })
-    })
 
     it('refills supplies, passes the Start Player marker and fills the next market', () => {
         const session = startTestGame(3)
@@ -415,11 +343,37 @@ describe('revenue and infrastructure loss', () => {
         expect(session.state.market).toHaveLength(4)
     })
 
-    it('refills as many cubes as the game option says', () => {
-        const session = startTestGame(3, { cubesPerRound: '2' })
+    const ownStation = (session: TestSession) =>
+        session.state.board.stations.find((station) => station.cubes > 0 || station.faceUp)
+
+    it('pays the station, then takes its cube but leaves it face up with no owner', () => {
+        const before = startTestGame(3).state
+        const session = roundWithOneStation()
+        const paid = session.actions.find(isPayRevenue)
+        expect(paid?.metadata).toMatchObject({ revenues: [{ playerId: 'p0' }] })
+        const faceUp = session.state.board.stations.filter((station) => station.faceUp)
+        expect(faceUp).toHaveLength(1)
+        expect(faceUp[0]).toMatchObject({ cubes: 0 })
+        expect(faceUp[0].ownerId).toBeUndefined()
+        // The setup cross had no cubes all round, so it flips now.
+        expect(session.state.board.stations.filter((station) => !station.faceUp)).toHaveLength(
+            session.state.board.stations.length - 1
+        )
+        // Infrastructure loss moved one cube to the reserve, then the refill took three to supply.
+        expect(player(session.state, 'p0').reserve).toBe(player(before, 'p0').reserve + 1 - 3)
+        expect(ownStation(session)).toBeDefined()
+        const lost = session.actions.find(isLoseInfrastructure)
+        expect(lost?.metadata).toMatchObject({ roundEnded: true })
+    })
+
+    it('flips the empty station at the end of the next round, paying it nothing', () => {
+        const session = roundWithOneStation()
+        const paidRounds = session.actions.filter(isPayRevenue).length
         bidAround(session)
         resolveAll(session, () => 'pass')
-        expect(session.state.players.every((seat) => seat.reserve === 8)).toBe(true)
+        const secondPayout = session.actions.filter(isPayRevenue)[paidRounds]
+        expect(secondPayout?.metadata?.revenues).toEqual([])
+        expect(session.state.board.stations.some((station) => station.faceUp)).toBe(false)
     })
 })
 
@@ -459,102 +413,6 @@ describe('the end of the game', () => {
     })
 })
 
-describe('the richest-start-player variant', () => {
-    it('gives the marker to the player with the most cash', () => {
-        const state = startTestGame(4).hydrated()
-        const [first, second, third, fourth] = state.turnManager.turnOrder
-        state.getPlayerState(third).cash = 12
-        state.endRound(2, StartPlayerRule.Richest)
-        expect(state.turnManager.turnOrder).toEqual([third, fourth, first, second])
-    })
-
-    it('breaks a tie with the first richest player clockwise from the Start Player’s left', () => {
-        const state = startTestGame(4).hydrated()
-        const [first, second, , fourth] = state.turnManager.turnOrder
-        state.getPlayerState(first).cash = 9
-        state.getPlayerState(fourth).cash = 9
-        state.endRound(2, StartPlayerRule.Richest)
-        expect(state.turnManager.turnOrder[0]).toBe(fourth)
-        state.roundManager.startRound(state.actionCount)
-        state.getPlayerState(second).cash = 9
-        state.endRound(2, StartPlayerRule.Richest)
-        expect(state.turnManager.turnOrder[0]).toBe(first)
-    })
-
-    it('passes clockwise under the printed rule', () => {
-        const state = startTestGame(4).hydrated()
-        const [, second, third] = state.turnManager.turnOrder
-        state.getPlayerState(third).cash = 12
-        state.endRound(2, StartPlayerRule.Clockwise)
-        expect(state.turnManager.turnOrder[0]).toBe(second)
-    })
-})
-
-describe('the bid-until-all-pass variant', () => {
-    const AllPass = { biddingEnd: BiddingEnd.AllPass }
-    const passBid = (session: TestSession) =>
-        session.act(session.activePlayerId(), ActionType.PassBid)
-
-    // Three players, three tiles: six bids around the table do the minimum.
-    function doMinimum(session: TestSession) {
-        for (let bid = 0; bid < 6; bid++) session.bid(bid % 3)
-    }
-
-    it('refuses a pass before the minimum is done', () => {
-        const session = startTestGame(3, AllPass)
-        session.bid(0)
-        expect(() => passBid(session)).toThrow()
-    })
-
-    it('refuses a pass under rules v0.8.2', () => {
-        const session = startTestGame(3, { ...Rules082, marketSize: MarketSize.PlusOne })
-        for (let bid = 0; bid < 6; bid++) session.bid(bid % 3)
-        // Everyone has two bids, but a tile has none, so bidding goes on and no one may pass.
-        expect(session.state.machineState).toBe(MachineState.Bidding)
-        expect(() => passBid(session)).toThrow()
-    })
-
-    it('goes on past the minimum until everyone has passed', () => {
-        const session = startTestGame(3, AllPass)
-        const [first, second, third] = session.state.turnManager.turnOrder
-        doMinimum(session)
-        expect(session.state.machineState).toBe(MachineState.Bidding)
-        expect(session.activePlayerId()).toBe(first)
-        passBid(session)
-        session.bid(0)
-        passBid(session)
-        expect(session.activePlayerId()).toBe(second)
-        session.bid(1)
-        expect(session.activePlayerId()).toBe(second)
-        passBid(session)
-        expect(session.state.machineState).toBe(MachineState.Offering)
-        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([3, 3, 2])
-        expect(session.state.bidPasses).toEqual([first, third, second])
-    })
-
-    it('lets a passed player back into bidding next round', () => {
-        const session = startTestGame(3, AllPass)
-        doMinimum(session)
-        for (let pass = 0; pass < 3; pass++) passBid(session)
-        resolveAll(session, () => 'pass')
-        expect(session.state.machineState).toBe(MachineState.Bidding)
-        expect(session.state.bidPasses).toEqual([])
-    })
-})
-
-describe('the base-price variant', () => {
-    it('adds the base price to the cubes on the track, paid to the bank', () => {
-        const session = startTestGame(3, { basePrice: '1' })
-        bidAround(session)
-        setOfferTrack(session, ['p0', 'p1'])
-        expect(session.hydrated().currentOffer()?.price).toBe(3)
-        const before = session.state
-        session.buy()
-        expect(player(session.state, 'p0').cash).toBe(player(before, 'p0').cash - 3)
-        expect(player(session.state, 'p1').cash).toBe(player(before, 'p1').cash + 1)
-    })
-})
-
 describe('the station-cube cap', () => {
     it('allows the winning cube and three extras, and no more', () => {
         const session = startTestGame(3)
@@ -569,93 +427,5 @@ describe('the station-cube cap', () => {
         expect(() => session.place(cell, rotation, 4)).toThrow()
         session.place(cell, rotation, 3)
         expect(session.state.board.stations.at(-1)).toMatchObject({ ownerId: 'p0', cubes: 4 })
-    })
-
-    it('takes a lower cap from the variant being tested', () => {
-        const session = startTestGame(3, { stationCubeCap: '3' })
-        bidAround(session)
-        setOfferTrack(session, ['p0'])
-        session.buy()
-        session.edit((draft) => {
-            player(draft, 'p0').cash = 20
-        })
-        const { cell, rotation } = firstLegalPlacement(session)
-        expect(() => session.place(cell, rotation, 3)).toThrow()
-        session.place(cell, rotation, 2)
-        expect(session.state.board.stations.at(-1)).toMatchObject({ ownerId: 'p0', cubes: 3 })
-    })
-})
-
-describe('passing after your own two bids (rules v0.8.3)', () => {
-    const PassAfterOwn = { biddingEnd: BiddingEnd.PassAfterOwn }
-    const passBid = (session: TestSession) =>
-        session.act(session.activePlayerId(), ActionType.PassBid)
-
-    it('refuses a pass before the player has placed two cubes', () => {
-        const session = startTestGame(3, PassAfterOwn)
-        session.bid(0)
-        session.bid(0)
-        session.bid(0)
-        expect(() => passBid(session)).toThrow()
-    })
-
-    it('lets players pass with tiles still unbid, which then go face down', () => {
-        const session = startTestGame(3, PassAfterOwn)
-        for (let bid = 0; bid < 6; bid++) session.bid(0)
-        for (let pass = 0; pass < 3; pass++) passBid(session)
-        expect(session.state.machineState).toBe(MachineState.Offering)
-        expect(session.state.market.map((slot) => slot.bids.length)).toEqual([6, 0, 0])
-        session.pass()
-        session.pass()
-        session.pass()
-        session.pass()
-        session.pass()
-        session.pass()
-        expect(session.hydrated().pendingPlacement()).toMatchObject({ faceUp: false })
-    })
-})
-
-describe('empty stations linger for a round (rules v0.8.3)', () => {
-    const Linger = { emptyStations: EmptyStations.Linger }
-
-    function roundWithOneStation() {
-        const session = startTestGame(3, Linger)
-        bidAround(session)
-        setOfferTrack(session, ['p0'])
-        session.buy()
-        placeAnywhere(session)
-        resolveAll(session, () => 'pass')
-        return session
-    }
-
-    const ownStation = (session: TestSession) =>
-        session.state.board.stations.find((station) => station.cubes > 0 || station.faceUp)
-
-    it('pays the station, then takes its cube but leaves it face up with no owner', () => {
-        const before = startTestGame(3, Linger).state
-        const session = roundWithOneStation()
-        const paid = session.actions.find(isPayRevenue)
-        expect(paid?.metadata).toMatchObject({ revenues: [{ playerId: 'p0' }] })
-        const faceUp = session.state.board.stations.filter((station) => station.faceUp)
-        expect(faceUp).toHaveLength(1)
-        expect(faceUp[0]).toMatchObject({ cubes: 0 })
-        expect(faceUp[0].ownerId).toBeUndefined()
-        // The setup cross had no cubes all round, so it flips now.
-        expect(session.state.board.stations.filter((station) => !station.faceUp)).toHaveLength(
-            session.state.board.stations.length - 1
-        )
-        // Infrastructure loss moved one cube to the reserve, then the refill took three to supply.
-        expect(player(session.state, 'p0').reserve).toBe(player(before, 'p0').reserve + 1 - 3)
-        expect(ownStation(session)).toBeDefined()
-    })
-
-    it('flips the empty station at the end of the next round, paying it nothing', () => {
-        const session = roundWithOneStation()
-        const paidRounds = session.actions.filter(isPayRevenue).length
-        bidAround(session)
-        resolveAll(session, () => 'pass')
-        const secondPayout = session.actions.filter(isPayRevenue)[paidRounds]
-        expect(secondPayout?.metadata?.revenues).toEqual([])
-        expect(session.state.board.stations.some((station) => station.faceUp)).toBe(false)
     })
 })

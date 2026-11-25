@@ -1,6 +1,5 @@
 import { OffsetCoordinates, sameCoordinates } from '@tabletop/common'
 import * as Type from 'typebox'
-import { RouteTarget } from '../definition/gameConfig.js'
 import {
     nextLetter,
     oppositeSide,
@@ -179,29 +178,21 @@ export class Grid {
     }
 
     // The shortest route through open connections to another face-up station of the next letter,
-    // D back to A (rules v0.8.2; the same letter in v0.8.1, kept for bot studies). Among equally
-    // short routes the owner must take the one through the most face-up stations, then the one
-    // through the fewest of their own (rules v0.8.2).
-    bestRoute(
-        from: OffsetCoordinates,
-        routeTarget: RouteTarget = RouteTarget.NextLetter
-    ): Route | undefined {
-        return this.routeSearch(from, routeTarget)?.route
+    // A following D. Among equally short routes the owner must take the one through the most
+    // face-up stations, then the one through the fewest of their own.
+    bestRoute(from: OffsetCoordinates): Route | undefined {
+        return this.routeSearch(from)?.route
     }
 
     // The search for a station's route, step by step, for showing how a route was found: the
     // cells reached at each distance and the cell each was reached from, the destinations found at
     // the first distance that has any, each one's best route, and the route chosen among them.
-    routeSearch(
-        from: OffsetCoordinates,
-        routeTarget: RouteTarget = RouteTarget.NextLetter
-    ): RouteSearch | undefined {
+    routeSearch(from: OffsetCoordinates): RouteSearch | undefined {
         const start = this.stationAt(from)
         if (!start || !start.faceUp) {
             return undefined
         }
-        const letter = stationTile(start.tileId).letter
-        const target = routeTarget === RouteTarget.SameLetter ? letter : nextLetter(letter)
+        const target = nextLetter(stationTile(start.tileId).letter)
         const best = new Map<string, RouteStep>([[cellKey(from), { stations: 1, own: 1 }]])
         const layers: SearchStep[][] = []
         let layer: OffsetCoordinates[] = [from]
@@ -238,16 +229,12 @@ export class Grid {
     // Every route a station's owner may take: the shortest routes to the nearest stations of the
     // letter it needs, then those through the most stations, then the fewest of the owner's own.
     // Routes left tied may still pass different players' stations, which matters for tolls.
-    bestRoutes(
-        from: OffsetCoordinates,
-        routeTarget: RouteTarget = RouteTarget.NextLetter
-    ): (Route & { own: number })[] {
+    bestRoutes(from: OffsetCoordinates): (Route & { own: number })[] {
         const start = this.stationAt(from)
         if (!start || !start.faceUp) {
             return []
         }
-        const letter = stationTile(start.tileId).letter
-        const target = routeTarget === RouteTarget.SameLetter ? letter : nextLetter(letter)
+        const target = nextLetter(stationTile(start.tileId).letter)
         // Each cell's distance from the station, and every cell one step nearer that leads to it.
         const depth = new Map<string, number>([[cellKey(from), 0]])
         const parents = new Map<string, OffsetCoordinates[]>()

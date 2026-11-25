@@ -1,12 +1,6 @@
 import { assert, assertExists, type RandomFunction } from '@tabletop/common'
 import { MachineState } from '../definition/states.js'
-import {
-    biddingEndOf,
-    extraCubeCostOf,
-    extraCubesPrice,
-    minimumBidsOf,
-    stationCubeCapOf
-} from '../definition/gameConfig.js'
+import { extraCubesPrice, MaxExtraCubes } from '../model/rules.js'
 import type { TestSession } from './table.js'
 
 // Takes one random legal decision for the active player.
@@ -18,9 +12,7 @@ export function playRandomDecision(session: TestSession, random: RandomFunction)
     }
     switch (state.machineState) {
         case MachineState.Bidding: {
-            const config = session.game.config
-            const playerId = session.activePlayerId()
-            const mayPass = state.canPassBid(playerId, minimumBidsOf(config), biddingEndOf(config))
+            const mayPass = state.canPassBid(session.activePlayerId())
             if (mayPass && random() < 0.4) {
                 session.passBid()
             } else {
@@ -42,10 +34,9 @@ export function playRandomDecision(session: TestSession, random: RandomFunction)
             assertExists(placement, 'A tile is waiting to be placed')
             const option = pick(state.grid().legalPlacements(placement.tileId, placement.faceUp))
             // Any number of extra cubes the supply, the cap and the player's cash allow.
-            const config = session.game.config
             const player = state.getPlayerState(placement.playerId)
-            let most = Math.min(player.supply, stationCubeCapOf(config) - 1)
-            while (most > 0 && extraCubesPrice(most, extraCubeCostOf(config)) > player.cash) {
+            let most = Math.min(player.supply, MaxExtraCubes)
+            while (most > 0 && extraCubesPrice(most) > player.cash) {
                 most -= 1
             }
             const extraCubes = placement.faceUp ? Math.floor(random() * (most + 1)) : 0

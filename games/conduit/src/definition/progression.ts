@@ -1,5 +1,6 @@
 import type { GameProgress, GameProgression } from '@tabletop/common'
-import { type ConduitProjectedState, Rounds } from '../model/gameState.js'
+import type { ConduitProjectedState } from '../model/gameState.js'
+import { Rounds } from '../model/rules.js'
 
 export class ConduitProgression implements GameProgression<ConduitProjectedState> {
     progress(state: ConduitProjectedState): GameProgress {

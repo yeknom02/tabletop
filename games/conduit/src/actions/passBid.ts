@@ -4,8 +4,8 @@ import { GameAction, HydratableAction } from '@tabletop/common'
 import { ActionType } from '../definition/actions.js'
 import { HydratedConduitGameState } from '../model/gameState.js'
 
-// In the bid-until-all-pass variant, once the minimum bidding is done a player may pass instead of
-// bidding, and is then out of bidding for the round.
+// Once a player has placed two cubes they may pass instead of bidding, and are then out of
+// bidding for the round.
 export type PassBid = Type.Static<typeof PassBid>
 export const PassBid = Type.Evaluate(
     Type.Intersect([

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { assert, Prng } from '@tabletop/common'
 import { MachineState } from './states.js'
-import { ConduitGameStateValidator, Rounds } from '../model/gameState.js'
+import { ConduitGameStateValidator } from '../model/gameState.js'
+import { Rounds } from '../model/rules.js'
 import { MaxGridSize } from '../model/board.js'
-import { MarketDeal } from './gameConfig.js'
 import { startTestGame, type TestSession } from '../testing/table.js'
 import { playRandomDecision } from '../testing/bot.js'
 
@@ -18,10 +18,12 @@ function playToEnd(session: TestSession, seed: number) {
 
 describe.each([3, 4, 5])('random games with %i players', (count) => {
     it.each([1, 2, 3, 4, 5, 6, 7, 8])('plays to the end with seed %i', (seed) => {
-        const session = startTestGame(count, {}, `${seed}`.padStart(32, '0'))
+        const session = startTestGame(count, `${seed}`.padStart(32, '0'))
         playToEnd(session, seed)
         const state = session.hydrated()
         expect(state.round).toBe(Rounds)
+        // Round 1 deals one tile per player, later rounds one more than that.
+        expect(state.deck.remaining).toBe(60 - Rounds * (count + 1) + 1)
         expect(state.cubesOnBoard()).toBe(0)
         expect(state.winningPlayerIds.length).toBeGreaterThan(0)
         const totalCubes = state.players.reduce(
@@ -36,19 +38,6 @@ describe.each([3, 4, 5])('random games with %i players', (count) => {
         expect(span(state.board.stations.map((station) => station.cell.row))).toBeLessThanOrEqual(
             MaxGridSize
         )
-    })
-
-    it.each([1, 2, 3])('plays to the end from one shuffled stack with seed %i', (seed) => {
-        const session = startTestGame(
-            count,
-            { marketDeal: MarketDeal.Shuffled },
-            `${seed}`.padStart(32, '0')
-        )
-        playToEnd(session, seed)
-        const state = session.hydrated()
-        expect(state.round).toBe(Rounds)
-        // Round 1 deals one tile per player, later rounds one more than that.
-        expect(state.deck?.remaining).toBe(60 - 5 * (count + 1) + 1)
     })
 
     it('is deterministic for a seed', () => {

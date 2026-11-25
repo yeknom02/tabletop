@@ -14,9 +14,9 @@ import {
     LoseInfrastructure
 } from '../actions/loseInfrastructure.js'
 import { FillMarket } from '../actions/fillMarket.js'
-import { type HydratedConduitGameState, Rounds } from '../model/gameState.js'
+import type { HydratedConduitGameState } from '../model/gameState.js'
+import { Rounds } from '../model/rules.js'
 import { nextResolutionState, startRevenue } from './flow.js'
-import { biddingEndOf, minimumBidsOf } from '../definition/gameConfig.js'
 
 export class FillingMarketStateHandler implements MachineStateHandler<
     HydratedFillMarket,
@@ -39,10 +39,7 @@ export class FillingMarketStateHandler implements MachineStateHandler<
         _action: HydratedFillMarket,
         context: MachineContext<HydratedConduitGameState>
     ): MachineState {
-        return context.gameState.isBiddingOver(
-            minimumBidsOf(context.gameConfig),
-            biddingEndOf(context.gameConfig)
-        )
+        return context.gameState.isBiddingOver()
             ? nextResolutionState(context)
             : MachineState.Bidding
     }

@@ -2,7 +2,6 @@ import { assertExists, type MachineContext } from '@tabletop/common'
 import { MachineState } from '../definition/states.js'
 import { PayRevenue } from '../actions/payRevenue.js'
 import type { HydratedConduitGameState } from '../model/gameState.js'
-import { routeTargetOf, routeTollOf } from '../definition/gameConfig.js'
 
 export function startTurn(state: HydratedConduitGameState, playerId: string) {
     state.turnManager.startTurn(playerId, state.actionCount)
@@ -32,10 +31,7 @@ export function nextResolutionState(
 // players.
 export function startRevenue(context: MachineContext<HydratedConduitGameState>): MachineState {
     const state = context.gameState
-    const choices = state.findRouteChoices(
-        routeTargetOf(context.gameConfig),
-        routeTollOf(context.gameConfig)
-    )
+    const choices = state.findRouteChoices()
     if (choices.length > 0) {
         state.routeChoices = choices
         return MachineState.ChoosingRoutes

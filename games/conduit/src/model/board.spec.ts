@@ -11,7 +11,6 @@ import {
 } from '../components/tiles.js'
 import { Grid, type PlacedStation } from './board.js'
 import { revenueFor, stationEarnings } from './gameState.js'
-import { RouteTarget, RouteToll } from '../definition/gameConfig.js'
 
 const LetterIndex: Record<StationLetter, number> = { A: 0, B: 1, C: 2, D: 3, E: 4 }
 
@@ -273,77 +272,87 @@ describe('route search', () => {
     })
 })
 
-describe('next letter against same letter', () => {
+describe('the route target', () => {
     it('runs to a station of the next letter, not the same one', () => {
         const stations = [
             ...negativeCross(),
             station(StationLetter.A, { col: 10, row: 10 }),
-            station(StationLetter.B, { col: 11, row: 10 }),
-            station(StationLetter.A, { col: 12, row: 10 })
+            station(StationLetter.A, { col: 11, row: 10 }),
+            station(StationLetter.B, { col: 12, row: 10 })
         ]
-        const grid = new Grid({ stations })
-        const next = grid.bestRoute({ col: 10, row: 10 }, RouteTarget.NextLetter)
-        expect(next?.cells.at(-1)).toEqual({ col: 11, row: 10 })
-        const same = grid.bestRoute({ col: 10, row: 10 }, RouteTarget.SameLetter)
-        expect(same?.cells.at(-1)).toEqual({ col: 12, row: 10 })
-        expect(same?.stations).toBe(3)
+        const route = new Grid({ stations }).bestRoute({ col: 10, row: 10 })
+        expect(route?.cells.at(-1)).toEqual({ col: 12, row: 10 })
+        expect(route?.stations).toBe(3)
+    })
+
+    it('runs from D to A', () => {
+        const stations = [
+            ...negativeCross(),
+            station(StationLetter.D, { col: 10, row: 10 }),
+            station(StationLetter.A, { col: 11, row: 10 })
+        ]
+        const route = new Grid({ stations }).bestRoute({ col: 10, row: 10 })
+        expect(route?.cells.at(-1)).toEqual({ col: 11, row: 10 })
     })
 })
 
 describe('route tolls', () => {
-    // Cal's B runs through Bea's A and a face-down tile to Dee's B (the designer's example).
+    // Cal's A runs through Bea's C and a face-down tile to Dee's B.
     const stations = [
         ...negativeCross(),
-        station(StationLetter.B, { col: 10, row: 10 }, { ownerId: 'cal', cubes: 1 }),
-        station(StationLetter.A, { col: 11, row: 10 }, { ownerId: 'bea', cubes: 2 }),
+        station(StationLetter.A, { col: 10, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+        station(StationLetter.C, { col: 11, row: 10 }, { ownerId: 'bea', cubes: 2 }),
         station(StationLetter.C, { col: 12, row: 10 }, { faceUp: false }),
         station(StationLetter.B, { col: 13, row: 10 }, { ownerId: 'dee', cubes: 1 }),
         station(StationLetter.D, { col: 14, row: 10 }, { ownerId: 'dee', cubes: 1 })
     ]
-    const earned = (toll: RouteToll) =>
+    const earned = (placed: PlacedStation[]) =>
         Object.fromEntries(
-            stationEarnings({ stations }, RouteTarget.SameLetter, toll).map((earning) => [
+            stationEarnings({ stations: placed }).map((earning) => [
                 `${earning.ownerId} ${stationTile(earning.station.tileId).letter}`,
                 { amount: earning.amount, tolls: earning.tolls }
             ])
         )
 
     it('pays $1 to each other player’s Power Station on the route, the destination included', () => {
-        const earnings = earned(RouteToll.Flat)
-        expect(earnings['cal B']).toEqual({
+        const earnings = earned(stations)
+        expect(earnings['cal A']).toEqual({
             amount: 4,
             tolls: [
                 { playerId: 'bea', amount: 1 },
                 { playerId: 'dee', amount: 1 }
             ]
         })
-        expect(earnings['dee B']).toEqual({
+        // Bea's C runs to Dee's D through Dee's B: both pay Dee.
+        expect(earnings['bea C']).toEqual({
             amount: 4,
             tolls: [
-                { playerId: 'bea', amount: 1 },
-                { playerId: 'cal', amount: 1 }
+                { playerId: 'dee', amount: 1 },
+                { playerId: 'dee', amount: 1 }
             ]
         })
     })
 
     it('pays no toll to a station without a route', () => {
-        expect(earned(RouteToll.Flat)['bea A']).toEqual({ amount: 0, tolls: [] })
+        const earnings = earned([
+            ...negativeCross(),
+            station(StationLetter.B, { col: 10, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+            station(StationLetter.A, { col: 11, row: 10 }, { ownerId: 'bea', cubes: 1 })
+        ])
+        expect(earnings['cal B']).toEqual({ amount: 0, tolls: [] })
+        expect(earnings['bea A']).toEqual({ amount: 3, tolls: [{ playerId: 'cal', amount: 1 }] })
     })
 
     it('pays nothing to the route owner’s own stations or to stations without cubes', () => {
         const own = [
             ...negativeCross(),
-            station(StationLetter.B, { col: 10, row: 10 }, { ownerId: 'cal', cubes: 1 }),
-            station(StationLetter.A, { col: 11, row: 10 }, { ownerId: 'cal', cubes: 1 }),
-            station(StationLetter.C, { col: 12, row: 10 }, { ownerId: 'bea', cubes: 0 }),
+            station(StationLetter.A, { col: 10, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+            station(StationLetter.C, { col: 11, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+            station(StationLetter.D, { col: 12, row: 10 }, { ownerId: 'bea', cubes: 0 }),
             station(StationLetter.B, { col: 13, row: 10 }, { ownerId: 'dee', cubes: 1 })
         ]
-        const cal = stationEarnings({ stations: own }, RouteTarget.SameLetter, RouteToll.Flat)[0]
+        const cal = stationEarnings({ stations: own })[0]
         expect(cal.amount).toBe(5)
         expect(cal.tolls).toEqual([{ playerId: 'dee', amount: 1 }])
-    })
-
-    it('pays no tolls in the no-toll variant (rules v0.8.1)', () => {
-        expect(earned(RouteToll.None)['cal B']).toEqual({ amount: 4, tolls: [] })
     })
 })

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { OffsetCoordinates } from '@tabletop/common'
 import { MachineState } from './states.js'
-import { RouteTarget, RouteToll } from './gameConfig.js'
+import { ActionType } from './actions.js'
+import { isChooseRoute } from '../actions/chooseRoute.js'
 import { isPayRevenue } from '../actions/payRevenue.js'
 import { StationLetter } from '../components/tiles.js'
 import { Grid, type PlacedStation } from '../model/board.js'
@@ -72,7 +73,7 @@ describe('route choices', () => {
 
     it('lets the owner choose when tied routes would pay tolls to different players', () => {
         const state = stateWith(tie()).hydrated()
-        const choices = state.findRouteChoices(RouteTarget.NextLetter, RouteToll.Flat)
+        const choices = state.findRouteChoices()
         expect(choices).toHaveLength(1)
         expect(choices[0].playerId).toBe('p0')
         expect(choices[0].options.map((option) => option.tolls)).toEqual([['p1'], ['p2']])
@@ -80,17 +81,12 @@ describe('route choices', () => {
 
     it('offers no choice when every tied route pays the same players', () => {
         const state = stateWith(tie('p1', 'p1')).hydrated()
-        expect(state.findRouteChoices(RouteTarget.NextLetter, RouteToll.Flat)).toEqual([])
-    })
-
-    it('offers no choice without tolls', () => {
-        const state = stateWith(tie()).hydrated()
-        expect(state.findRouteChoices(RouteTarget.NextLetter, RouteToll.None)).toEqual([])
+        expect(state.findRouteChoices()).toEqual([])
     })
 
     it('pays the chosen route’s toll, then carries on to revenue', () => {
         const session = stateWith(tie())
-        const choices = session.hydrated().findRouteChoices(RouteTarget.NextLetter, RouteToll.Flat)
+        const choices = session.hydrated().findRouteChoices()
         session.edit((draft) => {
             draft.machineState = MachineState.ChoosingRoutes
             draft.routeChoices = choices
@@ -109,13 +105,23 @@ describe('route choices', () => {
 
     it('accepts only the route being chosen, from its owner', () => {
         const session = stateWith(tie())
-        const choices = session.hydrated().findRouteChoices(RouteTarget.NextLetter, RouteToll.Flat)
+        const choices = session.hydrated().findRouteChoices()
         session.edit((draft) => {
             draft.machineState = MachineState.ChoosingRoutes
             draft.routeChoices = choices
             draft.activePlayerIds = ['p0']
         })
         expect(() => session.chooseRoute(0, 'p1')).toThrow()
-        expect(() => session.chooseRoute(5, 'p0')).toThrow()
+        // A route the choice does not offer: the station's own cell alone.
+        expect(() =>
+            session.act('p0', ActionType.ChooseRoute, {
+                tileId: choices[0].tileId,
+                route: [{ col: 2, row: -2 }]
+            })
+        ).toThrow()
+        // The chosen route is recorded by its cells, not its place among the options.
+        session.chooseRoute(1, 'p0')
+        const chosen = session.actions.find(isChooseRoute)
+        expect(chosen).toMatchObject({ route: choices[0].options[1].cells })
     })
 })

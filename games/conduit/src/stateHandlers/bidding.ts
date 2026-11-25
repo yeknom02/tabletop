@@ -10,12 +10,11 @@ import { HydratedPlaceBid, isPlaceBid } from '../actions/placeBid.js'
 import { HydratedPassBid, isPassBid } from '../actions/passBid.js'
 import type { HydratedConduitGameState } from '../model/gameState.js'
 import { endTurn, nextResolutionState, startTurn } from './flow.js'
-import { biddingEndOf, minimumBidsOf } from '../definition/gameConfig.js'
 
 type BiddingAction = HydratedPlaceBid | HydratedPassBid
 
 // Starting with the Start Player, players in turn place one cube each, skipping anyone who cannot.
-// In the bid-until-all-pass variant, players may pass once the minimum is done.
+// A player may pass once they have placed two cubes, and is then out for the round.
 export class BiddingStateHandler implements MachineStateHandler<
     BiddingAction,
     HydratedConduitGameState
@@ -55,20 +54,11 @@ export class BiddingStateHandler implements MachineStateHandler<
     ): MachineState {
         const state = context.gameState
         endTurn(state)
-        return state.isBiddingOver(
-            minimumBidsOf(context.gameConfig),
-            biddingEndOf(context.gameConfig)
-        )
-            ? nextResolutionState(context)
-            : MachineState.Bidding
+        return state.isBiddingOver() ? nextResolutionState(context) : MachineState.Bidding
     }
 
     private canPass(playerId: string, context: MachineContext<HydratedConduitGameState>) {
-        return context.gameState.canPassBid(
-            playerId,
-            minimumBidsOf(context.gameConfig),
-            biddingEndOf(context.gameConfig)
-        )
+        return context.gameState.canPassBid(playerId)
     }
 
     // After a pass, the turn still moves on from the player who just acted.

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { assert, GameEngine, Prng, validateGameResult } from '@tabletop/common'
 import { ConduitGameStateValidator } from '../model/gameState.js'
+import { StartingCash } from '../model/playerState.js'
 import { createGame, createTestSession, TestMasterSeed } from '../testing/table.js'
 import { playRandomDecision } from '../testing/bot.js'
 import { ConduitRuntime } from './runtime.js'
 import { MachineState } from './states.js'
-import { startingCashFor } from './gameConfig.js'
 
 const engine = new GameEngine(ConduitRuntime)
 
@@ -13,9 +13,9 @@ function rotations(playerIds: string[]): string[][] {
     return playerIds.map((_, offset) => [...playerIds.slice(offset), ...playerIds.slice(0, offset)])
 }
 
-// No option changes setup or who acts first, so the default configuration covers every setup.
+// Conduit has no options, so one configuration covers every setup.
 describe.each([3, 4, 5])('Conduit tournaments with %i players', (count) => {
-    it('seats players in their assigned order and changes nothing but starting cash', () => {
+    it('seats players in their assigned order and changes nothing else', () => {
         const game = createGame(count)
         const uninitialized = engine.generateUninitializedState(game, TestMasterSeed)
         const initialize = (playerIds?: string[]) =>
@@ -30,17 +30,11 @@ describe.each([3, 4, 5])('Conduit tournaments with %i players', (count) => {
         for (const order of rotations([...normal.turnManager.turnOrder].reverse())) {
             const assigned = initialize(order)
             expect(assigned.turnManager.turnOrder).toEqual(order)
-            // Starting cash follows the seat (rules v0.8.3 give everyone $5).
-            const cashBySeat = order.map(
-                (playerId) => assigned.players.find((player) => player.playerId === playerId)?.cash
+            // Every player starts with $5 whatever their seat.
+            expect(assigned.players.map((player) => player.cash)).toEqual(
+                order.map(() => StartingCash)
             )
-            expect(cashBySeat).toEqual(order.map((_, seat) => startingCashFor(game.config, seat)))
-            const withoutCash = (state: typeof normal) => ({
-                ...state,
-                turnManager: normal.turnManager,
-                players: state.players.map((player) => ({ ...player, cash: 0 }))
-            })
-            expect(withoutCash(assigned)).toEqual(withoutCash(normal))
+            expect({ ...assigned, turnManager: normal.turnManager }).toEqual(normal)
             assert(ConduitGameStateValidator.Check(assigned), 'Setup must be canonical')
 
             const { initialState, startedGame } = engine.startGame(game, {
