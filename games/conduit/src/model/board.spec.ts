@@ -236,6 +236,43 @@ describe('routes', () => {
     })
 })
 
+describe('route search', () => {
+    it('shows each distance it reached, the destinations it found, and the route it chose', () => {
+        const stations = [
+            ...negativeCross(),
+            station(StationLetter.D, { col: 10, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+            station(StationLetter.C, { col: 11, row: 10 }, { ownerId: 'cal', cubes: 1 }),
+            station(StationLetter.C, { col: 10, row: 11 }, { ownerId: 'bea', cubes: 1 }),
+            station(StationLetter.A, { col: 11, row: 11 })
+        ]
+        const grid = new Grid({ stations })
+        const search = grid.routeSearch({ col: 10, row: 10 })
+        expect(search?.target).toBe(StationLetter.A)
+        expect(search?.layers.map((layer) => layer.map((step) => step.cell))).toEqual([
+            [
+                { col: 11, row: 10 },
+                { col: 10, row: 11 }
+            ],
+            [{ col: 11, row: 11 }]
+        ])
+        expect(search?.layers[1][0].from).toEqual({ col: 10, row: 11 })
+        expect(search?.candidates).toHaveLength(1)
+        expect(search?.route).toEqual(grid.bestRoute({ col: 10, row: 10 }))
+    })
+
+    it('spreads until it runs out when no destination is in reach', () => {
+        const stations = [
+            ...negativeCross(),
+            station(StationLetter.D, { col: 10, row: 10 }),
+            station(StationLetter.C, { col: 11, row: 10 })
+        ]
+        const search = new Grid({ stations }).routeSearch({ col: 10, row: 10 })
+        expect(search?.layers.map((layer) => layer.length)).toEqual([1])
+        expect(search?.candidates).toEqual([])
+        expect(search?.route).toBeUndefined()
+    })
+})
+
 describe('next letter against same letter', () => {
     it('runs to a station of the next letter, not the same one', () => {
         const stations = [

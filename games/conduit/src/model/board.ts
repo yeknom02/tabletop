@@ -6,6 +6,7 @@ import {
     oppositeSide,
     Side,
     SidesClockwise,
+    type StationLetter,
     stationTile,
     terminalAt,
     type Terminal
@@ -46,6 +47,23 @@ export interface Placement {
 export interface Route {
     cells: OffsetCoordinates[]
     stations: number
+}
+
+// A cell the route search reached, and the cell it was reached from.
+export interface SearchStep {
+    cell: OffsetCoordinates
+    from: OffsetCoordinates
+}
+
+export interface RouteSearch {
+    // The letter the route must end at.
+    target: StationLetter
+    // The cells reached at each distance from the station, nearest first.
+    layers: SearchStep[][]
+    // The best route to each destination found at the nearest distance, with how many of the
+    // owner's own stations it passes.
+    candidates: (Route & { own: number })[]
+    route: Route | undefined
 }
 
 // The best way found to reach a cell: stations passed (both ends included) and how many of them the
@@ -165,6 +183,16 @@ export class Grid {
         from: OffsetCoordinates,
         routeTarget: RouteTarget = RouteTarget.NextLetter
     ): Route | undefined {
+        return this.routeSearch(from, routeTarget)?.route
+    }
+
+    // The search for a station's route, step by step, for showing how a route was found: the
+    // cells reached at each distance and the cell each was reached from, the destinations found at
+    // the first distance that has any, each one's best route, and the route chosen among them.
+    routeSearch(
+        from: OffsetCoordinates,
+        routeTarget: RouteTarget = RouteTarget.NextLetter
+    ): RouteSearch | undefined {
         const start = this.stationAt(from)
         if (!start || !start.faceUp) {
             return undefined
@@ -172,19 +200,36 @@ export class Grid {
         const letter = stationTile(start.tileId).letter
         const target = routeTarget === RouteTarget.SameLetter ? letter : nextLetter(letter)
         const best = new Map<string, RouteStep>([[cellKey(from), { stations: 1, own: 1 }]])
+        const layers: SearchStep[][] = []
         let layer: OffsetCoordinates[] = [from]
         while (layer.length > 0) {
             const next = this.nextLayer(layer, best, start.ownerId)
+            if (next.length > 0) {
+                layers.push(
+                    next.map((cell) => ({
+                        cell,
+                        from: best.get(cellKey(cell))?.previous ?? from
+                    }))
+                )
+            }
             const ends = next.filter((cell) => this.isStationOf(cell, target))
             if (ends.length > 0) {
                 const end = ends.reduce((leader, cell) =>
                     isBetterStep(this.stepTo(cell, best), this.stepTo(leader, best)) ? cell : leader
                 )
-                return this.traceRoute(end, best)
+                return {
+                    target,
+                    layers,
+                    candidates: ends.map((cell) => {
+                        const step = this.stepTo(cell, best)
+                        return { ...this.traceRoute(cell, best), own: step.own }
+                    }),
+                    route: this.traceRoute(end, best)
+                }
             }
             layer = next.filter((cell) => !this.isStationOf(cell, target))
         }
-        return undefined
+        return { target, layers, candidates: [], route: undefined }
     }
 
     private nextLayer(
