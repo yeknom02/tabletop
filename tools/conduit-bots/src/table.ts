@@ -106,6 +106,11 @@ function candidates(state: HydratedConduitGameState, type: ActionType): Move[] {
                     )
                 )
         }
+        case ActionType.ChooseRoute: {
+            const choice = state.pendingRouteChoice()
+            if (!choice) return []
+            return choice.options.map((_, option) => ({ type, tileId: choice.tileId, option }))
+        }
         default:
             return [{ type }]
     }

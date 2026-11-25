@@ -52,6 +52,12 @@ export function playRandomDecision(session: TestSession, random: RandomFunction)
             session.place(option.cell, pick(option.rotations), extraCubes)
             return
         }
+        case MachineState.ChoosingRoutes: {
+            const choice = state.pendingRouteChoice()
+            assertExists(choice, 'A route is waiting to be chosen')
+            session.chooseRoute(Math.floor(random() * choice.options.length))
+            return
+        }
         default:
             throw Error(`No player decision in ${state.machineState}`)
     }

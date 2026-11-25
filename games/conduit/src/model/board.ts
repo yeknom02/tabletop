@@ -33,6 +33,9 @@ export const CentralCell: OffsetCoordinates = { col: 0, row: 0 }
 // The whole grid, Central Station included, must fit within this many tiles each way (rules v0.8.1).
 export const MaxGridSize = 6
 
+// A cap on the equally short routes considered for one station; a 6x6 grid never comes near it.
+const MaxRoutesConsidered = 5000
+
 export interface TileFace {
     tileId: number
     rotation: number
@@ -230,6 +233,82 @@ export class Grid {
             layer = next.filter((cell) => !this.isStationOf(cell, target))
         }
         return { target, layers, candidates: [], route: undefined }
+    }
+
+    // Every route a station's owner may take: the shortest routes to the nearest stations of the
+    // letter it needs, then those through the most stations, then the fewest of the owner's own.
+    // Routes left tied may still pass different players' stations, which matters for tolls.
+    bestRoutes(
+        from: OffsetCoordinates,
+        routeTarget: RouteTarget = RouteTarget.NextLetter
+    ): (Route & { own: number })[] {
+        const start = this.stationAt(from)
+        if (!start || !start.faceUp) {
+            return []
+        }
+        const letter = stationTile(start.tileId).letter
+        const target = routeTarget === RouteTarget.SameLetter ? letter : nextLetter(letter)
+        // Each cell's distance from the station, and every cell one step nearer that leads to it.
+        const depth = new Map<string, number>([[cellKey(from), 0]])
+        const parents = new Map<string, OffsetCoordinates[]>()
+        let layer: OffsetCoordinates[] = [from]
+        let ends: OffsetCoordinates[] = []
+        for (let distance = 1; layer.length > 0 && ends.length === 0; distance++) {
+            const reached = new Map<string, OffsetCoordinates>()
+            for (const cell of layer) {
+                const here = this.occupant(cell)
+                for (const side of SidesClockwise) {
+                    const neighbor = neighborCell(cell, side)
+                    const key = cellKey(neighbor)
+                    const there = this.occupant(neighbor)
+                    if (!here || !there || !isOpen(here, there, side)) {
+                        continue
+                    }
+                    const known = depth.get(key)
+                    if (known !== undefined && known < distance) {
+                        continue
+                    }
+                    depth.set(key, distance)
+                    reached.set(key, neighbor)
+                    parents.set(key, [...(parents.get(key) ?? []), cell])
+                }
+            }
+            const next = [...reached.values()]
+            ends = next.filter((cell) => this.isStationOf(cell, target))
+            layer = next.filter((cell) => !this.isStationOf(cell, target))
+        }
+        const routes: (Route & { own: number })[] = []
+        const walk = (cell: OffsetCoordinates, rest: OffsetCoordinates[]) => {
+            const cells = [cell, ...rest]
+            if (sameCoordinates(cell, from)) {
+                routes.push(this.scoreRoute(cells, start.ownerId))
+                return
+            }
+            for (const parent of parents.get(cellKey(cell)) ?? []) {
+                if (routes.length >= MaxRoutesConsidered) return
+                walk(parent, cells)
+            }
+        }
+        for (const end of ends) walk(end, [])
+        const most = Math.max(...routes.map((route) => route.stations))
+        const longest = routes.filter((route) => route.stations === most)
+        const fewest = Math.min(...longest.map((route) => route.own))
+        return longest.filter((route) => route.own === fewest)
+    }
+
+    private scoreRoute(
+        cells: OffsetCoordinates[],
+        ownerId: string | undefined
+    ): Route & { own: number } {
+        const passed = cells
+            .map((cell) => this.stationAt(cell))
+            .filter((station) => station?.faceUp)
+        return {
+            cells,
+            stations: passed.length,
+            own: passed.filter((station) => ownerId !== undefined && station?.ownerId === ownerId)
+                .length
+        }
     }
 
     private nextLayer(

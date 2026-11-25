@@ -92,6 +92,24 @@ export interface Offer {
     price: number
 }
 
+// A station whose equally good routes would pay tolls to different players: its owner chooses
+// among them before revenue (designer ruling, 2026-11-25). Each option is one route for each
+// distinct set of players its tolls would pay.
+export type RouteOption = Type.Static<typeof RouteOption>
+export const RouteOption = Type.Object({
+    cells: Type.Array(OffsetCoordinates),
+    // The players the route's tolls would pay, one entry per station passed.
+    tolls: Type.Array(Type.String())
+})
+
+export type RouteChoice = Type.Static<typeof RouteChoice>
+export const RouteChoice = Type.Object({
+    tileId: Type.Integer(),
+    playerId: Type.String(),
+    options: Type.Array(RouteOption),
+    chosen: Type.Optional(Type.Integer({ minimum: 0 }))
+})
+
 export interface PendingPlacement {
     slot: number
     tileId: number
@@ -116,7 +134,9 @@ export const ConduitGameState = Type.Evaluate(
             // Added to every tile's price in the base-price variant.
             basePrice: Type.Optional(Type.Integer({ minimum: 0 })),
             // Players out of this round's bidding, in the bid-until-all-pass variant.
-            bidPasses: Type.Optional(Type.Array(Type.String()))
+            bidPasses: Type.Optional(Type.Array(Type.String())),
+            // Routes owners are choosing, or have chosen, for the revenue about to be paid.
+            routeChoices: Type.Optional(Type.Array(RouteChoice))
         })
     ])
 )
@@ -150,6 +170,7 @@ export class HydratedConduitGameState
     declare board: Board
     declare basePrice?: number
     declare bidPasses?: string[]
+    declare routeChoices?: RouteChoice[]
 
     constructor(data: ConduitProjectedState) {
         super(data, ConduitProjectedStateValidator)
@@ -379,6 +400,58 @@ export class HydratedConduitGameState
         this.market[placement.slot] = { bids: [] }
     }
 
+    // The stations whose owners must choose a route before revenue: those whose equally good
+    // routes would pay tolls to different players. Owners choose in turn order from the Start
+    // Player; one owner's stations in board order. Without tolls there is nothing to choose.
+    findRouteChoices(routeTarget: RouteTarget, routeToll: RouteToll): RouteChoice[] {
+        if (routeToll !== RouteToll.Flat) return []
+        const grid = this.grid()
+        const choices: RouteChoice[] = []
+        for (const station of this.ownedStations()) {
+            const ownerId = station.ownerId
+            if (ownerId === undefined) continue
+            const options = new Map<string, RouteOption>()
+            for (const route of grid.bestRoutes(station.cell, routeTarget)) {
+                const tolls = tollPayees(grid, route.cells, ownerId).toSorted()
+                const key = tolls.join(',')
+                if (!options.has(key)) options.set(key, { cells: route.cells, tolls })
+            }
+            if (options.size > 1) {
+                choices.push({
+                    tileId: station.tileId,
+                    playerId: ownerId,
+                    options: [...options.values()]
+                })
+            }
+        }
+        const order = this.turnManager.turnOrder
+        return choices.toSorted((a, b) => order.indexOf(a.playerId) - order.indexOf(b.playerId))
+    }
+
+    pendingRouteChoice(): RouteChoice | undefined {
+        return this.routeChoices?.find((choice) => choice.chosen === undefined)
+    }
+
+    chooseRoute(playerId: string, tileId: number, option: number) {
+        const choice = this.pendingRouteChoice()
+        assertExists(choice, 'A route is waiting to be chosen')
+        assert(choice.playerId === playerId, `Player ${playerId} is not choosing a route`)
+        assert(choice.tileId === tileId, `Tile ${tileId} is not the route being chosen`)
+        assert(option >= 0 && option < choice.options.length, `No route option ${option}`)
+        choice.chosen = option
+    }
+
+    // The routes owners chose, by station tile.
+    chosenRoutes(): Map<number, OffsetCoordinates[]> {
+        return new Map(
+            (this.routeChoices ?? []).flatMap((choice) =>
+                choice.chosen === undefined
+                    ? []
+                    : [[choice.tileId, choice.options[choice.chosen].cells] as const]
+            )
+        )
+    }
+
     ownedStations(): PlacedStation[] {
         return this.board.stations.filter((station) => station.ownerId !== undefined)
     }
@@ -393,7 +466,8 @@ export class HydratedConduitGameState
         routeToll = RouteToll.None,
         emptyStations = EmptyStations.AtOnce
     ): StationRevenue[] {
-        const earnings = stationEarnings(this.board, routeTarget, routeToll)
+        const earnings = stationEarnings(this.board, routeTarget, routeToll, this.chosenRoutes())
+        this.routeChoices = undefined
         for (const { station, ownerId, amount, tolls } of earnings) {
             const owner = this.getPlayerState(ownerId)
             owner.earn(amount)
@@ -502,10 +576,12 @@ export interface StationEarning {
 // What each owned station would earn if revenue were paid now. A toll goes to every Power Station
 // (face up, with a cube) on the route that another player owns, the destination included; the
 // unowned setup tiles never collect.
+// A station's owner's chosen route, where they had a choice, replaces the one the search finds.
 export function stationEarnings(
     board: Board,
     routeTarget: RouteTarget,
-    routeToll: RouteToll = RouteToll.None
+    routeToll: RouteToll = RouteToll.None,
+    chosen: ReadonlyMap<number, OffsetCoordinates[]> = new Map()
 ): StationEarning[] {
     const grid = new Grid(board)
     return board.stations.flatMap((station) => {
@@ -513,20 +589,35 @@ export function stationEarnings(
         if (ownerId === undefined) {
             return []
         }
-        const route = grid.bestRoute(station.cell, routeTarget)
+        const cells = chosen.get(station.tileId)
+        const route = cells
+            ? {
+                  cells,
+                  stations: cells.filter((cell) => grid.stationAt(cell)?.faceUp).length
+              }
+            : grid.bestRoute(station.cell, routeTarget)
         const tolls =
             routeToll === RouteToll.Flat && route
-                ? route.cells.slice(1).flatMap((cell) => {
-                      const passed = grid.stationAt(cell)
-                      return passed?.ownerId !== undefined &&
-                          passed.ownerId !== ownerId &&
-                          passed.faceUp &&
-                          passed.cubes > 0
-                          ? [{ playerId: passed.ownerId, amount: 1 }]
-                          : []
-                  })
+                ? tollPayees(grid, route.cells, ownerId).map((playerId) => ({
+                      playerId,
+                      amount: 1
+                  }))
                 : []
         return [{ station, ownerId, route, amount: revenueFor(route), tolls }]
+    })
+}
+
+// The players a route's tolls pay: the owner of each other player's Power Station it passes (face
+// up, with a cube), the destination included.
+function tollPayees(grid: Grid, cells: OffsetCoordinates[], ownerId: string): string[] {
+    return cells.slice(1).flatMap((cell) => {
+        const passed = grid.stationAt(cell)
+        return passed?.ownerId !== undefined &&
+            passed.ownerId !== ownerId &&
+            passed.faceUp &&
+            passed.cubes > 0
+            ? [passed.ownerId]
+            : []
     })
 }
 

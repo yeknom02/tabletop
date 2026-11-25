@@ -4,6 +4,7 @@ export enum ActionType {
     PassTile = 'passTile',
     PassBid = 'passBid',
     PlaceTile = 'placeTile',
+    ChooseRoute = 'chooseRoute',
     FillMarket = 'fillMarket',
     PayRevenue = 'payRevenue',
     LoseInfrastructure = 'loseInfrastructure'

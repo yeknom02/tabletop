@@ -14,9 +14,8 @@ import {
     LoseInfrastructure
 } from '../actions/loseInfrastructure.js'
 import { FillMarket } from '../actions/fillMarket.js'
-import { PayRevenue } from '../actions/payRevenue.js'
 import { type HydratedConduitGameState, Rounds } from '../model/gameState.js'
-import { nextResolutionState } from './flow.js'
+import { nextResolutionState, startRevenue } from './flow.js'
 import { biddingEndOf, minimumBidsOf } from '../definition/gameConfig.js'
 
 export class FillingMarketStateHandler implements MachineStateHandler<
@@ -101,8 +100,7 @@ export class LosingInfrastructureStateHandler implements MachineStateHandler<
             return MachineState.FillingMarket
         }
         if (state.cubesOnBoard() > 0) {
-            context.addSystemAction(PayRevenue)
-            return MachineState.PayingRevenue
+            return startRevenue(context)
         }
         return MachineState.EndOfGame
     }

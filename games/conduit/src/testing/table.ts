@@ -113,6 +113,12 @@ export function createTestSession(game: TestGame, initialState: ConduitProjected
             playerId: string = state.activePlayerIds[0]
         ) {
             return act(playerId, ActionType.PlaceTile, { cell, rotation, extraCubes })
+        },
+        chooseRoute(option: number, playerId: string = state.activePlayerIds[0]) {
+            const tileId = ConduitRuntime.hydrator
+                .hydrateState(structuredClone(state))
+                .pendingRouteChoice()?.tileId
+            return act(playerId, ActionType.ChooseRoute, { tileId, option })
         }
     }
 }
