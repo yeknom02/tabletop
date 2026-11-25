@@ -6,7 +6,8 @@ import {
     type MarketDeal,
     type MarketSize,
     type RouteTarget,
-    type RouteToll
+    type RouteToll,
+    type RouteChoice
 } from '../../../src/index.js'
 
 export type Decision =
@@ -46,6 +47,8 @@ export interface BotContext {
 export interface Bot {
     readonly name: string
     decide(context: BotContext): { decision: Decision; note?: DecisionNote }
+    // Which of a station's tied routes to take when they pay tolls to different players.
+    chooseRoute?(context: BotContext, choice: RouteChoice): number
 }
 
 export function noteOf(values: number[]): DecisionNote {

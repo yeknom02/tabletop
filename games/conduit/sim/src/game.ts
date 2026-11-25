@@ -99,6 +99,8 @@ export type GameRecord = {
     // Toll income per seat, and how many tolls each route paid out.
     tollIncome: number[]
     tollsPerRoute: number[]
+    // Ties settled by an owner choosing who gets the toll (designer ruling, 2026-11-25).
+    routeChoices?: number
     // Occupied neighbours (Central Station included) of each face-up station when placed.
     placedNeighbors: number[]
     steps: number
@@ -308,36 +310,38 @@ export function playGame({
                 )
             })
         }
-        // A tie that decides who gets a toll: the owner takes the first option, so studies stay
-        // reproducible; the bots have no habit for it yet.
+        const context = {
+            state: hydrated,
+            playerId,
+            random,
+            cubesPerRound,
+            routeTarget,
+            marketDeal,
+            extraCubeCost,
+            routeToll,
+            marketSize,
+            canPassBid:
+                hydrated.machineState === MachineState.Bidding &&
+                hydrated.canPassBid(playerId, minimumBids, biddingEnd),
+            stationCubeCap
+        }
+        // A tie that decides who gets a toll: the owner's habit picks the route (the first option
+        // for a bot without one).
         const choice =
             hydrated.machineState === MachineState.ChoosingRoutes
                 ? hydrated.pendingRouteChoice()
                 : undefined
+        if (choice) record.routeChoices = (record.routeChoices ?? 0) + 1
         const { decision, note } = choice
             ? {
                   decision: {
                       type: ActionType.ChooseRoute as const,
                       tileId: choice.tileId,
-                      option: 0
+                      option: bots[seat].chooseRoute?.(context, choice) ?? 0
                   },
                   note: undefined
               }
-            : bots[seat].decide({
-                  state: hydrated,
-                  playerId,
-                  random,
-                  cubesPerRound,
-                  routeTarget,
-                  marketDeal,
-                  extraCubeCost,
-                  routeToll,
-                  marketSize,
-                  canPassBid:
-                      hydrated.machineState === MachineState.Bidding &&
-                      hydrated.canPassBid(playerId, minimumBids, biddingEnd),
-                  stationCubeCap
-              })
+            : bots[seat].decide(context)
         if (
             hydrated.machineState === MachineState.Bidding &&
             decision.type === 'placeBid' &&

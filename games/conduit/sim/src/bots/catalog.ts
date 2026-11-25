@@ -27,7 +27,14 @@ export function makeBot(spec: string): Bot {
         const [key, value] = pair.split('=')
         if (!(key in habits)) throw Error(`Unknown habit ${key}`)
         Object.assign(habits, {
-            [key]: value === 'true' ? true : value === 'false' ? false : Number(value)
+            [key]:
+                value === 'true'
+                    ? true
+                    : value === 'false'
+                      ? false
+                      : Number.isNaN(Number(value))
+                        ? value
+                        : Number(value)
         })
     }
     return new HabitBot(spec, habits)
