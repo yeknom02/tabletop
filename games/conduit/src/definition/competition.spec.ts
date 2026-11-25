@@ -3,7 +3,7 @@ import { assert, GameEngine, Prng, validateGameResult } from '@tabletop/common'
 import { ConduitGameStateValidator } from '../model/gameState.js'
 import { StartingCash } from '../model/playerState.js'
 import { createGame, createTestSession, TestMasterSeed } from '../testing/table.js'
-import { playRandomDecision } from '../testing/bot.js'
+import { playRandomDecision } from '../testing/randomPlay.js'
 import { ConduitRuntime } from './runtime.js'
 import { MachineState } from './states.js'
 

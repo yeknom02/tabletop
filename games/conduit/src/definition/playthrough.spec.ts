@@ -5,7 +5,7 @@ import { ConduitGameStateValidator } from '../model/gameState.js'
 import { Rounds } from '../model/rules.js'
 import { MaxGridSize } from '../model/board.js'
 import { startTestGame, type TestSession } from '../testing/table.js'
-import { playRandomDecision } from '../testing/bot.js'
+import { playRandomDecision } from '../testing/randomPlay.js'
 
 function playToEnd(session: TestSession, seed: number) {
     const random = new Prng({ seed, invocations: 0 }).random

@@ -6,7 +6,7 @@ import {
     HydratedConduitGameState
 } from '../model/gameState.js'
 import { createGame, startTestGame, type TestSession } from '../testing/table.js'
-import { playRandomDecision } from '../testing/bot.js'
+import { playRandomDecision } from '../testing/randomPlay.js'
 import { ConduitRuntime } from './runtime.js'
 import { MachineState } from './states.js'
 
