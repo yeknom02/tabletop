@@ -9,6 +9,8 @@
     const rotations = $derived(gameSession.rotationsForChosenCell)
     const rotation = $derived(gameSession.chosenRotation)
     const cubeChoices = $derived(gameSession.extraCubeChoices)
+    // When extra cubes cost money every choice shows its price, $0 included, so the counts line up.
+    const priced = $derived(cubeChoices.some((choice) => choice.price > 0))
 </script>
 
 {#if cell && tileId !== undefined && !gameSession.busy}
@@ -60,8 +62,7 @@
                                 class="count"
                                 disabled={!choice.affordable}
                                 onclick={() => gameSession.chooseExtraCubes(choice.count)}
-                                >{choice.count}{#if choice.price > 0}<span class="cost"
-                                        >${choice.price}</span
+                                >{choice.count}{#if priced}<span class="cost">${choice.price}</span
                                     >{/if}</button
                             >
                         {/each}
