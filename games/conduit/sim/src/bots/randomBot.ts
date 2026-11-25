@@ -1,5 +1,5 @@
 import { assertExists } from '@tabletop/common'
-import { ActionType, MachineState } from '../../../src/index.js'
+import { ActionType, extraCubesPrice, MachineState, MaxExtraCubes } from '../../../src/index.js'
 import type { Bot, BotContext } from './bot.js'
 import { placementChoices } from './evaluate.js'
 
@@ -7,7 +7,7 @@ import { placementChoices } from './evaluate.js'
 export class RandomBot implements Bot {
     readonly name = 'random'
 
-    decide({ state, playerId, random, canPassBid, stationCubeCap }: BotContext) {
+    decide({ state, playerId, random, canPassBid }: BotContext) {
         const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)]
         switch (state.machineState) {
             case MachineState.Bidding:
@@ -31,16 +31,16 @@ export class RandomBot implements Bot {
                 const placement = state.pendingPlacement()
                 assertExists(placement, 'A tile is waiting to be placed')
                 const choice = pick(placementChoices(state, placement.tileId, placement.faceUp))
-                const supply = Math.min(
-                    state.getPlayerState(playerId).supply,
-                    (stationCubeCap ?? 99) - 1
-                )
+                // Any number of extra cubes the supply, the limit and the player's cash allow.
+                const player = state.getPlayerState(playerId)
+                let most = Math.min(player.supply, MaxExtraCubes)
+                while (most > 0 && extraCubesPrice(most) > player.cash) most -= 1
                 return {
                     decision: {
                         type: ActionType.PlaceTile,
                         cell: choice.cell,
                         rotation: choice.rotation,
-                        extraCubes: placement.faceUp ? Math.floor(random() * (supply + 1)) : 0
+                        extraCubes: placement.faceUp ? Math.floor(random() * (most + 1)) : 0
                     } as const
                 }
             }

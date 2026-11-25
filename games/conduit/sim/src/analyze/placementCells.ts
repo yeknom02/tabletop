@@ -3,14 +3,7 @@
 import { playGame } from '../game.js'
 import { makeBot } from '../bots/catalog.js'
 import type { Bot } from '../bots/bot.js'
-import {
-    MachineState,
-    ExtraCubeCost,
-    MarketDeal,
-    RouteTarget,
-    StartPlayerRule,
-    type HydratedConduitGameState
-} from '../../../src/index.js'
+import { MachineState, type HydratedConduitGameState } from '../../../src/index.js'
 
 const players = Number(process.argv[2] ?? 4)
 const games = Number(process.argv[3] ?? 200)
@@ -37,15 +30,7 @@ function counting(bot: Bot): Bot {
 for (let seed = 1; seed <= games; seed++) {
     playGame({
         seed,
-        bots: Array.from({ length: players }, () => counting(makeBot('stacker{margin=3}'))),
-        variant: {
-            cubesPerRound: 2,
-            routeTarget: RouteTarget.SameLetter,
-            startPlayer: StartPlayerRule.Clockwise,
-            minimumBids: 2,
-            marketDeal: MarketDeal.Cycle,
-            extraCubeCost: ExtraCubeCost.Free
-        }
+        bots: Array.from({ length: players }, () => counting(makeBot('stacker{margin=3}')))
     })
     const stations = lastState?.board.stations ?? []
     const span = (values: number[]) => Math.max(...values, 0) - Math.min(...values, 0) + 1

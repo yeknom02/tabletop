@@ -1,12 +1,4 @@
-import {
-    ActionSource,
-    defaultGameConfig,
-    GameEngine,
-    normalizeGameConfig,
-    PlayerStatus,
-    Prng,
-    type GameAction
-} from '@tabletop/common'
+import { ActionSource, GameEngine, PlayerStatus, Prng, type GameAction } from '@tabletop/common'
 import {
     ActionType,
     ConduitInfo,
@@ -23,20 +15,7 @@ import {
     neighborCell,
     SidesClockwise,
     stationTile,
-    type EmptyStations,
-    type ExtraCubeCost,
-    type MarketDeal,
-    MarketSize,
-    type BiddingEnd,
-    biddingEndOf,
-    DefaultBasePrice,
-    DefaultStartingCashStep,
-    DefaultStationCubeCap,
-    DefaultTrackSpaces,
-    emptyStationsOf,
-    RouteToll,
-    type RouteTarget,
-    type StartPlayerRule
+    MaxExtraCubes
 } from '../../src/index.js'
 import type { Bot, DecisionNote } from './bots/bot.js'
 import { placementEffects } from './bots/evaluate.js'
@@ -48,21 +27,6 @@ export type NotedDecision = DecisionNote & { round: number; seat: number }
 export type GameRecord = {
     seed: number
     players: number
-    cubesPerRound: number
-    routeTarget: RouteTarget
-    startPlayer: StartPlayerRule
-    minimumBids: number
-    marketDeal: MarketDeal
-    extraCubeCost: ExtraCubeCost
-    startingCash: number
-    startingCashStep: number
-    routeToll: RouteToll
-    marketSize: MarketSize
-    biddingEnd?: BiddingEnd
-    basePrice?: number
-    stationCubeCap?: number
-    trackSpaces?: number
-    emptyStations?: EmptyStations
     bots: string[]
     // The letters dealt to each round's market, in order.
     markets: string[][]
@@ -95,8 +59,6 @@ export type GameRecord = {
         supply: number
         allowed?: number
     })[]
-    // Bids each seat placed after the minimum, in the bid-until-all-pass variant.
-    lateBids?: number[]
     revenues: { round: number; seat: number; letter: string; amount: number; stations: number }[]
     // Toll income per seat, and how many tolls each route paid out.
     tollIncome: number[]
@@ -110,46 +72,8 @@ export type GameRecord = {
     steps: number
 }
 
-export type Variant = {
-    cubesPerRound: number
-    routeTarget: RouteTarget
-    startPlayer: StartPlayerRule
-    minimumBids: number
-    marketDeal: MarketDeal
-    extraCubeCost: ExtraCubeCost
-    // Starting cash; the rules' $5 when absent.
-    startingCash?: number
-    // Extra starting cash per seat clockwise from the Start Player; the rules' $1 when absent.
-    startingCashStep?: number
-    routeToll?: RouteToll
-    marketSize?: MarketSize
-    biddingEnd?: BiddingEnd
-    basePrice?: number
-    stationCubeCap?: number
-    trackSpaces?: number
-    emptyStations?: EmptyStations
-}
-
-export function playGame({
-    seed,
-    bots,
-    variant
-}: {
-    seed: number
-    bots: Bot[]
-    variant: Variant
-}): GameRecord {
-    const { cubesPerRound, routeTarget, startPlayer, minimumBids, marketDeal, extraCubeCost } =
-        variant
-    const routeToll = variant.routeToll ?? RouteToll.Flat
-    const marketSize = variant.marketSize ?? MarketSize.SmallFirst
-    // Anything the variant leaves out follows the printed rules (the engine's defaults).
-    const startingCashStep = variant.startingCashStep ?? DefaultStartingCashStep
-    const biddingEnd = variant.biddingEnd ?? biddingEndOf({})
-    const basePrice = variant.basePrice ?? DefaultBasePrice
-    const stationCubeCap = variant.stationCubeCap ?? DefaultStationCubeCap
-    const trackSpaces = variant.trackSpaces ?? DefaultTrackSpaces
-    const emptyStations = variant.emptyStations ?? emptyStationsOf({})
+// One game under the rules (v0.8.4).
+export function playGame({ seed, bots }: { seed: number; bots: Bot[] }): GameRecord {
     const players = bots.length
     const playerIds = bots.map((_, seat) => `s${seat}`)
     const engine = new GameEngine(ConduitRuntime)
@@ -158,26 +82,7 @@ export function playGame({
             id: `sim-${seed}`,
             typeId: ConduitInfo.id,
             ownerId: 'sim',
-            config: normalizeGameConfig({
-                ...defaultGameConfig(ConduitInfo.configurator?.options ?? []),
-                cubesPerRound: String(cubesPerRound),
-                routeTarget,
-                startPlayer,
-                minimumBids: String(minimumBids),
-                marketDeal,
-                extraCubeCost,
-                ...(variant.startingCash === undefined
-                    ? {}
-                    : { startingCash: String(variant.startingCash) }),
-                startingCashStep: String(startingCashStep),
-                routeToll,
-                marketSize,
-                biddingEnd,
-                basePrice: String(basePrice),
-                stationCubeCap: String(stationCubeCap),
-                trackSpaces: String(trackSpaces),
-                emptyStations
-            }),
+            config: {},
             players: playerIds.map((id) => ({
                 id,
                 name: id,
@@ -195,22 +100,6 @@ export function playGame({
     const record: GameRecord = {
         seed,
         players,
-        cubesPerRound,
-        routeTarget,
-        startPlayer,
-        minimumBids,
-        marketDeal,
-        extraCubeCost,
-        startingCash: variant.startingCash ?? 5,
-        startingCashStep,
-        routeToll,
-        marketSize,
-        biddingEnd,
-        basePrice,
-        stationCubeCap,
-        trackSpaces,
-        emptyStations,
-        lateBids: playerIds.map(() => 0),
         bots: bots.map((bot) => bot.name),
         markets: [],
         finalCash: [],
@@ -305,14 +194,9 @@ export function playGame({
                         ...playerIds.map((id) =>
                             Math.max(
                                 0,
-                                ...placementEffects(
-                                    hydrated,
-                                    tileId,
-                                    true,
-                                    id,
-                                    routeTarget,
-                                    routeToll
-                                ).map((effect) => effect.gain.get(id) ?? 0)
+                                ...placementEffects(hydrated, tileId, true, id).map(
+                                    (effect) => effect.gain.get(id) ?? 0
+                                )
                             )
                         )
                     )
@@ -332,16 +216,8 @@ export function playGame({
             state: hydrated,
             playerId,
             random,
-            cubesPerRound,
-            routeTarget,
-            marketDeal,
-            extraCubeCost,
-            routeToll,
-            marketSize,
             canPassBid:
-                hydrated.machineState === MachineState.Bidding &&
-                hydrated.canPassBid(playerId, minimumBids, biddingEnd),
-            stationCubeCap
+                hydrated.machineState === MachineState.Bidding && hydrated.canPassBid(playerId)
         }
         // A tie that decides who gets a toll: the owner's habit picks the route (the first option
         // for a bot without one).
@@ -355,19 +231,11 @@ export function playGame({
                   decision: {
                       type: ActionType.ChooseRoute as const,
                       tileId: choice.tileId,
-                      option: bots[seat].chooseRoute?.(context, choice) ?? 0
+                      route: choice.options[bots[seat].chooseRoute?.(context, choice) ?? 0].cells
                   },
                   note: undefined
               }
             : bots[seat].decide(context)
-        if (
-            hydrated.machineState === MachineState.Bidding &&
-            decision.type === 'placeBid' &&
-            hydrated.isMinimumBiddingDone(minimumBids) &&
-            record.lateBids
-        ) {
-            record.lateBids[seat] += 1
-        }
         if (hydrated.machineState === MachineState.Bidding && note) {
             record.bidNotes.push({ ...note, round, seat })
         }
@@ -390,7 +258,7 @@ export function playGame({
                 faceUp: hydrated.pendingPlacement()?.faceUp ?? false,
                 extraCubes: decision.extraCubes,
                 supply: hydrated.getPlayerState(playerId).supply,
-                allowed: Math.min(hydrated.getPlayerState(playerId).supply, stationCubeCap - 1)
+                allowed: Math.min(hydrated.getPlayerState(playerId).supply, MaxExtraCubes)
             })
             if (hydrated.pendingPlacement()?.faceUp) {
                 const grid = hydrated.grid()

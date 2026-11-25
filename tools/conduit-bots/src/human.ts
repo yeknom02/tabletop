@@ -1,16 +1,15 @@
 import type { RandomFunction } from '@tabletop/common'
-import { ActionType, cubesPerRound, MachineState, minimumBidsOf, Rounds } from '@tabletop/conduit'
+import {
+    ActionType,
+    BasePrice,
+    CubesPerRound,
+    MachineState,
+    MinimumBids,
+    Rounds
+} from '@tabletop/conduit'
 import type { Bot, Choice } from './bots.ts'
 import type { Move } from './table.ts'
-import {
-    extrasWorthIt,
-    rulesOf,
-    spotEffects,
-    stationPayout,
-    tileWorth,
-    type ExtraPlan,
-    type Rules
-} from './value.ts'
+import { extrasWorthIt, spotEffects, stationPayout, tileWorth, type ExtraPlan } from './value.ts'
 
 // Human-like bots, one habit per version, each version keeping the habits before it. A decision no
 // habit covers yet is made at random, as random@v1 makes it, so each version shows what its own
@@ -32,16 +31,15 @@ export function humanBot(version: number, habits: Habit[], describe: string): Bo
         spec: `human@v${version}`,
         describe,
         choose(choice) {
-            const rules = rulesOf(choice.game.config)
             switch (choice.view.machineState) {
                 case MachineState.Offering:
-                    if (has('buy')) return offer(choice, rules, has('extras'))
+                    if (has('buy')) return offer(choice, has('extras'))
                     break
                 case MachineState.Placing:
-                    if (has('place')) return place(choice, rules, has('extras'), has('block'))
+                    if (has('place')) return place(choice, has('extras'), has('block'))
                     break
                 case MachineState.Bidding:
-                    if (has('bid')) return bid(choice, rules, has('extras'))
+                    if (has('bid')) return bid(choice, has('extras'))
                     break
             }
             return randomMove(choice)
@@ -66,10 +64,10 @@ function only(choice: Choice, type: ActionType): Move {
 // Cubes a player keeps in supply rather than stack on a station: enough that next round's refill
 // still covers their bids, with one to spare. Only with the extras habit; before it, nothing.
 function keptBack(choice: Choice, playerId: string, thoughtful: boolean): number {
-    const { view, game } = choice
+    const { view } = choice
     if (!thoughtful || view.round >= Rounds) return 0
-    const refill = Math.min(cubesPerRound(game.config), view.getPlayerState(playerId).reserve)
-    return Math.max(0, minimumBidsOf(game.config) + 1 - refill)
+    const refill = Math.min(CubesPerRound, view.getPlayerState(playerId).reserve)
+    return Math.max(0, MinimumBids + 1 - refill)
 }
 
 function planFor(choice: Choice, playerId: string, cash: number, thoughtful: boolean): ExtraPlan {
@@ -78,14 +76,13 @@ function planFor(choice: Choice, playerId: string, cash: number, thoughtful: boo
 }
 
 // Buy when the tile at its best spot, with the extra cubes worth adding, beats the price.
-function offer(choice: Choice, rules: Rules, thoughtful: boolean): Move {
+function offer(choice: Choice, thoughtful: boolean): Move {
     const { view, playerId, moves } = choice
     const current = view.currentOffer()
     if (!current || !moves.has(ActionType.BuyTile)) return only(choice, ActionType.PassTile)
     const cash = view.getPlayerState(playerId).cash - current.price
     const worth = tileWorth(
         view,
-        rules,
         current.tileId,
         playerId,
         planFor(choice, playerId, cash, thoughtful)
@@ -97,20 +94,18 @@ function offer(choice: Choice, rules: Rules, thoughtful: boolean): Move {
 
 // The spot that adds most to the player's earnings (less what it adds to everyone else's, with the
 // blocking habit), ties broken at random. A face-down tile only opens connections.
-function place(choice: Choice, rules: Rules, thoughtful: boolean, blocking: boolean): Move {
+function place(choice: Choice, thoughtful: boolean, blocking: boolean): Move {
     const { view, playerId, moves, random } = choice
     const placement = view.pendingPlacement()
     const legal = moves.get(ActionType.PlaceTile) ?? []
     if (!placement || legal.length === 0) return randomMove(choice)
     const ownerId = placement.faceUp ? playerId : undefined
-    const scored = spotEffects(view, rules, placement.tileId, placement.faceUp, ownerId).map(
-        (effect) => {
-            let others = 0
-            for (const [id, gain] of effect.gain) if (id !== playerId) others += gain
-            const own = effect.gain.get(playerId) ?? 0
-            return { spot: effect.spot, score: own - (blocking ? BlockWeight * others : 0) }
-        }
-    )
+    const scored = spotEffects(view, placement.tileId, placement.faceUp, ownerId).map((effect) => {
+        let others = 0
+        for (const [id, gain] of effect.gain) if (id !== playerId) others += gain
+        const own = effect.gain.get(playerId) ?? 0
+        return { spot: effect.spot, score: own - (blocking ? BlockWeight * others : 0) }
+    })
     const top = Math.max(...scored.map((entry) => entry.score))
     const spot = pick(
         scored.filter((entry) => entry.score >= top - 1e-9),
@@ -121,8 +116,8 @@ function place(choice: Choice, rules: Rules, thoughtful: boolean, blocking: bool
     )
     if (!placement.faceUp || !thoughtful) return pick(atSpot, random)
     const cash = view.getPlayerState(playerId).cash
-    const payout = stationPayout(view, rules, placement.tileId, spot, playerId)
-    const wanted = extrasWorthIt(payout, planFor(choice, playerId, cash, true), rules)
+    const payout = stationPayout(view, placement.tileId, spot, playerId)
+    const wanted = extrasWorthIt(payout, planFor(choice, playerId, cash, true))
     // The most extra cubes up to the wanted number that the engine accepts here.
     return atSpot.reduce((best, move) =>
         extrasOf(move) <= wanted && extrasOf(move) > extrasOf(best) ? move : best
@@ -140,28 +135,24 @@ function extrasOf(move: Move): number {
 
 // Bid on the tile worth most over its price, or under another player who will clearly buy, to be
 // paid $1 for the cube. Once passing is allowed, pass when no bid is worth another cube.
-function bid(choice: Choice, rules: Rules, thoughtful: boolean): Move {
+function bid(choice: Choice, thoughtful: boolean): Move {
     const { view, playerId, moves, random } = choice
     const bids = moves.get(ActionType.PlaceBid) ?? []
     const canPass = moves.has(ActionType.PassBid)
     if (bids.length === 0) return randomMove(choice)
-    const base = view.basePrice ?? 0
     const worthTo = new Map<string, number>()
     const worth = (tileId: number, who: string, price: number) => {
         const key = `${tileId}:${who}`
         if (!worthTo.has(key)) {
             const cash = view.getPlayerState(who).cash - price
-            worthTo.set(
-                key,
-                tileWorth(view, rules, tileId, who, planFor(choice, who, cash, thoughtful))
-            )
+            worthTo.set(key, tileWorth(view, tileId, who, planFor(choice, who, cash, thoughtful)))
         }
         return worthTo.get(key) ?? 0
     }
     const scored = bids.map((move) => {
         const slot = view.market[Number(move.slot)]
         const tileId = slot.tileId as number
-        const price = slot.bids.length + 1 + base
+        const price = BasePrice + slot.bids.length + 1
         const mine = worth(tileId, playerId, price) - price
         const leader = slot.bids[0]
         let score: number

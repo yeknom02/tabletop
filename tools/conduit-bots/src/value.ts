@@ -1,47 +1,24 @@
-import type { GameConfig, OffsetCoordinates } from '@tabletop/common'
+import type { OffsetCoordinates } from '@tabletop/common'
 import {
-    extraCubeCostOf,
     extraCubesPrice,
     Grid,
+    MaxExtraCubes,
     revenueFor,
-    routeTargetOf,
-    routeTollOf,
-    stationCubeCapOf,
     stationEarnings,
     type Board,
-    type ExtraCubeCost,
     type HydratedConduitGameState,
-    type PlacedStation,
-    type RouteTarget,
-    type RouteToll
+    type PlacedStation
 } from '@tabletop/conduit'
 
 // How a bot measures money on the board, ported from the bot studies (games/conduit/sim). It looks
 // only at the board as it stands: what each station would earn if revenue were paid now.
 
-export type Rules = {
-    routeTarget: RouteTarget
-    routeToll: RouteToll
-    extraCubeCost: ExtraCubeCost
-    // Most cubes a new station may hold, the winning cube included.
-    stationCubeCap: number
-}
-
-export function rulesOf(config: GameConfig): Rules {
-    return {
-        routeTarget: routeTargetOf(config),
-        routeToll: routeTollOf(config),
-        extraCubeCost: extraCubeCostOf(config),
-        stationCubeCap: stationCubeCapOf(config)
-    }
-}
-
 // What every station would earn now, tolls included, summed per owner.
-export function earningsByOwner(board: Board, rules: Rules): Map<string, number> {
+export function earningsByOwner(board: Board): Map<string, number> {
     const totals = new Map<string, number>()
     const add = (playerId: string, amount: number) =>
         totals.set(playerId, (totals.get(playerId) ?? 0) + amount)
-    for (const earning of stationEarnings(board, rules.routeTarget, rules.routeToll)) {
+    for (const earning of stationEarnings(board)) {
         add(earning.ownerId, earning.amount)
         for (const toll of earning.tolls) add(toll.playerId, toll.amount)
     }
@@ -60,12 +37,11 @@ export type SpotEffect = {
 // winning cube; a face-down tile only opens connections.
 export function spotEffects(
     state: HydratedConduitGameState,
-    rules: Rules,
     tileId: number,
     faceUp: boolean,
     ownerId: string | undefined
 ): SpotEffect[] {
-    const before = earningsByOwner(state.board, rules)
+    const before = earningsByOwner(state.board)
     return state
         .grid()
         .legalPlacements(tileId, faceUp)
@@ -79,7 +55,7 @@ export function spotEffects(
                 ...(faceUp && ownerId ? { ownerId } : {})
             }
             const board: Board = { stations: [...state.board.stations, station] }
-            const after = earningsByOwner(board, rules)
+            const after = earningsByOwner(board)
             const gain = new Map(
                 state.players.map((player) => [
                     player.playerId,
@@ -93,14 +69,13 @@ export function spotEffects(
 // What the new station itself pays its owner each payout at this spot, before tolls to others.
 export function stationPayout(
     state: HydratedConduitGameState,
-    rules: Rules,
     tileId: number,
     spot: Spot,
     ownerId: string
 ): number {
     const station: PlacedStation = { ...spot, tileId, faceUp: true, cubes: 1, ownerId }
     const grid = new Grid({ stations: [...state.board.stations, station] })
-    return revenueFor(grid.bestRoute(spot.cell, rules.routeTarget))
+    return revenueFor(grid.bestRoute(spot.cell))
 }
 
 export type TileSpot = {
@@ -115,12 +90,11 @@ export type TileSpot = {
 // A tile's best spot for a player now, by what one payout would add to their earnings.
 export function bestSpot(
     state: HydratedConduitGameState,
-    rules: Rules,
     tileId: number,
     playerId: string
 ): TileSpot {
     let best: SpotEffect | undefined
-    for (const effect of spotEffects(state, rules, tileId, true, playerId)) {
+    for (const effect of spotEffects(state, tileId, true, playerId)) {
         if (!best || (effect.gain.get(playerId) ?? 0) > (best.gain.get(playerId) ?? 0)) {
             best = effect
         }
@@ -129,7 +103,7 @@ export function bestSpot(
     return {
         spot: best.spot,
         gain: Math.max(0, best.gain.get(playerId) ?? 0),
-        payout: stationPayout(state, rules, tileId, best.spot, playerId)
+        payout: stationPayout(state, tileId, best.spot, playerId)
     }
 }
 
@@ -152,9 +126,9 @@ export type ExtraPlan = {
 
 // Extra cubes worth adding to a station paying `payout` each time: one more while that cube's own
 // payout (the last, least certain one) is worth at least its price, and the player can pay it.
-export function extrasWorthIt(payout: number, plan: ExtraPlan, rules: Rules): number {
-    const price = (count: number) => extraCubesPrice(count, rules.extraCubeCost)
-    const most = Math.max(0, Math.min(plan.room, rules.stationCubeCap - 1))
+export function extrasWorthIt(payout: number, plan: ExtraPlan): number {
+    const price = (count: number) => extraCubesPrice(count)
+    const most = Math.max(0, Math.min(plan.room, MaxExtraCubes))
     let extras = 0
     while (extras < most && price(extras + 1) <= plan.cash) {
         const cubePrice = price(extras + 1) - price(extras)
@@ -168,12 +142,11 @@ export function extrasWorthIt(payout: number, plan: ExtraPlan, rules: Rules): nu
 // extra cubes they would add, less what those cubes cost.
 export function tileWorth(
     state: HydratedConduitGameState,
-    rules: Rules,
     tileId: number,
     playerId: string,
     plan: ExtraPlan
 ): number {
-    const { gain, payout } = bestSpot(state, rules, tileId, playerId)
-    const extras = extrasWorthIt(payout, plan, rules)
-    return gain + extraPayoutsWorth(payout, extras) - extraCubesPrice(extras, rules.extraCubeCost)
+    const { gain, payout } = bestSpot(state, tileId, playerId)
+    const extras = extrasWorthIt(payout, plan)
+    return gain + extraPayoutsWorth(payout, extras) - extraCubesPrice(extras)
 }

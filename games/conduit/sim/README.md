@@ -37,9 +37,9 @@ From `games/conduit`:
 /workspace/node_modules/.bin/tsx sim/src/analyze/summary.ts /workspace/tmp/conduit/runs/<run>
 ```
 
-Rule flags (`--cubes`, `--deal`, `--bid-end`, `--base-price`, `--cube-cost`, `--cube-cap`,
-`--empty-stations`, `--cash-step`, …) default to the printed rules, v0.8.3. Batch scripts written
-before batch 14 relied on the earlier v0.8.2 defaults.
+Every game follows the rules as printed (v0.8.4); the engine has no rule variants. Batch scripts
+and probes from before 2026-11-25 used rule flags that no longer exist, and their results compare
+only with each other.
 
 Runs are written to `/workspace/tmp/conduit/runs/<run>/` (`run.json` with the commit and a dirty
 flag, `games-*.jsonl` one game per line). Seeds start at 1, so runs with the same `--games` play

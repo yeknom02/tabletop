@@ -1,13 +1,10 @@
 import { assertExists } from '@tabletop/common'
 import {
     ActionType,
-    ExtraCubeCost,
+    BasePrice,
     extraCubesPrice,
     MachineState,
-    MarketDeal,
-    MarketSize,
-    RouteTarget,
-    RouteToll,
+    MaxExtraCubes,
     Rounds,
     type HydratedConduitGameState,
     type RouteChoice
@@ -91,12 +88,6 @@ export const BalancedHabits: Habits = {
 type TileView = { best?: PlacementEffect; perPayout: number }
 
 export class HabitBot implements Bot {
-    private routeTarget = RouteTarget.SameLetter
-    private marketDeal = MarketDeal.Cycle
-    private extraCubeCost = ExtraCubeCost.Free
-    private routeToll = RouteToll.None
-    private marketSize = MarketSize.SmallFirst
-    private stationCubeCap: number | undefined
     // tileView depends only on the board, the tile and the player; bidding asks the same question
     // many times over a board that does not change.
     private viewCache = new Map<string, TileView>()
@@ -112,7 +103,7 @@ export class HabitBot implements Bot {
         const policy = this.habits.tollTo
         if (policy === 'first') return 0
         if (policy === 'random') return Math.floor(random() * choice.options.length)
-        const income = revenueByOwner(state.board, context.routeTarget, context.routeToll)
+        const income = revenueByOwner(state.board)
         const standing = (playerId: string) =>
             state.getPlayerState(playerId).cash + (income.get(playerId) ?? 0)
         // An option's threat: its best-placed payee's standing, then how much it pays out in all.
@@ -132,12 +123,6 @@ export class HabitBot implements Bot {
 
     decide(context: BotContext) {
         const { state } = context
-        this.routeTarget = context.routeTarget
-        this.marketDeal = context.marketDeal
-        this.extraCubeCost = context.extraCubeCost
-        this.routeToll = context.routeToll
-        this.marketSize = context.marketSize
-        this.stationCubeCap = context.stationCubeCap
         switch (state.machineState) {
             case MachineState.Bidding:
                 return this.bid(context)
@@ -177,14 +162,7 @@ export class HabitBot implements Bot {
         tileId: number,
         playerId: string
     ): TileView {
-        const effects = placementEffects(
-            state,
-            tileId,
-            true,
-            playerId,
-            this.routeTarget,
-            this.routeToll
-        )
+        const effects = placementEffects(state, tileId, true, playerId)
         let best: PlacementEffect | undefined
         for (const effect of effects) {
             if (!best || (effect.gain.get(playerId) ?? 0) > (best.gain.get(playerId) ?? 0)) {
@@ -196,9 +174,8 @@ export class HabitBot implements Bot {
         return { best, perPayout: perPayout * focused }
     }
 
-    // Extra cubes for a new station paying perPayout each time. Free cubes: every spare cube the
-    // habits allow. Paid cubes: one more while its extra (last, most discounted) payout beats what
-    // that cube costs, and the player can pay.
+    // Extra cubes for a new station paying perPayout each time: one more while its extra (last,
+    // most discounted) payout beats what that cube costs, and the player can pay.
     private extrasFor(
         state: HydratedConduitGameState,
         playerId: string,
@@ -207,19 +184,12 @@ export class HabitBot implements Bot {
         cashAfter = state.getPlayerState(playerId).cash
     ): number {
         const supply = state.getPlayerState(playerId).supply
-        const cap = Math.max(
-            0,
-            Math.min(habits.maxExtra, supply - habits.keep, (this.stationCubeCap ?? 99) - 1)
-        )
-        if (this.extraCubeCost === ExtraCubeCost.Free) return cap
-        const affordable = (count: number) =>
-            extraCubesPrice(count, this.extraCubeCost) <= cashAfter
+        const cap = Math.max(0, Math.min(habits.maxExtra, supply - habits.keep, MaxExtraCubes))
+        const affordable = (count: number) => extraCubesPrice(count) <= cashAfter
         let extras = 0
         while (extras < cap && affordable(extras + 1)) {
             const next = extras + 1
-            const cubePrice =
-                extraCubesPrice(next, this.extraCubeCost) -
-                extraCubesPrice(extras, this.extraCubeCost)
+            const cubePrice = extraCubesPrice(next) - extraCubesPrice(extras)
             const worth = perPayout * habits.discount ** next - cubePrice
             if (!habits.ignoreCubeCost && worth < habits.cubeMargin) break
             extras = next
@@ -242,7 +212,7 @@ export class HabitBot implements Bot {
         const view = this.tileView(state, tileId, playerId)
         const extras = this.extrasFor(state, playerId, view.perPayout, habits)
         const cubes = 1 + extras
-        const cubeCost = extraCubesPrice(extras, this.extraCubeCost)
+        const cubeCost = extraCubesPrice(extras)
         if (view.perPayout > 0 || habits.prospect === 0) {
             return this.expectedValue(view.perPayout, cubes, habits.discount) - cubeCost
         }
@@ -258,14 +228,14 @@ export class HabitBot implements Bot {
         cubes: number,
         habits: Habits
     ): number {
-        const needed = destinationLetter(tileId, this.routeTarget)
+        const needed = destinationLetter(tileId)
         const inMarket = state.market.some(
             (slot) =>
                 slot.tileId !== undefined &&
                 slot.tileId !== tileId &&
                 letterOf(slot.tileId) === needed
         )
-        const perMarket = nextMarketChance(state, needed, this.marketDeal, this.marketSize)
+        const perMarket = nextMarketChance(state, needed)
         const marketsLeft = Math.max(0, Rounds - state.round)
         let missing = inMarket ? 0 : 1
         let total = 0
@@ -279,14 +249,13 @@ export class HabitBot implements Bot {
 
     private bid({ state, playerId, random, canPassBid }: BotContext) {
         const habits = this.habits
-        const base = state.basePrice ?? 0
         const mine = new Map<number, number>()
         const scores = state.biddableSlots().map((slot) => {
             const { tileId, bids } = state.market[slot]
             assertExists(tileId, 'A biddable slot holds a tile')
             if (!mine.has(tileId)) mine.set(tileId, this.valueTo(state, tileId, playerId, habits))
             const myValue = mine.get(tileId) ?? 0
-            const price = bids.length + 1 + base
+            const price = BasePrice + bids.length + 1
             let score: number
             if (bids.length === 0) {
                 score = habits.want * (myValue - price)
@@ -353,9 +322,7 @@ export class HabitBot implements Bot {
             state,
             placement.tileId,
             placement.faceUp,
-            placement.faceUp ? playerId : undefined,
-            this.routeTarget,
-            this.routeToll
+            placement.faceUp ? playerId : undefined
         )
         const scored = effects.map((effect) => {
             let others = 0

@@ -1,9 +1,7 @@
 import {
     ActionSource,
-    defaultGameConfig,
     GameEngine,
     MachineContext,
-    normalizeGameConfig,
     PlayerStatus,
     type Game,
     type GameAction,
@@ -50,7 +48,7 @@ export function newTable(
             name: `Bots ${players}p seed ${seed}`,
             typeId: ConduitInfo.id,
             ownerId: 'conduit-bots',
-            config: normalizeGameConfig(defaultGameConfig(ConduitInfo.configurator?.options ?? [])),
+            config: {},
             players: Array.from({ length: players }, (_, index) => ({
                 id: `p${index}`,
                 name: playerNames[index],
@@ -114,7 +112,11 @@ function candidates(state: HydratedConduitGameState, type: ActionType): Move[] {
         case ActionType.ChooseRoute: {
             const choice = state.pendingRouteChoice()
             if (!choice) return []
-            return choice.options.map((_, option) => ({ type, tileId: choice.tileId, option }))
+            return choice.options.map((option) => ({
+                type,
+                tileId: choice.tileId,
+                route: option.cells
+            }))
         }
         default:
             return [{ type }]

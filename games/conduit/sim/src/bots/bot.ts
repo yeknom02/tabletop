@@ -1,14 +1,5 @@
 import type { OffsetCoordinates, RandomFunction } from '@tabletop/common'
-import {
-    ActionType,
-    type HydratedConduitGameState,
-    type ExtraCubeCost,
-    type MarketDeal,
-    type MarketSize,
-    type RouteTarget,
-    type RouteToll,
-    type RouteChoice
-} from '../../../src/index.js'
+import { ActionType, type HydratedConduitGameState, type RouteChoice } from '../../../src/index.js'
 
 export type Decision =
     | { type: ActionType.PlaceBid; slot: number }
@@ -16,7 +7,7 @@ export type Decision =
     | { type: ActionType.PassTile }
     | { type: ActionType.PassBid }
     | { type: ActionType.PlaceTile; cell: OffsetCoordinates; rotation: number; extraCubes: number }
-    | { type: ActionType.ChooseRoute; tileId: number; option: number }
+    | { type: ActionType.ChooseRoute; tileId: number; route: OffsetCoordinates[] }
 
 // What a bot saw when it chose, for the studies: how many options it had and how far apart the
 // best and next best were by its own measure.
@@ -32,22 +23,15 @@ export interface BotContext {
     state: HydratedConduitGameState
     playerId: string
     random: RandomFunction
-    cubesPerRound: number
-    routeTarget: RouteTarget
-    marketDeal: MarketDeal
-    extraCubeCost: ExtraCubeCost
-    routeToll: RouteToll
-    marketSize: MarketSize
-    // Whether the bot may pass instead of bidding (the bid-until-all-pass variant).
+    // Whether the bot may pass instead of bidding: once it has placed two cubes.
     canPassBid: boolean
-    // Most cubes a new station may hold, the winning cube included.
-    stationCubeCap?: number
 }
 
 export interface Bot {
     readonly name: string
     decide(context: BotContext): { decision: Decision; note?: DecisionNote }
-    // Which of a station's tied routes to take when they pay tolls to different players.
+    // Which of a station's tied routes to take when they pay tolls to different players, by its
+    // position among the choice's options.
     chooseRoute?(context: BotContext, choice: RouteChoice): number
 }
 
