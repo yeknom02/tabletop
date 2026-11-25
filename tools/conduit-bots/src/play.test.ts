@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ActionType, MachineState } from '@tabletop/conduit'
-import { botMove } from './bots.ts'
+import { botMove, Bots } from './bots.ts'
 import { playGame } from './play.ts'
 import { engine, legalMoves, newTable } from './table.ts'
 
@@ -42,4 +42,23 @@ test('legal moves come from the engine: bids on every spot, no pass before two b
 test('a harness move is the same for the same position', () => {
     const { game, state } = newTable(5, 9, Array(5).fill('random@v1'))
     assert.deepEqual(botMove(game, state, 'random@v1'), botMove(game, state, 'random@v1'))
+})
+
+test('every bot plays 3, 4 and 5 player games to the end, alone and mixed', () => {
+    const specs = Bots.map((bot) => bot.spec)
+    for (const spec of specs) {
+        const kept = playGame(3 + (specs.indexOf(spec) % 3), 21, [spec])
+        assert.equal(kept.scenario.state.machineState, MachineState.EndOfGame, spec)
+    }
+    const mixed = playGame(5, 22, specs.slice(1))
+    assert.equal(mixed.scenario.state.machineState, MachineState.EndOfGame)
+})
+
+test('a human bot buys only what it values above the price, and stays reproducible', () => {
+    const first = playGame(4, 23, ['human@v4'])
+    const second = playGame(4, 23, ['human@v4'])
+    assert.deepEqual(second.summary.finalCash, first.summary.finalCash)
+    const types = first.scenario.actions.map((action) => action.type)
+    assert.ok(types.includes(ActionType.BuyTile))
+    assert.ok(types.includes(ActionType.PassTile))
 })

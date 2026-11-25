@@ -19,6 +19,7 @@ Batches of bot games, kept as a named run:
 
 ```bash
 pnpm --filter @tabletop/conduit-bots play --run <name> --games 20 --players 4 --seed 1 --bots random@v1
+pnpm --filter @tabletop/conduit-bots compare --challenger human@v5 --field human@v4 --games 60
 pnpm --filter @tabletop/conduit-bots test
 pnpm --filter @tabletop/conduit-bots check
 ```
@@ -35,6 +36,22 @@ All under `/bots`, JSON in and out:
 | `GET runs`                             | The runs of kept games                                                                                                  |
 | `GET games?run=`                       | A run's kept games, newest first                                                                                        |
 | `GET game?file=`                       | One kept game, as a scenario the harness opens                                                                          |
+
+## The bots
+
+| Bot         | Habits                                                                                                                                        |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `random@v1` | Any legal move: an action type at random, then one of its moves at random                                                                     |
+| `human@v1`  | Buys a tile only when it is worth at least $1 more than the price; everything else at random                                                  |
+| `human@v2`  | v1, and places where its earnings grow most now, ties at random. Extra cubes still at random                                                  |
+| `human@v3`  | v2, and bids on the tile worth most over its price, or under a player who will clearly buy, to be paid $1. Passes when no bid is worth a cube |
+| `human@v4`  | v3, and adds an extra cube only while that cube's payout beats its price, keeping enough cubes for next round's bids                          |
+| `human@v5`  | v4, and counts what a placement adds to the other players' earnings against it, at half weight                                                |
+
+A tile's worth is measured on the board as it stands: what its best spot adds to the player's
+earnings per payout, and each extra cube repeating the station's own payout, each later payout
+counted at 90% of the one before. `compare` seats one bot against a field of another in every
+seat in turn.
 
 ## How bots play
 

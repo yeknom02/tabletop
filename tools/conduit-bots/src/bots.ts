@@ -2,6 +2,7 @@ import { Prng, type Game, type GameState, type RandomFunction } from '@tabletop/
 import { ConduitRuntime, type HydratedConduitGameState } from '@tabletop/conduit'
 import { hydrate, legalMoves, type BotAction, type Move } from './table.ts'
 import type { ActionType } from '@tabletop/conduit'
+import { humanBot } from './human.ts'
 
 // What a bot knows when it chooses: the table as its player sees it (hidden tiles stay hidden),
 // every legal move by action type, and a seeded random stream.
@@ -35,7 +36,36 @@ const randomV1: Bot = {
     }
 }
 
-export const Bots: Bot[] = [randomV1]
+// Human-like bots, each version one habit more than the last.
+const humans: Bot[] = [
+    humanBot(
+        1,
+        ['buy'],
+        'Buys a tile only when it is worth $1 more than the price; otherwise random'
+    ),
+    humanBot(
+        2,
+        ['buy', 'place'],
+        'human@v1, and places where the station earns most now (extra cubes still random)'
+    ),
+    humanBot(
+        3,
+        ['buy', 'place', 'bid'],
+        'human@v2, and bids for value or under a likely buyer for $1, passing when nothing is worth a cube'
+    ),
+    humanBot(
+        4,
+        ['buy', 'place', 'bid', 'extras'],
+        "human@v3, and adds each extra cube only while its payout beats its price, keeping cubes for next round's bids"
+    ),
+    humanBot(
+        5,
+        ['buy', 'place', 'bid', 'extras', 'block'],
+        'human@v4, and counts what a placement gives the other players against it'
+    )
+]
+
+export const Bots: Bot[] = [randomV1, ...humans]
 
 export const PreferredBot = randomV1.spec
 
