@@ -3,6 +3,8 @@ import type { Seats } from './botServer.js'
 interface StoredSeats {
     bots: Seats
     plays: Record<string, boolean>
+    // Set when the bots were seated in a new game they should start without waiting.
+    fresh?: boolean
 }
 
 const storageKey = (gameId: string) => `conduit-bot-seats:${gameId}`
@@ -31,10 +33,22 @@ export class BotSeats {
         const seats: StoredSeats = JSON.parse(stored)
         this.bots = seats.bots
         this.plays = seats.plays
+        if (seats.fresh) {
+            this.joined = true
+            this.save()
+        }
     }
 
-    static seat(gameId: string, bots: Seats) {
-        const seats: StoredSeats = { bots, plays: {} }
+    /** Seats bots in a game about to open; with a person, every other seat plays itself from the start. */
+    static seat(gameId: string, bots: Seats, person?: string) {
+        const plays = person
+            ? Object.fromEntries(
+                  Object.keys(bots)
+                      .filter((playerId) => playerId !== person)
+                      .map((playerId) => [playerId, true])
+              )
+            : {}
+        const seats: StoredSeats = { bots, plays, ...(person ? { fresh: true } : {}) }
         localStorage.setItem(storageKey(gameId), JSON.stringify(seats))
     }
 

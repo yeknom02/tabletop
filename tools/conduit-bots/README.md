@@ -16,9 +16,10 @@ server starts the bot server on `http://127.0.0.1:4196` under `node --watch`, so
 its code or the built engine changes. If something already listens there, the harness uses it; set
 `CONDUIT_BOT_SERVER` to use a server elsewhere instead.
 
-With **Bots join new games** ticked (the default), a game created with the harness's + button seats
-the preferred bot (the strongest, `human@v5`) in every seat but the first, each playing its own
-turns, so the first player plays against them.
+**Play vs bots** deals a new game with you as Ada in the first seat and the preferred bot (the
+strongest, `human@v5`) in every other seat, each playing its own turns; pick 3, 4 or 5 players
+beside it. **Bots join new games** (ticked by default) does the same for a game made with the
+harness's + button, once every seat has a name.
 
 Batches of bot games, kept as a named run:
 

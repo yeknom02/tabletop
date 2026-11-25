@@ -36,8 +36,13 @@ export type Table = {
 }
 
 // A new game under the default (printed) rules, dealt from the seed: the same seed and the same
-// seats deal the same game.
-export function newTable(players: number, seed: number, seatNames: string[]): Table {
+// seats deal the same game. Players are named for their seat's bot unless names are given.
+export function newTable(
+    players: number,
+    seed: number,
+    seatNames: string[],
+    playerNames: string[] = seatNames.map((spec, index) => `${Names[index]} (${spec})`)
+): Table {
     const id = `conduit-bots-${players}p-${seed}-${Date.now().toString(36)}`
     const game = ConduitRuntime.initializer.initializeGame(
         {
@@ -48,7 +53,7 @@ export function newTable(players: number, seed: number, seatNames: string[]): Ta
             config: normalizeGameConfig(defaultGameConfig(ConduitInfo.configurator?.options ?? [])),
             players: Array.from({ length: players }, (_, index) => ({
                 id: `p${index}`,
-                name: `${Names[index]} (${seatNames[index]})`,
+                name: playerNames[index],
                 isHuman: true,
                 status: PlayerStatus.Joined
             }))

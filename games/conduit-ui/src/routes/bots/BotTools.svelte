@@ -40,6 +40,7 @@
     let playPlayers = $state(4)
     let playSeed = $state(Math.floor(Math.random() * 100000))
     let playBots = $state('')
+    let versusPlayers = $state(4)
 
     let session = $derived(harness.session)
     let gameId = $derived(session?.primaryGame.id)
@@ -184,6 +185,16 @@
         await open(`Opening ${file}…`, file, () => botServer.game(file))
     }
 
+    async function playAgainstBots() {
+        if (!specs) return
+        const players = versusPlayers
+        await open(
+            `Dealing a ${players}-player game against ${specs.preferred}…`,
+            `Ada vs bots, ${players}p`,
+            () => botServer.newGame(players, Math.floor(Math.random() * 100000), specs!.preferred)
+        )
+    }
+
     async function playBotGame() {
         const bots = playBots
             .split(',')
@@ -223,8 +234,8 @@
             await harness.openScenario({
                 name,
                 load: async () => {
-                    const { scenario, seats } = await load()
-                    BotSeats.seat(scenario.game.id, seats)
+                    const { scenario, seats, person } = await load()
+                    BotSeats.seat(scenario.game.id, seats, person)
                     loaded = true
                     return scenario
                 }
@@ -255,6 +266,26 @@
             title={shown ? 'Hide the bot seats' : 'Show the bot seats'}
             onclick={toggleShown}>{shown ? '▾' : '▸'} Bots</button
         >
+        {#if specs}
+            <span class="flex items-center gap-1">
+                <Button
+                    size="xs"
+                    color="blue"
+                    disabled={working !== undefined}
+                    title="A new game: you play Ada in the first seat, {specs.preferred} every other"
+                    onclick={playAgainstBots}>Play vs bots</Button
+                >
+                <select
+                    aria-label="Players against bots"
+                    class="rounded bg-gray-700 py-0 text-sm text-white"
+                    bind:value={versusPlayers}
+                >
+                    {#each [3, 4, 5] as count (count)}
+                        <option value={count}>{count}p</option>
+                    {/each}
+                </select>
+            </span>
+        {/if}
         {#if specs && seats}
             <Button size="xs" color="green" disabled={!canMove} onclick={botMove}>Bot move</Button>
             {#if !shown && autoSeats > 0}
@@ -298,7 +329,9 @@
                 </label>
             {/each}
         {/if}
-        {#if thinking}
+        {#if working}
+            <span role="status">{working}</span>
+        {:else if thinking}
             <span role="status">{thinking} is thinking…</span>
         {:else if paused && botPlaysNext}
             <span>Auto bots wait after loading or Undo; make a move or press Bot move.</span>
@@ -369,9 +402,6 @@
                 <Button size="xs" disabled={working !== undefined} onclick={playBotGame}
                     >Play</Button
                 >
-                {#if working}
-                    <span role="status">{working}</span>
-                {/if}
             </div>
         </details>
     {/if}

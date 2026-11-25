@@ -1,7 +1,16 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { Game, GameState } from '@tabletop/common'
 import { Bots, botMove, PreferredBot } from './bots.ts'
-import { HarnessRun, keepGame, keptGames, keptRuns, KeptRoot, playGame, readKept } from './play.ts'
+import {
+    gameAgainstBots,
+    HarnessRun,
+    keepGame,
+    keptGames,
+    keptRuns,
+    KeptRoot,
+    playGame,
+    readKept
+} from './play.ts'
 import { checkMove } from './table.ts'
 import type { Seats } from './play.ts'
 
@@ -10,6 +19,8 @@ import type { Seats } from './play.ts'
 //   POST move             { game, state, seats }: the active player's bot's move, checked by the
 //                         engine; the harness applies it through the engine like a player's
 //   POST play             { players, seed, seats }: plays a whole bot game and keeps it
+//   POST new              { players, seed, bot }: a new game for a person in the first seat
+//                         against that bot in every other seat
 //   GET  runs             the runs of kept games
 //   GET  games?run=       the kept games of a run
 //   GET  game?file=       one kept game, as a scenario the harness can open
@@ -36,6 +47,10 @@ const routes: Record<string, Handler> = {
         const kept = playGame(Number(players), Number(seed), seats)
         const file = keepGame(HarnessRun, kept)
         return { file, scenario: kept.scenario, seats: kept.seats }
+    },
+    'POST new': (_url, body) => {
+        const { players, seed, bot } = body as { players: number; seed: number; bot?: string }
+        return gameAgainstBots(Number(players), Number(seed), bot ?? PreferredBot)
     },
     'GET runs': () => keptRuns(),
     'GET games': (url) => keptGames(url.searchParams.get('run') ?? ''),

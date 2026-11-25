@@ -57,6 +57,32 @@ export function playGame(players: number, seed: number, specs: string[]): KeptGa
     return keepable(table, seats, seed)
 }
 
+// A new game for a person to play against bots: they take the first seat, and the bot takes
+// every other.
+export function gameAgainstBots(players: number, seed: number, spec: string): BotGame {
+    if (players < 3 || players > 5) throw new Error('Conduit takes 3 to 5 players')
+    botFor(spec)
+    const seats = seatsFor(players, [spec])
+    const names = ['Ada', 'Ben', 'Cleo', 'Dev', 'Eve'].slice(0, players)
+    const table = newTable(players, seed, Object.values(seats), names)
+    return {
+        scenario: {
+            game: { ...table.game, name: `Ada vs ${players - 1} bots` },
+            state: table.state,
+            actions: table.actions
+        },
+        seats,
+        person: 'p0'
+    }
+}
+
+export type BotGame = {
+    scenario: KeptGame['scenario']
+    seats: Seats
+    // The seat a person plays; the bots play the rest.
+    person: string
+}
+
 function keepable(table: Table, seats: Seats, seed: number): KeptGame {
     const state = hydrate(table.state)
     const nameOf = (playerId: string) =>

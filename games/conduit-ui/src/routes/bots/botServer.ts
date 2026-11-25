@@ -33,6 +33,8 @@ export interface BotMove {
 export interface BotGame {
     scenario: ScenarioData
     seats: Seats
+    // In a game against bots, the seat the person plays.
+    person?: string
 }
 
 export const BotServerCommand = 'pnpm --filter @tabletop/conduit-bots start'
@@ -44,13 +46,17 @@ export const botServer = {
     game: (file: string) => botGame(request(`game?file=${encodeURIComponent(file)}`)),
     play: (players: number, seed: number, seats: string[]) =>
         botGame(post('play', { players, seed, seats })),
+    newGame: (players: number, seed: number, bot: string) =>
+        botGame(post('new', { players, seed, bot })),
     move: (game: Game, state: GameState, seats: Seats) =>
         post<BotMove>('move', { game, state, seats })
 }
 
-async function botGame(response: Promise<{ scenario: unknown; seats: Seats }>): Promise<BotGame> {
-    const { scenario, seats } = await response
-    return { scenario: scenarioData(scenario), seats }
+async function botGame(
+    response: Promise<{ scenario: unknown; seats: Seats; person?: string }>
+): Promise<BotGame> {
+    const { scenario, seats, person } = await response
+    return { scenario: scenarioData(scenario), seats, ...(person ? { person } : {}) }
 }
 
 function post<T>(path: string, body: unknown): Promise<T> {
