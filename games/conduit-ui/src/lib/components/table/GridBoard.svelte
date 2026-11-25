@@ -160,17 +160,11 @@
 {/each}
 
 {#each gameSession.shownRoutes as route (route.key)}
-    {@const start = centreOf(route.cells[0])}
-    {@const end = centreOf(route.cells[route.cells.length - 1])}
     <RouteFlow
         id="conduit-route-glow-{route.key}"
         line={route.cells.map(centreOf)}
         color={route.color}
     />
-    <g class="shown-route" style:--route={route.color}>
-        <circle class="route-start" cx={start.x} cy={start.y} r="40"></circle>
-        <circle class="route-end" cx={end.x} cy={end.y} r="40"></circle>
-    </g>
 {/each}
 
 {#each sticks as closed (`${cellKey(closed.cell)}-${closed.side}`)}
@@ -262,25 +256,6 @@
     .dim {
         fill: rgb(8 12 18 / 0.55);
         pointer-events: none;
-    }
-
-    .shown-route {
-        pointer-events: none;
-    }
-
-    .route-start,
-    .route-end {
-        fill: none;
-        stroke-width: 4;
-    }
-
-    .route-start {
-        stroke: var(--route);
-    }
-
-    .route-end {
-        stroke: #f5c542;
-        stroke-dasharray: 10 6;
     }
 
     .stick {

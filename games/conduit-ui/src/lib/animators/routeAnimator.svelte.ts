@@ -8,10 +8,12 @@ import {
     routeTargetOf,
     stationTile,
     type HydratedConduitGameState,
+    type PlacedStation,
     type SearchStep,
     type StationRevenue
 } from '@tabletop/conduit'
 import type { Pace } from '$lib/model/routePace.svelte.js'
+import { emblemOutline } from '$lib/utils/emblem.js'
 
 type Timeline = AnimationContext['actionTimeline']
 
@@ -21,12 +23,14 @@ export type RouteShow = {
     key: string
     color: string
     station: OffsetCoordinates
+    // The station's emblem outline and turn, which lights up instead of a ring.
+    emblem: Emblem
     caption: string
     // Why one route won when the search found several destinations at once.
     tie?: string
     verdict: string
     layers: SearchStep[][]
-    ends: OffsetCoordinates[]
+    ends: { cell: OffsetCoordinates; emblem: Emblem }[]
     candidates: OffsetCoordinates[][]
     route: OffsetCoordinates[]
     amount: number
@@ -145,6 +149,7 @@ export class RouteAnimator {
                     key: `${revenue.tileId}-${index}`,
                     color: this.session.colors.getPlayerBgColorValue(revenue.playerId),
                     station: station.cell,
+                    emblem: emblemOf(station),
                     caption: `${name}’s ${letter} → nearest ${search.target}`,
                     tie: candidates.length > 0 ? tieRule(search.candidates) : undefined,
                     verdict:
@@ -152,7 +157,10 @@ export class RouteAnimator {
                             ? `+$${revenue.amount} · ${route.length} stations`
                             : `No ${search.target} in reach`,
                     layers: search.layers,
-                    ends: search.candidates.map((candidate) => candidate.cells.at(-1)!),
+                    ends: search.candidates.map((candidate) => {
+                        const cell = candidate.cells.at(-1)!
+                        return { cell, emblem: emblemOf(grid.stationAt(cell) ?? station) }
+                    }),
                     candidates: candidates.map((candidate) => candidate.cells),
                     route,
                     amount: revenue.amount,
@@ -294,12 +302,22 @@ export class RouteAnimator {
     }
 
     // A ring closes in on a station as it lights up.
+    // A station's emblem outline pops in, closing onto the emblem.
     private ring(timeline: Timeline, element: SVGElement | undefined, at: number) {
         if (!element) return
-        timeline.fromTo(
-            element,
-            { attr: { r: 62, opacity: 0 } },
-            { attr: { r: 44, opacity: 1 }, duration: 0.3, ease: 'power2.out' },
+        const pop = { scale: 1.45, opacity: 0 }
+        timeline.to(
+            pop,
+            {
+                scale: 1,
+                opacity: 1,
+                duration: 0.35,
+                ease: 'back.out(2)',
+                onUpdate: () => {
+                    element.setAttribute('transform', `scale(${pop.scale})`)
+                    element.setAttribute('opacity', `${pop.opacity}`)
+                }
+            },
             at
         )
     }
@@ -323,8 +341,12 @@ export class RouteAnimator {
                 at
             )
         }
-        // The drawn route gives way to the glowing, flowing one.
+        // The drawn route gives way to the glowing, flowing one, and the rings marking the
+        // station and the destinations found go.
         this.fade(timeline, this.find(`[data-show-glow="${id}"]`), 1, at, 0.3)
+        for (const ring of this.findAll(`[data-show-ring="${id}"], [data-show-end="${id}"]`)) {
+            this.fade(timeline, ring, 0, at, 0.3)
+        }
         for (const line of this.findAll(`[data-show-route="${id}"]`)) {
             this.fade(timeline, line, 0, at, 0.3)
         }
@@ -340,6 +362,15 @@ export class RouteAnimator {
             cash.set(playerId, (cash.get(playerId) ?? 0) + amount)
         }
         this.cash = cash
+    }
+}
+
+export type Emblem = { points: string; rotation: number }
+
+function emblemOf(station: PlacedStation): Emblem {
+    return {
+        points: emblemOutline(stationTile(station.tileId).letter),
+        rotation: station.rotation * 90
     }
 }
 

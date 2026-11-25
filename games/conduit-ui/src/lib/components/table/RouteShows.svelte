@@ -132,12 +132,18 @@
                 opacity="1"
             ></polyline>
         {/if}
-        <circle class="station-ring" data-show-ring={id} cx={home.x} cy={home.y} r="44" opacity="0"
-        ></circle>
-        {#each show.ends as end (`${end.col},${end.row}`)}
-            {@const point = centre(end)}
-            <circle class="end" data-show-end={id} cx={point.x} cy={point.y} r="44" opacity="0"
-            ></circle>
+        <g transform="translate({home.x} {home.y}) rotate({show.emblem.rotation})">
+            <g data-show-ring={id} opacity="0">
+                <polygon class="station-ring" points={show.emblem.points}></polygon>
+            </g>
+        </g>
+        {#each show.ends as end (`${end.cell.col},${end.cell.row}`)}
+            {@const point = centre(end.cell)}
+            <g transform="translate({point.x} {point.y}) rotate({end.emblem.rotation})">
+                <g data-show-end={id} opacity="0">
+                    <polygon class="end" points={end.emblem.points}></polygon>
+                </g>
+            </g>
         {/each}
         {@render pill(show.caption, 'data-show-caption', id, above)}
         {#if show.tie}
@@ -212,17 +218,19 @@
         stroke-linejoin: round;
     }
 
-    .station-ring {
+    .station-ring,
+    .end {
         fill: none;
+        stroke-width: 4.5;
+        stroke-linejoin: round;
+    }
+
+    .station-ring {
         stroke: var(--owner);
-        stroke-width: 5;
     }
 
     .end {
-        fill: none;
         stroke: #f5c542;
-        stroke-width: 5;
-        stroke-dasharray: 12 7;
     }
 
     .caption {
