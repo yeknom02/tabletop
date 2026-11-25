@@ -13,7 +13,7 @@
     } from '$lib/utils/tableLayout.js'
     import { tileFaceUrl } from '$lib/utils/tileArt.js'
     import { cubeShape, TrackCubeSize } from '$lib/utils/cubeShape.js'
-    import { BidTrackSpaces } from '@tabletop/conduit'
+    import { BasePrice, BidTrackSpaces } from '@tabletop/conduit'
     import Cube from './Cube.svelte'
 
     const gameSession = getGameSession()
@@ -31,8 +31,6 @@
     )
     const columns = $derived(gameSession.auctionColumns)
     const tracks = Array.from({ length: BidTrackSpaces }, (_, index) => index)
-    // A tile's price when its track holds this many cubes.
-    const basePrice = $derived(gameSession.tableState.basePrice ?? 0)
     const tileCentre = { x: TileOrigin.x + TileInSpot / 2, y: TileOrigin.y + TileInSpot / 2 }
 
     function activate(event: KeyboardEvent, slot: number) {
@@ -93,7 +91,7 @@
                         x={origin.x + TrackCell / 2}
                         y={origin.y + TrackCell / 2}
                         dy={centredTextShift(11)}
-                        text-anchor="middle">${index + 1 + basePrice}</text
+                        text-anchor="middle">${BasePrice + index + 1}</text
                     >
                     {#if biddable && index === spot.bids.length && myColor}
                         <g

@@ -114,8 +114,10 @@
             ></polyline>
         {/each}
         {#if show.route.length > 1}
-            <!-- The route draws in, then becomes the glowing, flowing route as it pays. -->
-            <g data-show-glow={id} opacity="0">
+            <!-- The route draws in, then becomes the glowing, flowing route as it pays. The glow is
+                 shown, never faded: a fade over its blur and moving dashes would repaint them all
+                 every frame. -->
+            <g data-show-glow={id} visibility="hidden">
                 <RouteFlow
                     id="conduit-show-glow-{show.key}"
                     line={show.route.map(centre)}

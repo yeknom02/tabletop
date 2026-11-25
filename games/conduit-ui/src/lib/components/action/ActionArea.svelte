@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { MachineState, minimumBidsOf, stationTile } from '@tabletop/conduit'
+    import { MachineState, MinimumBids, stationTile } from '@tabletop/conduit'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { describeAction } from '$lib/utils/historyEntries.js'
 
@@ -8,7 +8,6 @@
     const name = (playerId: string) => gameSession.getPlayerName(playerId)
     const activeId = $derived(state.activePlayerIds[0])
     const letterOf = (tileId: number) => stationTile(tileId).letter
-    const minimumBids = $derived(minimumBidsOf(gameSession.game.config))
 
     const standings = $derived(
         [...state.players].sort((a, b) => b.cash - a.cash || b.supply - a.supply)
@@ -58,7 +57,7 @@
     {:else if gameSession.isBidding}
         <p class="prompt">{gameSession.canPassBid ? 'Bid on a tile or pass' : 'Bid on a tile'}</p>
         <p class="detail">
-            {#if myBids < minimumBids}Bids {myBids} of {minimumBids} ·{' '}{/if}{gameSession.mySupply}
+            {#if myBids < MinimumBids}Bids {myBids} of {MinimumBids} ·{' '}{/if}{gameSession.mySupply}
             in supply
         </p>
         {#if gameSession.canPassBid}

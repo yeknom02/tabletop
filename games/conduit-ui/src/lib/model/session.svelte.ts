@@ -9,7 +9,6 @@ import {
     ActionType,
     BuyTile,
     ChooseRoute,
-    extraCubeCostOf,
     extraCubesPrice,
     PassBid,
     PassTile,
@@ -17,9 +16,7 @@ import {
     PlaceTile,
     isPayRevenue,
     MachineState,
-    routeTargetOf,
-    stationCubeCapOf,
-    routeTollOf,
+    MaxExtraCubes,
     stationEarnings,
     type Payment,
     type StationRevenue,
@@ -106,11 +103,7 @@ export class ConduitGameSession extends GameSession<
     // pay other players.
     readonly stationRoutes: Map<string, StationRoute> = $derived(
         new Map(
-            stationEarnings(
-                this.tableState.board,
-                routeTargetOf(this.game.config),
-                routeTollOf(this.game.config)
-            ).map(({ station, route, amount, tolls }) => [
+            stationEarnings(this.tableState.board).map(({ station, route, amount, tolls }) => [
                 cellKey(station.cell),
                 { route, amount, tolls }
             ])
@@ -266,14 +259,13 @@ export class ConduitGameSession extends GameSession<
     turnedTo: { rotation: number; direction: 1 | -1 } | undefined = $state()
     readonly mySupply = $derived(this.myPlayerState?.supply ?? 0)
     // Each extra-cube count the player may put on a new station, with what it costs: the supply,
-    // the station cap and the player's cash all limit it.
+    // the three-cube limit and the player's cash all limit it.
     readonly extraCubeChoices: { count: number; price: number; affordable: boolean }[] =
         $derived.by(() => {
-            const cost = extraCubeCostOf(this.game.config)
-            const most = Math.min(this.mySupply, stationCubeCapOf(this.game.config) - 1)
+            const most = Math.min(this.mySupply, MaxExtraCubes)
             const cash = this.myPlayerState?.cash ?? 0
             return Array.from({ length: Math.max(0, most) + 1 }, (_, count) => {
-                const price = extraCubesPrice(count, cost)
+                const price = extraCubesPrice(count)
                 return { count, price, affordable: price <= cash }
             })
         })
@@ -320,11 +312,13 @@ export class ConduitGameSession extends GameSession<
         await this.applyAction(this.createPlayerAction(BuyTile))
     }
 
+    // Chooses the option at this position in the choice, naming its route by its cells.
     async chooseRoute(option: number) {
         const choice = this.routeChoice
-        if (!choice) return
+        const route = choice?.options[option]?.cells
+        if (!choice || !route) return
         await this.applyAction(
-            this.createPlayerAction(ChooseRoute, { tileId: choice.tileId, option })
+            this.createPlayerAction(ChooseRoute, { tileId: choice.tileId, route })
         )
     }
 

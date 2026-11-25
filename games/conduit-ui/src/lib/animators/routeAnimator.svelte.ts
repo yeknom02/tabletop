@@ -5,7 +5,6 @@ import type { AnimationContext, GameStateChangeListener } from '@tabletop/fronte
 import {
     Grid,
     isPayRevenue,
-    routeTargetOf,
     stationTile,
     type HydratedConduitGameState,
     type PlacedStation,
@@ -114,12 +113,11 @@ export class RouteAnimator {
 
     private showsFor(from: HydratedConduitGameState, revenues: StationRevenue[]): RouteShow[] {
         const grid = new Grid(from.board)
-        const routeTarget = routeTargetOf(this.session.game.config)
         return revenues.flatMap((revenue, index) => {
             const station = from.board.stations.find(
                 (candidate) => candidate.tileId === revenue.tileId
             )
-            const search = station ? grid.routeSearch(station.cell, routeTarget) : undefined
+            const search = station ? grid.routeSearch(station.cell) : undefined
             if (!station || !search) return []
             const letter = stationTile(station.tileId).letter
             const name = this.session.nameOf(revenue.playerId)
@@ -351,14 +349,15 @@ export class RouteAnimator {
                 at
             )
         }
-        // The drawn route gives way to the glowing, flowing one, and the rings marking the
-        // station and the destinations found go.
-        this.fade(timeline, this.find(`[data-show-glow="${id}"]`), 1, at, 0.3)
+        // The drawn route gives way to the glowing, flowing one at once, and the rings marking
+        // the station and the destinations found fade.
+        const glow = this.find(`[data-show-glow="${id}"]`)
+        if (glow) timeline.set(glow, { attr: { visibility: 'visible' } }, at)
+        for (const line of this.findAll(`[data-show-route="${id}"]`)) {
+            timeline.set(line, { attr: { visibility: 'hidden' } }, at)
+        }
         for (const ring of this.findAll(`[data-show-ring="${id}"], [data-show-end="${id}"]`)) {
             this.fade(timeline, ring, 0, at, 0.3)
-        }
-        for (const line of this.findAll(`[data-show-route="${id}"]`)) {
-            this.fade(timeline, line, 0, at, 0.3)
         }
         const index = Number(id)
         timeline.call(() => this.pay(index), [], at)

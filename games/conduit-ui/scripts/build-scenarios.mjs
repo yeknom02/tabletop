@@ -4,20 +4,13 @@
 import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import {
-    ActionSource,
-    defaultGameConfig,
-    GameEngine,
-    normalizeGameConfig,
-    PlayerStatus
-} from '@tabletop/common'
+import { ActionSource, GameEngine, PlayerStatus } from '@tabletop/common'
 import {
     ActionType,
     ConduitGameStateValidator,
     ConduitInfo,
     ConduitRuntime,
     Definition,
-    extraCubeCostOf,
     extraCubesPrice,
     MachineState
 } from '@tabletop/conduit'
@@ -34,7 +27,7 @@ function table(slug, playerCount) {
             name: slug,
             typeId: ConduitInfo.id,
             ownerId: 'owner',
-            config: normalizeGameConfig(defaultGameConfig(ConduitInfo.configurator.options)),
+            config: {},
             players: NAMES.slice(0, playerCount).map((name, index) => ({
                 id: `p${index}`,
                 name,
@@ -89,7 +82,7 @@ function table(slug, playerCount) {
                 const placement = view.pendingPlacement()
                 const [option] = view.grid().legalPlacements(placement.tileId, placement.faceUp)
                 const { supply, cash } = view.getPlayerState(placement.playerId)
-                const oneExtra = extraCubesPrice(1, extraCubeCostOf(started.startedGame.config))
+                const oneExtra = extraCubesPrice(1)
                 const extra = placement.faceUp && supply > 0 && cash >= oneExtra ? 1 : 0
                 act(ActionType.PlaceTile, {
                     cell: option.cell,
@@ -100,7 +93,11 @@ function table(slug, playerCount) {
             }
             case MachineState.ChoosingRoutes: {
                 // A tie deciding who gets a toll: the first option.
-                act(ActionType.ChooseRoute, { tileId: view.pendingRouteChoice().tileId, option: 0 })
+                const choice = view.pendingRouteChoice()
+                act(ActionType.ChooseRoute, {
+                    tileId: choice.tileId,
+                    route: choice.options[0].cells
+                })
                 return
             }
             default:
