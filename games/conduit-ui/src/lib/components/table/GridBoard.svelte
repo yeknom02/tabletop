@@ -190,7 +190,6 @@
     {@const origin = cellOrigin(option.cell, bounds)}
     {@const chosen = isChosen(option.cell)}
     <g
-        id={cellElementId(option.cell)}
         class="target"
         class:chosen
         transform="translate({origin.x} {origin.y})"
@@ -213,7 +212,15 @@
                 </g>
             </g>
         {/if}
-        <rect class="target-frame" x="4" y="4" width={CellSize - 8} height={CellSize - 8} rx="8"
+        <!-- The placement popup anchors here: the frame keeps its size while the preview turns. -->
+        <rect
+            id={cellElementId(option.cell)}
+            class="target-frame"
+            x="4"
+            y="4"
+            width={CellSize - 8}
+            height={CellSize - 8}
+            rx="8"
         ></rect>
     </g>
 {/each}
