@@ -19,6 +19,7 @@ import { MachineState } from '../definition/states.js'
 import { BaseLetters, type BaseLetter, StationLetter } from '../components/tiles.js'
 import {
     BiddingEnd,
+    DefaultTrackSpaces,
     EmptyStations,
     MarketSize,
     marketTiles,
@@ -30,7 +31,7 @@ import { Board, Grid, type PlacedStation, type Route } from './board.js'
 import { ConduitPlayerState, HydratedConduitPlayerState } from './playerState.js'
 
 export const Rounds = 5
-export const BidTrackSpaces = 9
+export const BidTrackSpaces = DefaultTrackSpaces
 
 export type StationStack = Type.Static<typeof StationStack>
 export const StationStack = DrawBag(Type.Integer())
@@ -133,6 +134,8 @@ export const ConduitGameState = Type.Evaluate(
             board: Board,
             // Added to every tile's price in the base-price variant.
             basePrice: Type.Optional(Type.Integer({ minimum: 0 })),
+            // Spaces on each bid track when a bot study changes them from BidTrackSpaces.
+            trackSpaces: Type.Optional(Type.Integer({ minimum: 1 })),
             // Players out of this round's bidding, in the bid-until-all-pass variant.
             bidPasses: Type.Optional(Type.Array(Type.String())),
             // Routes owners are choosing, or have chosen, for the revenue about to be paid.
@@ -169,6 +172,7 @@ export class HydratedConduitGameState
     declare market: MarketSlot[]
     declare board: Board
     declare basePrice?: number
+    declare trackSpaces?: number
     declare bidPasses?: string[]
     declare routeChoices?: RouteChoice[]
 
@@ -233,7 +237,11 @@ export class HydratedConduitGameState
     biddableSlots(): number[] {
         return this.market
             .map((slot, index) => ({ slot, index }))
-            .filter(({ slot }) => slot.tileId !== undefined && slot.bids.length < BidTrackSpaces)
+            .filter(
+                ({ slot }) =>
+                    slot.tileId !== undefined &&
+                    slot.bids.length < (this.trackSpaces ?? BidTrackSpaces)
+            )
             .map(({ index }) => index)
     }
 

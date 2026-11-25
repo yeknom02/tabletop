@@ -24,6 +24,8 @@ import { BaseLetters, Side, StationLetter, tileIdsOfLetter } from '../components
 import { MachineState } from './states.js'
 import {
     basePriceOf,
+    DefaultTrackSpaces,
+    trackSpacesOf,
     MarketDeal,
     marketDealOf,
     marketSizeOf,
@@ -97,7 +99,10 @@ export class ConduitGameInitializer
             nextLetter: BaseLetters[0],
             market: [],
             board: { stations },
-            ...(basePriceOf(game.config) > 0 ? { basePrice: basePriceOf(game.config) } : {})
+            ...(basePriceOf(game.config) > 0 ? { basePrice: basePriceOf(game.config) } : {}),
+            ...(trackSpacesOf(game.config) !== DefaultTrackSpaces
+                ? { trackSpaces: trackSpacesOf(game.config) }
+                : {})
         })
         const hydrated = new HydratedConduitGameState(conduitState)
         hydrated.fillMarket(marketSizeOf(game.config))

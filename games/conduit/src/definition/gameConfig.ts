@@ -88,7 +88,9 @@ export const ConduitGameConfig = Type.Object({
     basePrice: Type.Optional(Type.String({ pattern: '^[0-9]$' })),
     // Most cubes a new station may hold, the winning cube included; 4 when absent.
     stationCubeCap: Type.Optional(Type.String({ pattern: '^[1-9]$' })),
-    emptyStations: Type.Optional(Type.Enum(EmptyStations))
+    emptyStations: Type.Optional(Type.Enum(EmptyStations)),
+    // Spaces on each bid track; 9 when absent.
+    trackSpaces: Type.Optional(Type.String({ pattern: '^[0-9]{1,2}$' }))
 })
 
 // The designer is playtesting how many cubes move from reserve to supply each round.
@@ -203,6 +205,13 @@ export function emptyStationsOf(config: { emptyStations?: unknown }): EmptyStati
 export const DefaultBasePrice = 1
 // The winning cube and up to three extras (rules v0.8.3); 9 is effectively no cap.
 export const DefaultStationCubeCap = 4
+
+// Spaces on each bid track, as the auction board concept draws them.
+export const DefaultTrackSpaces = 9
+
+export function trackSpacesOf(config: { trackSpaces?: unknown }): number {
+    return typeof config.trackSpaces === 'string' ? Number(config.trackSpaces) : DefaultTrackSpaces
+}
 
 export function basePriceOf(config: { basePrice?: unknown }): number {
     return typeof config.basePrice === 'string' ? Number(config.basePrice) : DefaultBasePrice
