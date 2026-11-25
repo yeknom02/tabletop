@@ -9,7 +9,7 @@
 ## Game Components
 
 - 64 multi-use station tiles (square)
-- 1 Auction Board (6 slots with 10-bid tracks)
+- 1 Auction Board
 - Multiple red sticks (route blocking markers)
 - 1 Central Station tile (blocked connections on all sides)
 - 75 wooden cubes in each player color (i.e., 15 per player)
@@ -38,17 +38,17 @@ Each round will proceed as follows:
 
 After each round, the Start Player marker moves to the next player clockwise.
 
-1. ## Fill the Tile Market
+## 1\. Fill the Tile Market
 
-The auction board has up to six spaces for tiles, each with its own bidding track. In order, flip the top tile of the stack over to build a market of tiles that is one greater than the number of players, except in the first round when the tile count should match the player count exactly.
+The auction board has up to six slots for tiles, each with its own bidding track of ten spaces. In order, flip the top tile of the stack over to build a market of tiles that is one greater than the number of players, except in the first round when the tile count should match the player count exactly.
 
 The station tiles feature a tile identification letter (A–D) and a section of the rectangular power grid network, with one branch connected to each tile edge. Each branch features one of two terminal colors: positive (red) or negative (black).
 
-2. ## Place Bids
+## 2\. Place Bids
 
 Beginning with the Start Player, each player in turn takes a single cube from their current available supply and places it on the lowest available space of a bidding track of their choice. Bidding continues clockwise until all players have passed, and no player may pass until they have placed at least two cubes. Players may not re-enter bidding once they have passed.
 
-3. ## Resolve Bids
+## 3\. Resolve Bids
 
 Resolve tiles in order from left to right in the following manner. For each bidding track, the player with the bottom-most cube on the track has the option of purchasing the tile for a price equal to \$1 plus the total number of cubes currently on the bidding track.
 
@@ -68,7 +68,7 @@ Finally, the player winning the bid takes their winning cube and places it on th
 
 Continue resolving bids in this manner until all are resolved.
 
-4. ## Calculate and Pay Revenue
+## 4\. Calculate and Pay Revenue
 
 For each Power Station with one or more cubes on the board:
 
@@ -82,7 +82,7 @@ After all income has been counted and distributed, each station on the board whi
 
 Remove one cube from every remaining tile, placing them in the matching player’s reserve.
 
-Unless it is the end of the fifth round, all players now take three additional cubes from their reserve into their supply and proceed to the next turn.
+Unless it is the end of the fifth round, all players now take three additional cubes from their reserve into their supply and proceed to the next round.
 
 ## End of the Game
 
