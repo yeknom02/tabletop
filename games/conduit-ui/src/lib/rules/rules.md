@@ -92,5 +92,5 @@ The game ends after the fifth round. If any cubes remain on the board, repeat th
 
 The player with the most cash on hand wins. Ties are broken in favor of the player with the most remaining cubes in their available supply. In the case that there is still a tie, all tied players must share the victory.
 
-Designer note:  
+**Designer note:**
 Inspiration for this game and its mechanisms came from: _Die Speicherstadt_ by Stefan Feld, _Pipeline_ by Ryan Courtney, _Santiago_ by Claudia Hely & Roman Pelek, and in particular many games published by Winsome Games, who have published many works by truly great designers.
