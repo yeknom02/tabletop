@@ -13,12 +13,21 @@ export class BotSeats {
     private plays: Record<string, boolean> = $state({})
     private readonly gameId: string
     private readonly preferred: string
+    // Whether the bots took their seats just now, in a game they had never seen.
+    readonly joined: boolean = false
 
-    constructor(gameId: string, preferred: string) {
+    /** Seats `opponents` with the preferred bot, playing their own turns, if this game has no seats yet. */
+    constructor(gameId: string, preferred: string, opponents: string[] = []) {
         this.gameId = gameId
         this.preferred = preferred
         const stored = localStorage.getItem(storageKey(gameId))
-        if (!stored) return
+        if (!stored) {
+            if (opponents.length === 0) return
+            this.plays = Object.fromEntries(opponents.map((playerId) => [playerId, true]))
+            this.joined = true
+            this.save()
+            return
+        }
         const seats: StoredSeats = JSON.parse(stored)
         this.bots = seats.bots
         this.plays = seats.plays

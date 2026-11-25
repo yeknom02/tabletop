@@ -15,6 +15,7 @@
 
     const AutoMoveDelayMs = 300
     const ShownKey = 'conduit-bots-shown'
+    const JoinKey = 'conduit-bots-join-new-games'
 
     let { harness }: { harness: HarnessTools } = $props()
 
@@ -29,6 +30,9 @@
             'true'
     )
 
+    // Bots take every seat but the first in a game created here, and play their own turns.
+    let joinNewGames = $state(localStorage.getItem(JoinKey) !== 'false')
+
     let runs: KeptRun[] = $state([])
     let run = $state('')
     let keptGames: KeptGame[] = $state([])
@@ -39,8 +43,20 @@
 
     let session = $derived(harness.session)
     let gameId = $derived(session?.primaryGame.id)
-    let seats = $derived(gameId && specs ? new BotSeats(gameId, specs.preferred) : undefined)
     let players = $derived(session?.game.players ?? [])
+    // A game nobody has moved in yet is a new one.
+    let isNewGame = $derived(session !== undefined && session.gameState.actionCount === 0)
+    let seats = $derived(
+        gameId && specs
+            ? new BotSeats(
+                  gameId,
+                  specs.preferred,
+                  joinNewGames && untrack(() => isNewGame)
+                      ? untrack(() => players.slice(1).map((player) => player.id))
+                      : []
+              )
+            : undefined
+    )
     let activePlayerId = $derived(session?.gameState.activePlayerIds[0])
     let canMove = $derived(
         session !== undefined &&
@@ -83,6 +99,11 @@
         })
     })
 
+    // Bots that just joined a new game start it, even when one of them is the Start Player.
+    $effect(() => {
+        if (seats?.joined) untrack(() => (paused = false))
+    })
+
     $effect(() => {
         if (paused || !botPlaysNext) return
         const timer = setTimeout(botMove, AutoMoveDelayMs)
@@ -117,6 +138,11 @@
         } finally {
             thinking = undefined
         }
+    }
+
+    function setJoinNewGames(event: Event & { currentTarget: HTMLInputElement }) {
+        joinNewGames = event.currentTarget.checked
+        localStorage.setItem(JoinKey, String(joinNewGames))
     }
 
     function toggleShown() {
@@ -234,6 +260,15 @@
             {#if !shown && autoSeats > 0}
                 <span class="text-gray-400">{autoSeats} auto</span>
             {/if}
+        {/if}
+        {#if specs && shown}
+            <label
+                class="flex items-center gap-1"
+                title="A new game seats {specs.preferred} in every seat but the first, playing its own turns"
+            >
+                <input type="checkbox" checked={joinNewGames} onchange={setJoinNewGames} />
+                Bots join new games
+            </label>
         {/if}
         {#if specs && seats && shown}
             {#each players as player (player.id)}

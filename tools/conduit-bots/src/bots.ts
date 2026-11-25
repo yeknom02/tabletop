@@ -67,7 +67,8 @@ const humans: Bot[] = [
 
 export const Bots: Bot[] = [randomV1, ...humans]
 
-export const PreferredBot = randomV1.spec
+// The strongest bot: the one the harness seats unless told otherwise.
+export const PreferredBot = humans[humans.length - 1].spec
 
 export function botFor(spec: string): Bot {
     const bot = Bots.find((candidate) => candidate.spec === spec)

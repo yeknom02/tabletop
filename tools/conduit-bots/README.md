@@ -7,13 +7,18 @@ built `@tabletop/conduit` engine (`games/conduit/esm`), so build the game after 
 ## Running
 
 ```bash
-pnpm --filter @tabletop/conduit-bots start      # bot server on port 4196 (PORT to change)
-pnpm --filter @tabletop/conduit-ui dev          # harness on port 5240; proxies /bots to the server
+pnpm --filter @tabletop/conduit-ui dev          # harness on port 5240; starts the bot server too
+pnpm --filter @tabletop/conduit-bots start      # the bot server alone, on port 4196 (PORT to change)
 ```
 
 Open the harness at `http://tabletop:5240` and use the Bots bar in its navbar. The harness's dev
-server finds the bot server at `http://127.0.0.1:4196`; set `CONDUIT_BOT_SERVER` to point it
-elsewhere.
+server starts the bot server on `http://127.0.0.1:4196` under `node --watch`, so it restarts when
+its code or the built engine changes. If something already listens there, the harness uses it; set
+`CONDUIT_BOT_SERVER` to use a server elsewhere instead.
+
+With **Bots join new games** ticked (the default), a game created with the harness's + button seats
+the preferred bot (the strongest, `human@v5`) in every seat but the first, each playing its own
+turns, so the first player plays against them.
 
 Batches of bot games, kept as a named run:
 

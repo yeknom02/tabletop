@@ -53,8 +53,8 @@
     {:else if gameSession.isBidding}
         <p class="prompt">{gameSession.canPassBid ? 'Bid on a tile or pass' : 'Bid on a tile'}</p>
         <p class="detail">
-            {#if myBids < minimumBids}Bids {myBids} of {minimumBids} ·
-            {/if}{gameSession.mySupply} in supply
+            {#if myBids < minimumBids}Bids {myBids} of {minimumBids} ·{' '}{/if}{gameSession.mySupply}
+            in supply
         </p>
         {#if gameSession.canPassBid}
             <div class="buttons">
