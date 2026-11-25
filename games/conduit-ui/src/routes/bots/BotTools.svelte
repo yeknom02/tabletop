@@ -159,28 +159,51 @@
     }
 
     async function playBotGame() {
-        const bots = playBots.split(',').map((spec) => spec.trim())
+        const bots = playBots
+            .split(',')
+            .map((spec) => spec.trim())
+            .filter((spec) => spec !== '')
+        const unknown = bots.filter((spec) => !specs?.specs.includes(spec))
+        if (bots.length === 0 || unknown.length > 0) {
+            const known = specs?.specs.join(', ') ?? ''
+            error =
+                unknown.length > 0
+                    ? `No bot ${unknown.join(', ')}. The bots are: ${known}`
+                    : `Name a bot to play: ${known}`
+            return
+        }
         const players = playPlayers
         const seed = playSeed
-        await open(`Playing a ${players}-player game, seed ${seed}…`, `${players}p ${seed}`, () =>
-            botServer.play(players, seed, bots)
+        const played = await open(
+            `Playing a ${players}-player game, seed ${seed}…`,
+            `${players}p ${seed}`,
+            () => botServer.play(players, seed, bots)
         )
+        if (!played) return
         playSeed = Math.floor(Math.random() * 100000)
         runs = await botServer.runs()
     }
 
-    async function open(status: string, name: string, load: () => Promise<BotGame>) {
+    /** Opens a bot game as a scenario; says whether it opened (the harness shows why not). */
+    async function open(
+        status: string,
+        name: string,
+        load: () => Promise<BotGame>
+    ): Promise<boolean> {
         error = undefined
         working = status
+        let loaded = false
         try {
             await harness.openScenario({
                 name,
                 load: async () => {
                     const { scenario, seats } = await load()
                     BotSeats.seat(scenario.game.id, seats)
+                    loaded = true
                     return scenario
                 }
             })
+            return loaded
         } finally {
             working = undefined
         }
