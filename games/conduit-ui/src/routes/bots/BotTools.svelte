@@ -126,7 +126,7 @@
             if (current !== harness.session || current.gameState.actionCount !== actionCount) return
             const move: GameAction = {
                 ...action,
-                id: crypto.randomUUID(),
+                id: actionId(),
                 gameId: current.game.id,
                 source: ActionSource.User,
                 createdAt: new Date()
@@ -144,6 +144,14 @@
     function setJoinNewGames(event: Event & { currentTarget: HTMLInputElement }) {
         joinNewGames = event.currentTarget.checked
         localStorage.setItem(JoinKey, String(joinNewGames))
+    }
+
+    // crypto.randomUUID needs a secure page (https or localhost); the harness is opened over plain
+    // http at tabletop:5240, where getRandomValues still works.
+    function actionId(): string {
+        return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+            byte.toString(16).padStart(2, '0')
+        ).join('')
     }
 
     function toggleShown() {
