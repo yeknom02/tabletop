@@ -122,6 +122,7 @@
                     id="conduit-show-glow-{show.key}"
                     line={show.route.map(centre)}
                     color={show.color}
+                    flowing={detailed}
                 />
             </g>
             <polyline

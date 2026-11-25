@@ -35,7 +35,7 @@
 
 - The table SVG draws the auction board, then the grid, then the route shows, then the flying tile above both boards.
 - Red sticks for closed connections are drawn by the grid above the tiles, except on the Central Station's edges, which the Central Station draws itself.
-- A route's glow is blurred by a filter bounded to that route; its flowing dashes sit above the glow, never under an effect, and the revenue explanation shows the glow without fading it.
+- A route's glow is blurred by a filter bounded to that route; its flowing dashes sit above the glow, never under an effect, and the revenue explanation shows the glow without fading it. Dashes flow only on a route shown alone (a highlighted route, a route choice's focused option, the step-by-step explanation); where several routes show at once (paid routes in History View, the Quick explanation) they hold still, since every flowing route repaints its whole length each frame.
 - The placement popup is rendered in the scaling wrapper's toolbar, outside the board's zoom, and anchored to the chosen cell's frame, which keeps its size while the preview turns.
 
 ## Verification scenarios

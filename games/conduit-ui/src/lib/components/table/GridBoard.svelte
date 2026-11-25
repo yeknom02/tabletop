@@ -200,6 +200,7 @@
         id="conduit-route-glow-{route.key}"
         line={route.cells.map(centreOf)}
         color={route.color}
+        flowing={gameSession.shownRoutes.length === 1}
     />
 {/each}
 

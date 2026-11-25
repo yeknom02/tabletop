@@ -3,8 +3,15 @@
 
     // A route as a glowing line in its owner's colour, with dashes flowing from the origin
     // station to the destination (MarraCash's route preview). The blur covers only this route,
-    // and the moving dashes sit above it, not under it, so they never repaint the glow.
-    let { id, line, color }: { id: string; line: Point[]; color: string } = $props()
+    // and the moving dashes sit above it, not under it, so they never repaint the glow. Moving
+    // dashes repaint their whole route every frame, so only a route shown alone flows: several at
+    // once hold their dashes still (on a 3x phone, four flowing routes cost about 130 MB more).
+    let {
+        id,
+        line,
+        color,
+        flowing = true
+    }: { id: string; line: Point[]; color: string; flowing?: boolean } = $props()
 
     const Width = 8
     const GlowReach = 16
@@ -50,6 +57,7 @@
     <polyline class="base" {points} stroke-width={Width}></polyline>
     <polyline
         class="flow"
+        class:still={!flowing}
         {points}
         stroke-width={Width - 2}
         stroke-dasharray="{Dash} {Gap}"
@@ -82,6 +90,10 @@
     .flow {
         stroke: color-mix(in srgb, var(--route) 45%, white);
         animation: flow var(--flow-seconds) linear infinite;
+    }
+
+    .flow.still {
+        animation: none;
     }
 
     @keyframes flow {
