@@ -89,8 +89,8 @@
             <div class="relative grow-0 overflow-hidden" style="flex:1;">
                 <div class="h-full w-full" inert={session.rulesOpen}>
                     <ScalingWrapper
-                        justify="center"
-                        controls="bottom-left"
+                        justify={session.tableBeside ? 'left' : 'center'}
+                        controls={session.tableBeside ? 'bottom-right' : 'bottom-left'}
                         coverBelowScale={0.3}
                         expandable
                     >

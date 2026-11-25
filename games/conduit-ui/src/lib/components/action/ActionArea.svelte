@@ -29,7 +29,12 @@
     }
 </script>
 
-<section class="card" class:settling={gameSession.busy} aria-label="Actions">
+<section
+    class="card"
+    class:settling={gameSession.busy}
+    class:steady={gameSession.tableBeside}
+    aria-label="Actions"
+>
     {#if gameSession.isViewingHistory}
         <p class="prompt">
             {gameSession.currentAction
@@ -145,6 +150,12 @@
         border-radius: 10px;
         background: var(--conduit-panel);
         box-shadow: inset 0 0 0 1px var(--conduit-line);
+    }
+
+    /* Beside the auction, the table fits the height left below this card; one height for every
+       prompt keeps the table, and so the auction board, from rescaling at each turn. */
+    .steady {
+        min-height: 140px;
     }
 
     .settling {

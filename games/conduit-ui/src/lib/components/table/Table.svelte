@@ -30,7 +30,10 @@
     {@attach gameSession.tableAnimator.attach}
     {@attach gameSession.routeAnimator.attach}
 >
-    <g transform="translate({geometry.auction.x} {geometry.auction.y})">
+    <g
+        transform="translate({geometry.auction.x} {geometry.auction
+            .y}) scale({geometry.auctionScale})"
+    >
         <AuctionBoard />
     </g>
     <g transform="translate({geometry.grid.x} {geometry.grid.y})">

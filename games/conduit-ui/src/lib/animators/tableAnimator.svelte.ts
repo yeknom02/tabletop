@@ -313,7 +313,7 @@ export class TableAnimator {
         const wrapper = this.find('[data-flying-tile]')
         const turner = this.find('[data-flying-turn]')
         if (!flight || !wrapper) return
-        const startScale = TileInSpot / CellSize
+        const startScale = (before.auctionScale * TileInSpot) / CellSize
         const half = CellSize / 2
         this.pose(
             timeline,

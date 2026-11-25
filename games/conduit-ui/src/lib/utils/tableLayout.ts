@@ -1,6 +1,6 @@
 import type { OffsetCoordinates, Point } from '@tabletop/common'
 import { BidTrackSpaces, type Board } from '@tabletop/conduit'
-import { boardBounds, boardSize, cellOrigin, type BoardBounds } from './boardLayout.js'
+import { boardBounds, boardSize, CellSize, cellOrigin, type BoardBounds } from './boardLayout.js'
 
 // Each auction spot has a bid track beside its tile: two columns offset by half a space, so each
 // space sits half a space above the one before, filled from the bottom.
@@ -16,6 +16,8 @@ export const SpotGap = 12
 export const AuctionSpots = 6
 export const TableMargin = 20
 export const AuctionToBoardGap = 34
+// The most the grid can span: a 6x6 grid and the ring of empty cells shown around it.
+export const GridReach = 8 * CellSize
 
 // Inside a spot's padding: the tile's top left corner, level with the bottom of the track.
 export const TileOrigin: Point = { x: TrackWidth + TrackToTile, y: TrackHeight - TileInSpot }
@@ -31,13 +33,16 @@ export function centredTextShift(fontSize: number): number {
 
 // Where the auction board and the grid sit in the table's one SVG, for a given board. On a phone
 // the auction spots wrap into rows, so the table is narrow enough to show at a readable size. On a
-// wide screen the auction board stands beside the grid, on its left.
+// wide screen the auction board stands at the top left, and the grid has room on its right to grow
+// as far as it can, so the table keeps its size and the auction never moves.
 export interface TableGeometry {
     width: number
     height: number
     auctionColumns: number
     beside: boolean
     auction: Point
+    // Beside the grid, the auction board is drawn larger, as tall as the grid's room.
+    auctionScale: number
     grid: Point
     bounds: BoardBounds
 }
@@ -62,16 +67,22 @@ export function tableGeometry(board: Board, auctionColumns: number, beside = fal
     const grid = boardSize(bounds)
     const auction = auctionSize(auctionColumns)
     if (beside) {
-        const height = Math.max(auction.height, grid.height) + 2 * TableMargin
+        const room = {
+            width: Math.max(GridReach, grid.width),
+            height: Math.max(GridReach, grid.height)
+        }
+        const auctionScale = GridReach / auction.height
+        const roomX = TableMargin + auction.width * auctionScale + AuctionToBoardGap
         return {
-            width: auction.width + AuctionToBoardGap + grid.width + 2 * TableMargin,
-            height,
+            width: roomX + room.width + TableMargin,
+            height: Math.max(auction.height * auctionScale, room.height) + 2 * TableMargin,
             auctionColumns,
             beside,
-            auction: { x: TableMargin, y: (height - auction.height) / 2 },
+            auction: { x: TableMargin, y: TableMargin },
+            auctionScale,
             grid: {
-                x: TableMargin + auction.width + AuctionToBoardGap,
-                y: (height - grid.height) / 2
+                x: roomX + (room.width - grid.width) / 2,
+                y: TableMargin + (room.height - grid.height) / 2
             },
             bounds
         }
@@ -83,6 +94,7 @@ export function tableGeometry(board: Board, auctionColumns: number, beside = fal
         auctionColumns,
         beside,
         auction: { x: (width - auction.width) / 2, y: TableMargin },
+        auctionScale: 1,
         grid: { x: (width - grid.width) / 2, y: TableMargin + auction.height + AuctionToBoardGap },
         bounds
     }
@@ -90,9 +102,10 @@ export function tableGeometry(board: Board, auctionColumns: number, beside = fal
 
 export function spotTileOrigin(slot: number, geometry: TableGeometry): Point {
     const spot = spotOrigin(slot, geometry.auctionColumns)
+    const scale = geometry.auctionScale
     return {
-        x: geometry.auction.x + spot.x + SpotPadding + TileOrigin.x,
-        y: geometry.auction.y + spot.y + SpotPadding + TileOrigin.y
+        x: geometry.auction.x + scale * (spot.x + SpotPadding + TileOrigin.x),
+        y: geometry.auction.y + scale * (spot.y + SpotPadding + TileOrigin.y)
     }
 }
 
