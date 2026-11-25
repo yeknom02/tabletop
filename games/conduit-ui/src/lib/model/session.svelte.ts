@@ -34,6 +34,8 @@ import {
 } from './stagedSelection.js'
 import { boardBounds, cellKey } from '$lib/utils/boardLayout.js'
 import { TableAnimator } from '$lib/animators/tableAnimator.svelte.js'
+import { RouteAnimator } from '$lib/animators/routeAnimator.svelte.js'
+import { RoutePace } from './routePace.svelte.js'
 import { AuctionSpots } from '$lib/utils/tableLayout.js'
 import { MediaQuery } from 'svelte/reactivity'
 
@@ -43,7 +45,7 @@ type SessionOptions = ConstructorParameters<
 
 export type StationRoute = { route: Route | undefined; amount: number; tolls: Payment[] }
 
-export type ShownRoute = { key: string; color: string | undefined; cells: OffsetCoordinates[] }
+export type ShownRoute = { key: string; color: string; cells: OffsetCoordinates[] }
 
 export class ConduitGameSession extends GameSession<
     ConduitProjectedState,
@@ -52,8 +54,12 @@ export class ConduitGameSession extends GameSession<
     private readonly phone = new MediaQuery('max-width: 639px')
     readonly auctionColumns = $derived(this.phone.current ? 3 : AuctionSpots)
     readonly tableAnimator = new TableAnimator(this)
+    readonly routePace = new RoutePace()
+    readonly routeAnimator = new RouteAnimator(this)
     rulesOpen = $state(false)
     inspectedCell: OffsetCoordinates | undefined = $state()
+    // A station under the mouse previews its route until the pointer leaves.
+    hoveredCell: OffsetCoordinates | undefined = $state()
 
     private selection: PlacementSelection = $state({})
 
@@ -81,8 +87,12 @@ export class ConduitGameSession extends GameSession<
             (this.hasLocalSelection || Boolean(this.undoableAction))
     )
 
-    readonly grid = $derived(this.gameState.grid())
-    readonly bounds = $derived(boardBounds(this.gameState.board))
+    // The state the table shows: the published state, or while a chain of actions animates, the
+    // step it has reached.
+    readonly tableState: HydratedConduitGameState = $derived(this.tableAnimator.shownState)
+
+    readonly grid = $derived(this.tableState.grid())
+    readonly bounds = $derived(boardBounds(this.tableState.board))
     readonly closedConnections = $derived(this.grid.closedConnections())
 
     // What each Power Station would earn if revenue were paid now, and the tolls its route would
@@ -90,7 +100,7 @@ export class ConduitGameSession extends GameSession<
     readonly stationRoutes: Map<string, StationRoute> = $derived(
         new Map(
             stationEarnings(
-                this.gameState.board,
+                this.tableState.board,
                 routeTargetOf(this.game.config),
                 routeTollOf(this.game.config)
             ).map(({ station, route, amount, tolls }) => [
@@ -106,7 +116,7 @@ export class ConduitGameSession extends GameSession<
         const totals = new Map<string, number>()
         const add = (playerId: string, amount: number) =>
             totals.set(playerId, (totals.get(playerId) ?? 0) + amount)
-        for (const station of this.gameState.ownedStations()) {
+        for (const station of this.tableState.ownedStations()) {
             const earning = this.stationRoutes.get(cellKey(station.cell))
             if (!earning || station.ownerId === undefined) continue
             add(station.ownerId, earning.amount)
@@ -115,8 +125,12 @@ export class ConduitGameSession extends GameSession<
         return totals
     })
 
+    private readonly highlightedCell = $derived(this.inspectedCell ?? this.hoveredCell)
+
     readonly inspectedRoute: Route | undefined = $derived(
-        this.inspectedCell ? this.stationRoutes.get(cellKey(this.inspectedCell))?.route : undefined
+        this.highlightedCell
+            ? this.stationRoutes.get(cellKey(this.highlightedCell))?.route
+            : undefined
     )
 
     // A revenue step viewed in the history shows what each station was paid, and by which route.
@@ -137,8 +151,17 @@ export class ConduitGameSession extends GameSession<
                 }))
         }
         const route = this.inspectedRoute
+        const ownerId = this.highlightedCell
+            ? this.grid.stationAt(this.highlightedCell)?.ownerId
+            : undefined
         return route && route.cells.length > 1
-            ? [{ key: 'inspected', color: undefined, cells: route.cells }]
+            ? [
+                  {
+                      key: 'inspected',
+                      color: this.colors.getPlayerBgColorValue(ownerId),
+                      cells: route.cells
+                  }
+              ]
             : []
     })
 
@@ -151,7 +174,7 @@ export class ConduitGameSession extends GameSession<
                 [...this.stationRoutes.entries()].map(([key, route]) => [key, route.amount])
             )
         }
-        const stations = this.gameState.board.stations
+        const stations = this.tableState.board.stations
         return new Map(
             paid.flatMap((revenue) => {
                 const station = stations.find((candidate) => candidate.tileId === revenue.tileId)
@@ -162,6 +185,19 @@ export class ConduitGameSession extends GameSession<
 
     readonly offer = $derived(this.gameState.currentOffer())
     readonly pendingPlacement = $derived(this.gameState.pendingPlacement())
+    readonly shownOffer = $derived(this.tableState.currentOffer())
+    readonly shownPlacement = $derived(this.tableState.pendingPlacement())
+
+    // A player's cash as the table shows it: during revenue it rises payout by payout.
+    cashOf(playerId: string): number {
+        return (
+            this.routeAnimator.cash?.get(playerId) ?? this.tableState.getPlayerState(playerId).cash
+        )
+    }
+
+    nameOf(playerId: string): string {
+        return this.game.players.find((player) => player.id === playerId)?.name ?? playerId
+    }
 
     readonly isBidding = $derived(this.canTake(ActionType.PlaceBid))
     readonly biddableSlots: number[] = $derived(
@@ -175,8 +211,9 @@ export class ConduitGameSession extends GameSession<
     readonly placement = $derived(
         this.canTake(ActionType.PlaceTile) ? this.pendingPlacement : undefined
     )
+    // Placement targets wait while a change animates, since the board may still be catching up.
     readonly placementOptions: Placement[] = $derived(
-        this.placement
+        this.placement && !this.busy
             ? this.grid.legalPlacements(this.placement.tileId, this.placement.faceUp)
             : []
     )
@@ -208,6 +245,7 @@ export class ConduitGameSession extends GameSession<
 
     override beforeNewState() {
         this.tableAnimator.settle()
+        this.routeAnimator.settle()
     }
 
     toggleRules() {
@@ -216,6 +254,10 @@ export class ConduitGameSession extends GameSession<
 
     closeRules() {
         this.rulesOpen = false
+    }
+
+    hoverStation(cell: OffsetCoordinates | undefined) {
+        this.hoveredCell = cell
     }
 
     inspectStation(cell: OffsetCoordinates | undefined) {

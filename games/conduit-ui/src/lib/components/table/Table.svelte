@@ -1,17 +1,19 @@
 <script lang="ts">
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { CellSize } from '$lib/utils/boardLayout.js'
-    import { centredTextShift, tableGeometry } from '$lib/utils/tableLayout.js'
+    import { tableGeometry } from '$lib/utils/tableLayout.js'
     import { TileBackUrl, tileFaceUrl } from '$lib/utils/tileArt.js'
+    import { cubeShape, pileOffsets, PileCubeSize } from '$lib/utils/cubeShape.js'
     import AuctionBoard from './AuctionBoard.svelte'
+    import Cube from './Cube.svelte'
     import GridBoard from './GridBoard.svelte'
 
     const gameSession = getGameSession()
     const geometry = $derived(
-        tableGeometry(gameSession.gameState.board, gameSession.auctionColumns)
+        tableGeometry(gameSession.tableState.board, gameSession.auctionColumns)
     )
     const flying = $derived(gameSession.tableAnimator.flyingTile)
-    const half = CellSize / 2
+    const pile = cubeShape(PileCubeSize)
 </script>
 
 <svg
@@ -22,6 +24,7 @@
     role="img"
     aria-label="Table"
     {@attach gameSession.tableAnimator.attach}
+    {@attach gameSession.routeAnimator.attach}
 >
     <g transform="translate({geometry.auction.x} {geometry.auction.y})">
         <AuctionBoard />
@@ -30,42 +33,33 @@
         <GridBoard />
     </g>
     {#if flying}
-        <g data-flying-tile transform="translate({flying.from.x} {flying.from.y})">
-            <g data-flying-scale>
+        <g data-flying-tile>
+            <g data-flying-turn>
                 <image
                     href={flying.faceUp ? tileFaceUrl(flying.tileId) : TileBackUrl}
                     width={CellSize}
                     height={CellSize}
-                    transform="rotate({flying.rotation * 90} {half} {half})"
                 ></image>
             </g>
+            {#if flying.ownerId}
+                {@const color = gameSession.colors.getPlayerBgColorValue(flying.ownerId)}
+                <g transform="translate({4 + PileCubeSize / 2} {4 + pile.rise})">
+                    {#each pileOffsets(flying.cubes, PileCubeSize) as offset, index (index)}
+                        <g transform="translate({offset.x} {offset.y})">
+                            <g data-flying-cube={index}>
+                                <Cube size={PileCubeSize} {color} />
+                            </g>
+                        </g>
+                    {/each}
+                </g>
+            {/if}
         </g>
     {/if}
-    {#each gameSession.tableAnimator.payoutFloats as float (float.key)}
-        <g data-payout={float.key} transform="translate({float.at.x} {float.at.y})" opacity="0">
-            <rect class="payout" x="-26" y="-15" width="52" height="30" rx="15"></rect>
-            <text class="payout-text" text-anchor="middle" dy={centredTextShift(18)}
-                >+${float.amount}</text
-            >
-        </g>
-    {/each}
 </svg>
 
 <style>
     .board {
         display: block;
         user-select: none;
-    }
-
-    .payout {
-        fill: #f5c542;
-        stroke: #1b1505;
-        stroke-width: 1.5;
-    }
-
-    .payout-text {
-        font-size: 18px;
-        font-weight: 800;
-        fill: #1b1505;
     }
 </style>

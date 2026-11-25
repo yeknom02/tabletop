@@ -12,19 +12,27 @@
     import { centredTextShift } from '$lib/utils/tableLayout.js'
     import { TileBackUrl, tileFaceUrl } from '$lib/utils/tileArt.js'
     import CentralStation from './CentralStation.svelte'
+    import CubePile from './CubePile.svelte'
+    import RouteShows from './RouteShows.svelte'
 
     const gameSession = getGameSession()
     const bounds = $derived(gameSession.bounds)
     const size = $derived(boardSize(bounds))
-    const stations = $derived(gameSession.gameState.board.stations)
+    const stations = $derived(gameSession.tableState.board.stations)
     const centre = $derived(cellOrigin(CentralCell, bounds))
     const half = CellSize / 2
+    const flipped = $derived(gameSession.tableAnimator.flipped)
+
+    function centreOf(cell: OffsetCoordinates) {
+        const origin = cellOrigin(cell, bounds)
+        return { x: origin.x + half, y: origin.y + half }
+    }
 
     function routePoints(cells: OffsetCoordinates[]): string {
         return cells
             .map((cell) => {
-                const origin = cellOrigin(cell, bounds)
-                return `${origin.x + half},${origin.y + half}`
+                const point = centreOf(cell)
+                return `${point.x},${point.y}`
             })
             .join(' ')
     }
@@ -36,6 +44,18 @@
                 !sameCoordinates(closed.cell, CentralCell) &&
                 !sameCoordinates(neighborCell(closed.cell, closed.side), CentralCell)
         )
+    )
+
+    // A single highlighted route dims the stations it doesn't pass.
+    const focusRoute = $derived(
+        gameSession.shownRoutes.length === 1 ? gameSession.shownRoutes[0] : undefined
+    )
+    const offRoute = $derived(
+        focusRoute
+            ? stations.filter(
+                  (station) => !focusRoute.cells.some((cell) => sameCoordinates(cell, station.cell))
+              )
+            : []
     )
 
     function stickOf(cell: OffsetCoordinates, side: Side) {
@@ -58,6 +78,25 @@
     function inspect(station: PlacedStation) {
         gameSession.inspectStation(station.cell)
     }
+
+    function hover(event: PointerEvent, station: PlacedStation | undefined) {
+        if (event.pointerType !== 'mouse') return
+        gameSession.hoverStation(station?.cell)
+    }
+
+    // The preview tile turns the short way round to each newly chosen turn, so its quarter turns
+    // keep counting past a full circle rather than unwinding.
+    let turnsSoFar = 0
+    const previewTurns = $derived.by(() => {
+        const rotation = gameSession.chosenRotation
+        if (rotation === undefined) return turnsSoFar
+        const current = ((turnsSoFar % 4) + 4) % 4
+        let step = rotation - current
+        if (step > 2) step -= 4
+        if (step < -2) step += 4
+        turnsSoFar += step
+        return turnsSoFar
+    })
 </script>
 
 <rect class="ground" x="0" y="0" width={size.width} height={size.height} rx="12"></rect>
@@ -65,40 +104,31 @@
 <CentralStation x={centre.x} y={centre.y} />
 
 {#each stations as station (cellKey(station.cell))}
+    {@const key = cellKey(station.cell)}
     {@const origin = cellOrigin(station.cell, bounds)}
     {@const owned = station.ownerId !== undefined}
-    {@const badge = gameSession.stationBadges.get(cellKey(station.cell))}
+    {@const faceUp = station.faceUp && !flipped.has(key)}
+    {@const badge = gameSession.stationBadges.get(key)}
     <g class="station" class:owned transform="translate({origin.x} {origin.y})">
-        {#if station.faceUp}
-            <image
-                href={tileFaceUrl(station.tileId)}
-                width={CellSize}
-                height={CellSize}
-                transform="rotate({station.rotation * 90} {half} {half})"
-            ></image>
-        {:else}
-            <image href={TileBackUrl} width={CellSize} height={CellSize}></image>
-        {/if}
-        <rect class="edge" x="0.5" y="0.5" width={CellSize - 1} height={CellSize - 1}></rect>
-        {#if station.ownerId}
-            <rect
-                class="cube"
-                x="4"
-                y="4"
-                width="26"
-                height="26"
-                rx="3"
-                fill={gameSession.colors.getPlayerBgColorValue(station.ownerId)}
-            ></rect>
-            <text
-                class="count"
-                x="17"
-                y="17"
-                dy={centredTextShift(16)}
-                text-anchor="middle"
-                fill={gameSession.colors.getPlayerTextColorValue(station.ownerId)}
-                >{station.cubes}</text
-            >
+        <g data-station-tile={key}>
+            {#if faceUp}
+                <image
+                    href={tileFaceUrl(station.tileId)}
+                    width={CellSize}
+                    height={CellSize}
+                    transform="rotate({station.rotation * 90} {half} {half})"
+                ></image>
+            {:else}
+                <image href={TileBackUrl} width={CellSize} height={CellSize}></image>
+            {/if}
+            <rect class="edge" x="0.5" y="0.5" width={CellSize - 1} height={CellSize - 1}></rect>
+        </g>
+        {#if station.ownerId && station.cubes > 0}
+            <CubePile
+                {key}
+                count={station.cubes}
+                color={gameSession.colors.getPlayerBgColorValue(station.ownerId)}
+            />
         {/if}
         {#if badge !== undefined}
             <rect class="badge" x={CellSize - 38} y={CellSize - 26} width="34" height="22" rx="11"
@@ -121,13 +151,27 @@
                 aria-label="Show this station’s route"
                 onclick={() => inspect(station)}
                 onkeydown={(event) => activate(event, () => inspect(station))}
+                onpointerenter={(event) => hover(event, station)}
+                onpointerleave={(event) => hover(event, undefined)}
             ></rect>
         {/if}
     </g>
 {/each}
 
+{#each offRoute as station (cellKey(station.cell))}
+    {@const origin = cellOrigin(station.cell, bounds)}
+    <rect class="dim" x={origin.x} y={origin.y} width={CellSize} height={CellSize}></rect>
+{/each}
+
 {#each gameSession.shownRoutes as route (route.key)}
-    <polyline class="route" points={routePoints(route.cells)} style:stroke={route.color}></polyline>
+    {@const start = centreOf(route.cells[0])}
+    {@const end = centreOf(route.cells[route.cells.length - 1])}
+    <g class="shown-route" style:--route={route.color}>
+        <polyline class="route-under" points={routePoints(route.cells)}></polyline>
+        <polyline class="route-over" points={routePoints(route.cells)}></polyline>
+        <circle class="route-start" cx={start.x} cy={start.y} r="40"></circle>
+        <circle class="route-end" cx={end.x} cy={end.y} r="40"></circle>
+    </g>
 {/each}
 
 {#each sticks as closed (`${cellKey(closed.cell)}-${closed.side}`)}
@@ -135,6 +179,8 @@
     <rect class="stick" x={stick.x} y={stick.y} width={stick.width} height={stick.height} rx="3"
     ></rect>
 {/each}
+
+<RouteShows {bounds} />
 
 {#each gameSession.placementOptions as option (cellKey(option.cell))}
     {@const origin = cellOrigin(option.cell, bounds)}
@@ -151,14 +197,17 @@
         onkeydown={(event) => activate(event, () => gameSession.chooseCell(option.cell))}
     >
         {#if chosen && gameSession.placement}
-            <image
-                class="preview"
-                href={tileFaceUrl(gameSession.placement.tileId)}
-                width={CellSize}
-                height={CellSize}
-                transform="rotate({(gameSession.chosenRotation ?? option.rotations[0]) *
-                    90} {half} {half})"
-            ></image>
+            <g transform="translate({half} {half})">
+                <g class="preview" style:transform="rotate({previewTurns * 90}deg)">
+                    <image
+                        href={tileFaceUrl(gameSession.placement.tileId)}
+                        x={-half}
+                        y={-half}
+                        width={CellSize}
+                        height={CellSize}
+                    ></image>
+                </g>
+            </g>
         {/if}
         <rect class="outline" x="4" y="4" width={CellSize - 8} height={CellSize - 8} rx="8"></rect>
     </g>
@@ -191,16 +240,6 @@
         stroke-width: 3;
     }
 
-    .cube {
-        stroke: rgb(0 0 0 / 0.6);
-        stroke-width: 1.5;
-    }
-
-    .count {
-        font-size: 16px;
-        font-weight: 800;
-    }
-
     .badge {
         fill: #10161f;
         stroke: #f5c542;
@@ -213,14 +252,44 @@
         fill: #f5c542;
     }
 
-    .route {
+    .dim {
+        fill: rgb(8 12 18 / 0.55);
+        pointer-events: none;
+    }
+
+    .shown-route {
+        pointer-events: none;
+    }
+
+    .route-under {
         fill: none;
-        stroke: #57d3ff;
-        stroke-width: 8;
+        stroke: rgb(8 12 18 / 0.7);
+        stroke-width: 20;
         stroke-linecap: round;
         stroke-linejoin: round;
-        stroke-opacity: 0.85;
-        pointer-events: none;
+    }
+
+    .route-over {
+        fill: none;
+        stroke: var(--route);
+        stroke-width: 9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .route-start,
+    .route-end {
+        fill: none;
+        stroke-width: 4;
+    }
+
+    .route-start {
+        stroke: var(--route);
+    }
+
+    .route-end {
+        stroke: #f5c542;
+        stroke-dasharray: 10 6;
     }
 
     .stick {
@@ -259,5 +328,12 @@
 
     .preview {
         opacity: 0.85;
+        transition: transform 0.28s ease-in-out;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .preview {
+            transition: none;
+        }
     }
 </style>

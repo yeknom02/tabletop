@@ -19,6 +19,16 @@
         {/if}
     </div>
     <div class="buttons">
+        <button
+            type="button"
+            class="button"
+            title="How revenue shows each route: one station at a time with its search, or all at once"
+            onclick={() =>
+                gameSession.routePace.set(
+                    gameSession.routePace.current === 'steps' ? 'quick' : 'steps'
+                )}
+            >Routes: {gameSession.routePace.current === 'steps' ? 'Step by step' : 'Quick'}</button
+        >
         {#if gameSession.canUndo}
             <button type="button" class="button" onclick={() => gameSession.undo()}>Undo</button>
         {/if}

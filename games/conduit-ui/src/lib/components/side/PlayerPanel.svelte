@@ -6,7 +6,7 @@
     let { playerId }: { playerId: string } = $props()
 
     const gameSession = getGameSession()
-    const state = $derived(gameSession.gameState)
+    const state = $derived(gameSession.tableState)
     const seat = $derived(state.getPlayerState(playerId))
     const stations = $derived(
         state.ownedStations().filter((station) => station.ownerId === playerId)
@@ -36,7 +36,7 @@
     <div class="readout">
         <div class="cash">
             <span class="label">Cash</span>
-            <span class="value">${seat.cash}</span>
+            <span class="value">${gameSession.cashOf(playerId)}</span>
         </div>
         <dl class="stats">
             <div>

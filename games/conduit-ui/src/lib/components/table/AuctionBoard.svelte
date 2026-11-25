@@ -11,12 +11,18 @@
         centredTextShift
     } from '$lib/utils/tableLayout.js'
     import { tileFaceUrl } from '$lib/utils/tileArt.js'
+    import { cubeShape, TrackCubeSize } from '$lib/utils/cubeShape.js'
     import { BidTrackSpaces } from '@tabletop/conduit'
+    import Cube from './Cube.svelte'
 
     const gameSession = getGameSession()
-    const market = $derived(gameSession.gameState.market)
-    const offerSlot = $derived(gameSession.offer?.slot)
-    const placingSlot = $derived(gameSession.pendingPlacement?.slot)
+    const market = $derived(gameSession.tableState.market)
+    const offerSlot = $derived(gameSession.shownOffer?.slot)
+    const placingSlot = $derived(gameSession.shownPlacement?.slot)
+    const offerPrice = $derived(gameSession.shownOffer?.price)
+    // A cube in a track space, centred, and the buyer's cube resting on a bought tile.
+    const cube = cubeShape(TrackCubeSize)
+    const cubeInset = { x: TrackCell / 2, y: (TrackCell - cube.height) / 2 }
     const myColor = $derived(
         gameSession.myPlayer
             ? gameSession.colors.getPlayerBgColorValue(gameSession.myPlayer.id)
@@ -59,44 +65,65 @@
                 <rect class="track" x={origin.x} y={origin.y} width={TrackCell} height={TrackCell}
                 ></rect>
                 {#if bidder}
-                    <rect
-                        class="cube"
-                        class:bottom={index === 0 && offerSlot === slot}
-                        x={origin.x + 6}
-                        y={origin.y + 6}
-                        width={TrackCell - 12}
-                        height={TrackCell - 12}
-                        rx="2"
-                        fill={gameSession.colors.getPlayerBgColorValue(bidder)}
-                    ></rect>
+                    {#if index === 0 && offerSlot === slot}
+                        <rect
+                            class="bottom"
+                            x={origin.x + 1.5}
+                            y={origin.y + 1.5}
+                            width={TrackCell - 3}
+                            height={TrackCell - 3}
+                            rx="3"
+                        ></rect>
+                    {/if}
+                    <g transform="translate({origin.x + cubeInset.x} {origin.y + cubeInset.y})">
+                        <g data-bid="{slot}-{index}">
+                            <Cube
+                                size={TrackCubeSize}
+                                color={gameSession.colors.getPlayerBgColorValue(bidder)}
+                            />
+                        </g>
+                    </g>
                 {:else if biddable && index === spot?.bids.length && myColor}
-                    <rect
+                    <g
                         class="ghost"
-                        x={origin.x + 6}
-                        y={origin.y + 6}
-                        width={TrackCell - 12}
-                        height={TrackCell - 12}
-                        rx="2"
-                        fill={myColor}
-                    ></rect>
+                        transform="translate({origin.x + cubeInset.x} {origin.y + cubeInset.y})"
+                    >
+                        <Cube size={TrackCubeSize} color={myColor} />
+                    </g>
                 {/if}
             {/each}
             {#if spot?.tileId !== undefined && gameSession.tableAnimator.flyingTile?.slot !== slot}
-                <image
-                    href={tileFaceUrl(spot.tileId)}
-                    x={TrackCell + 6}
-                    y={TrackCell + 10}
-                    width={TileInSpot}
-                    height={TileInSpot}
-                ></image>
+                <g
+                    transform="translate({TrackCell + 6 + TileInSpot / 2} {TrackCell +
+                        10 +
+                        TileInSpot / 2})"
+                >
+                    <g data-market-tile={slot}>
+                        <image
+                            href={tileFaceUrl(spot.tileId)}
+                            x={-TileInSpot / 2}
+                            y={-TileInSpot / 2}
+                            width={TileInSpot}
+                            height={TileInSpot}
+                        ></image>
+                        {#if spot.buyerId}
+                            <g transform="translate(0 {-cube.height / 2})">
+                                <Cube
+                                    size={TrackCubeSize + 4}
+                                    color={gameSession.colors.getPlayerBgColorValue(spot.buyerId)}
+                                />
+                            </g>
+                        {/if}
+                    </g>
+                </g>
             {/if}
-            {#if offerSlot === slot && gameSession.offer}
+            {#if offerSlot === slot && offerPrice !== undefined}
                 <text
                     class="price"
                     x={TrackCell + 6 + TileInSpot / 2}
                     y={TrackCell + 10 + TileInSpot + 24}
                     dy={centredTextShift(20)}
-                    text-anchor="middle">${gameSession.offer.price}</text
+                    text-anchor="middle">${offerPrice}</text
                 >
             {/if}
         </g>
@@ -150,12 +177,8 @@
         stroke-width: 1;
     }
 
-    .cube {
-        stroke: rgb(0 0 0 / 0.6);
-        stroke-width: 1.5;
-    }
-
-    .cube.bottom {
+    .bottom {
+        fill: none;
         stroke: #f5c542;
         stroke-width: 3;
     }
