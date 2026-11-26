@@ -90,7 +90,7 @@ function asAction(game: Game, move: BotAction, id = 'candidate'): GameAction {
 function candidates(state: HydratedConduitGameState, type: ActionType): Move[] {
     switch (type) {
         case ActionType.PlaceBid:
-            return state.market.map((_, slot) => ({ type, slot }))
+            return state.market.map(({ spot }) => ({ type, spot }))
         case ActionType.PlaceTile: {
             const placement = state.pendingPlacement()
             if (!placement) return []

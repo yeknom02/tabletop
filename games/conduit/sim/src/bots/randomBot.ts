@@ -17,7 +17,7 @@ export class RandomBot implements Bot {
                 return {
                     decision: {
                         type: ActionType.PlaceBid,
-                        slot: pick(state.biddableSlots())
+                        spot: pick(state.biddableSpots())
                     } as const
                 }
             case MachineState.Offering:

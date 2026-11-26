@@ -150,11 +150,11 @@ function bid(choice: Choice, thoughtful: boolean): Move {
         return worthTo.get(key) ?? 0
     }
     const scored = bids.map((move) => {
-        const slot = view.market[Number(move.slot)]
-        const tileId = slot.tileId as number
-        const price = BasePrice + slot.bids.length + 1
+        const entry = view.marketSpot(Number(move.spot))
+        const tileId = entry.tileId as number
+        const price = BasePrice + entry.bids.length + 1
         const mine = worth(tileId, playerId, price) - price
-        const leader = slot.bids[0]
+        const leader = entry.bids[0]
         let score: number
         if (leader === undefined) {
             score = mine

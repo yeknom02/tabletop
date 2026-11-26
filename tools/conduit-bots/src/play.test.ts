@@ -25,8 +25,8 @@ test('the same seed and seats play the same game', () => {
     const second = playGame(3, 5, ['random@v1'])
     const moves = (kept: typeof first) =>
         kept.scenario.actions.map((action) => {
-            const { type, playerId, slot, cell, extraCubes } = action as Record<string, unknown>
-            return JSON.stringify({ type, playerId, slot, cell, extraCubes })
+            const { type, playerId, spot, cell, extraCubes } = action as Record<string, unknown>
+            return JSON.stringify({ type, playerId, spot, cell, extraCubes })
         })
     assert.deepEqual(moves(second), moves(first))
     assert.deepEqual(second.summary.finalCash, first.summary.finalCash)

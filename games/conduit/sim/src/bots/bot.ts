@@ -2,7 +2,7 @@ import type { OffsetCoordinates, RandomFunction } from '@tabletop/common'
 import { ActionType, type HydratedConduitGameState, type RouteChoice } from '../../../src/index.js'
 
 export type Decision =
-    | { type: ActionType.PlaceBid; slot: number }
+    | { type: ActionType.PlaceBid; spot: number }
     | { type: ActionType.BuyTile }
     | { type: ActionType.PassTile }
     | { type: ActionType.PassBid }

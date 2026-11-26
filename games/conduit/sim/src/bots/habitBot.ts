@@ -250,9 +250,9 @@ export class HabitBot implements Bot {
     private bid({ state, playerId, random, canPassBid }: BotContext) {
         const habits = this.habits
         const mine = new Map<number, number>()
-        const scores = state.biddableSlots().map((slot) => {
-            const { tileId, bids } = state.market[slot]
-            assertExists(tileId, 'A biddable slot holds a tile')
+        const scores = state.biddableSpots().map((spot) => {
+            const { tileId, bids } = state.marketSpot(spot)
+            assertExists(tileId, 'A biddable spot holds a tile')
             if (!mine.has(tileId)) mine.set(tileId, this.valueTo(state, tileId, playerId, habits))
             const myValue = mine.get(tileId) ?? 0
             const price = BasePrice + bids.length + 1
@@ -275,7 +275,7 @@ export class HabitBot implements Bot {
                     habits.collect * likelyBuy +
                     habits.want * 0.25 * Math.max(0, myValue - price) * (1 - likelyBuy)
             }
-            return { slot, raw: score, score: score + habits.jitter * random() }
+            return { spot, raw: score, score: score + habits.jitter * random() }
         })
         const choice = scores.reduce((best, entry) => (entry.score > best.score ? entry : best))
         if (canPassBid) {
@@ -285,12 +285,12 @@ export class HabitBot implements Bot {
                 return { decision: { type: ActionType.PassBid } as const, note }
             }
             return {
-                decision: { type: ActionType.PlaceBid, slot: choice.slot } as const,
+                decision: { type: ActionType.PlaceBid, spot: choice.spot } as const,
                 note
             }
         }
         return {
-            decision: { type: ActionType.PlaceBid, slot: choice.slot } as const,
+            decision: { type: ActionType.PlaceBid, spot: choice.spot } as const,
             note: noteOf(scores.map((entry) => entry.score))
         }
     }
