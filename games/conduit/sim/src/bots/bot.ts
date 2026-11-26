@@ -30,7 +30,7 @@ export interface BotContext {
 export interface Bot {
     readonly name: string
     decide(context: BotContext): { decision: Decision; note?: DecisionNote }
-    // Which of a station's tied routes to take when they pay tolls to different players, by its
+    // Which of a station's tied routes to take when they pay bonuses to different players, by its
     // position among the choice's options.
     chooseRoute?(context: BotContext, choice: RouteChoice): number
 }

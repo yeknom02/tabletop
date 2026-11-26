@@ -2,7 +2,7 @@ import { basename } from 'node:path'
 import { loadRun } from './load.js'
 
 // The cube and cash economy, one row per run: revenue the board pays per game (route income plus
-// tolls), payout rounds after the fifth, stations paying nothing, bids per player per round, cubes in supply at
+// bonuses), payout rounds after the fifth, stations paying nothing, bids per player per round, cubes in supply at
 // the start of rounds 2–5, extras per new station, tile prices and unbought tiles.
 // Usage: tsx sim/src/analyze/economy.ts <run dir>...
 const mean = (values: number[]) =>
@@ -25,7 +25,7 @@ for (const dir of process.argv.slice(2)) {
     const { games } = loadRun(dir)
     if (games.length === 0) continue
     const players = games[0].players
-    const tolls = mean(games.map((game) => game.tollIncome.reduce((a, b) => a + b, 0)))
+    const bonuses = mean(games.map((game) => game.bonusIncome.reduce((a, b) => a + b, 0)))
     const routeIncome = mean(
         games.map((game) => game.revenues.reduce((total, entry) => total + entry.amount, 0))
     )
@@ -41,7 +41,7 @@ for (const dir of process.argv.slice(2)) {
         [
             basename(dir),
             mean(games.map((game) => game.payoutRoundsAfterLast)).toFixed(1),
-            `$${(routeIncome + tolls).toFixed(0)} (tolls $${tolls.toFixed(0)})`,
+            `$${(routeIncome + bonuses).toFixed(0)} (bonuses $${bonuses.toFixed(0)})`,
             `${Math.round((100 * revenues.filter((entry) => entry.amount === 0).length) / revenues.length)}%`,
             mean(games.map((game) => game.bids.reduce((a, b) => a + b, 0) / players / 5)).toFixed(
                 1

@@ -17,14 +17,14 @@ import {
 
 export type PlacementChoice = { cell: OffsetCoordinates; rotation: number }
 
-// What every Power Station would earn if revenue were paid now, tolls included, summed per owner.
+// What every Power Station would earn if revenue were paid now, bonuses included, summed per owner.
 export function revenueByOwner(board: Board): Map<string, number> {
     const totals = new Map<string, number>()
     const add = (playerId: string, amount: number) =>
         totals.set(playerId, (totals.get(playerId) ?? 0) + amount)
     for (const earning of stationEarnings(board)) {
         add(earning.ownerId, earning.amount)
-        for (const toll of earning.tolls) add(toll.playerId, toll.amount)
+        for (const bonus of earning.bonuses) add(bonus.playerId, bonus.amount)
     }
     return totals
 }

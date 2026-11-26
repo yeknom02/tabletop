@@ -60,12 +60,12 @@ export type GameRecord = {
         allowed?: number
     })[]
     revenues: { round: number; seat: number; letter: string; amount: number; stations: number }[]
-    // Toll income per seat, and how many tolls each route paid out.
-    tollIncome: number[]
+    // Bonus income per seat, and how many bonuses each route paid out.
+    bonusIncome: number[]
     // Cubes on each bid track when bidding ends, per round, in market order.
     trackHeights?: number[][]
-    tollsPerRoute: number[]
-    // Ties settled by an owner choosing who gets the toll (designer ruling, 2026-11-25).
+    bonusesPerRoute: number[]
+    // Ties settled by an owner choosing who gets the bonus (designer ruling, 2026-11-25).
     routeChoices?: number
     // Occupied neighbours (Central Station included) of each face-up station when placed.
     placedNeighbors: number[]
@@ -117,8 +117,8 @@ export function playGame({ seed, bots }: { seed: number; bots: Bot[] }): GameRec
         offers: [],
         placements: [],
         revenues: [],
-        tollIncome: playerIds.map(() => 0),
-        tollsPerRoute: [],
+        bonusIncome: playerIds.map(() => 0),
+        bonusesPerRoute: [],
         placedNeighbors: [],
         steps: 0
     }
@@ -156,9 +156,10 @@ export function playGame({ seed, bots }: { seed: number; bots: Bot[] }): GameRec
                         amount: revenue.amount,
                         stations: revenue.amount > 0 ? revenue.amount - 1 : 0
                     })
-                    if (revenue.amount > 0) record.tollsPerRoute.push(revenue.tolls?.length ?? 0)
-                    for (const toll of revenue.tolls ?? []) {
-                        record.tollIncome[seatOf(toll.playerId)] += toll.amount
+                    if (revenue.amount > 0)
+                        record.bonusesPerRoute.push(revenue.bonuses?.length ?? 0)
+                    for (const bonus of revenue.bonuses ?? []) {
+                        record.bonusIncome[seatOf(bonus.playerId)] += bonus.amount
                     }
                 }
             }
@@ -219,7 +220,7 @@ export function playGame({ seed, bots }: { seed: number; bots: Bot[] }): GameRec
             canPassBid:
                 hydrated.machineState === MachineState.Bidding && hydrated.canPassBid(playerId)
         }
-        // A tie that decides who gets a toll: the owner's habit picks the route (the first option
+        // A tie that decides who gets a bonus: the owner's habit picks the route (the first option
         // for a bot without one).
         const choice =
             hydrated.machineState === MachineState.ChoosingRoutes

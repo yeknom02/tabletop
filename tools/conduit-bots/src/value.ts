@@ -13,14 +13,14 @@ import {
 // How a bot measures money on the board, ported from the bot studies (games/conduit/sim). It looks
 // only at the board as it stands: what each station would earn if revenue were paid now.
 
-// What every station would earn now, tolls included, summed per owner.
+// What every station would earn now, bonuses included, summed per owner.
 export function earningsByOwner(board: Board): Map<string, number> {
     const totals = new Map<string, number>()
     const add = (playerId: string, amount: number) =>
         totals.set(playerId, (totals.get(playerId) ?? 0) + amount)
     for (const earning of stationEarnings(board)) {
         add(earning.ownerId, earning.amount)
-        for (const toll of earning.tolls) add(toll.playerId, toll.amount)
+        for (const bonus of earning.bonuses) add(bonus.playerId, bonus.amount)
     }
     return totals
 }
@@ -66,7 +66,7 @@ export function spotEffects(
         })
 }
 
-// What the new station itself pays its owner each payout at this spot, before tolls to others.
+// What the new station itself pays its owner each payout at this spot, before bonuses to others.
 export function stationPayout(
     state: HydratedConduitGameState,
     tileId: number,

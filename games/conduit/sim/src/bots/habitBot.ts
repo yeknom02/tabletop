@@ -57,11 +57,11 @@ export type Habits = {
     jitter: number
     // When passing is allowed, pass unless the best bid scores at least this much.
     passBelow: number
-    // Which tied route to take when the routes pay tolls to different players: 'random', 'first'
+    // Which tied route to take when the routes pay bonuses to different players: 'random', 'first'
     // (the order found), 'weakest' (reward the least threatening competitors: the option whose
     // best-placed payee stands lowest, paying nobody if it can) or 'strongest' (the opposite).
     // Standing is cash plus what the player's stations would earn at this payout.
-    tollTo: string
+    bonusTo: string
 }
 
 export const BalancedHabits: Habits = {
@@ -82,7 +82,7 @@ export const BalancedHabits: Habits = {
     ignoreCubeCost: false,
     jitter: 0.5,
     passBelow: 0.5,
-    tollTo: 'random'
+    bonusTo: 'random'
 }
 
 type TileView = { best?: PlacementEffect; perPayout: number }
@@ -100,22 +100,22 @@ export class HabitBot implements Bot {
 
     chooseRoute(context: BotContext, choice: RouteChoice): number {
         const { state, random } = context
-        const policy = this.habits.tollTo
+        const policy = this.habits.bonusTo
         if (policy === 'first') return 0
         if (policy === 'random') return Math.floor(random() * choice.options.length)
         const income = revenueByOwner(state.board)
         const standing = (playerId: string) =>
             state.getPlayerState(playerId).cash + (income.get(playerId) ?? 0)
         // An option's threat: its best-placed payee's standing, then how much it pays out in all.
-        const threat = (tolls: string[]): [number, number] => [
-            tolls.length === 0 ? -Infinity : Math.max(...tolls.map(standing)),
-            tolls.length
+        const threat = (bonuses: string[]): [number, number] => [
+            bonuses.length === 0 ? -Infinity : Math.max(...bonuses.map(standing)),
+            bonuses.length
         ]
         const sign = policy === 'strongest' ? -1 : 1
         let best = 0
         choice.options.forEach((option, index) => {
-            const [a, b] = threat(option.tolls)
-            const [c, d] = threat(choice.options[best].tolls)
+            const [a, b] = threat(option.bonuses)
+            const [c, d] = threat(choice.options[best].bonuses)
             if (sign * a < sign * c || (a === c && sign * b < sign * d)) best = index
         })
         return best

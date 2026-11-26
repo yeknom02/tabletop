@@ -3,11 +3,11 @@ import type { GameRecord } from '../game.js'
 import { loadRun, meanCI, winShare } from './load.js'
 
 // Who tied routes pay (designer ruling, 2026-11-25): how often owners choose, and what their
-// toll habit does to the race. Catch-up is the round-3 cash leader's win share (games with a
-// clear leader); margin is first place over second, spread first over last; toll income is the
-// mean a player collected in tolls by where they finished. With a mixed lineup (--rotate),
+// bonus habit does to the race. Catch-up is the round-3 cash leader's win share (games with a
+// clear leader); margin is first place over second, spread first over last; bonus income is the
+// mean a player collected in bonuses by where they finished. With a mixed lineup (--rotate),
 // "challenger" is the win share of the bot whose spec differs from the rest.
-// Usage: tsx sim/src/analyze/tolls.ts <run dir>...
+// Usage: tsx sim/src/analyze/bonuses.ts <run dir>...
 const mean = (values: number[]) => (values.length ? meanCI(values).mean : NaN)
 const ci = (values: number[]) => {
     const { mean: m, low, high } = meanCI(values)
@@ -32,7 +32,7 @@ console.log(
         'margin',
         'spread',
         'close (≤$2)',
-        'toll $ by place (1st…last)',
+        'bonus $ by place (1st…last)',
         'challenger'
     ].join(' | ')
 )
@@ -47,8 +47,8 @@ for (const dir of process.argv.slice(2)) {
         return leader === undefined ? [] : [winShare(game, leader)]
     })
     const margins = ranked.map((order) => order[0].cash - order[1].cash)
-    const tollByPlace = Array.from({ length: players }, (_, place) =>
-        mean(games.map((game, index) => game.tollIncome[ranked[index][place].seat]))
+    const bonusByPlace = Array.from({ length: players }, (_, place) =>
+        mean(games.map((game, index) => game.bonusIncome[ranked[index][place].seat]))
     )
     const specs = games[0].bots
     const odd = specs.find((spec) => specs.filter((other) => other === spec).length === 1)
@@ -72,7 +72,7 @@ for (const dir of process.argv.slice(2)) {
             mean(margins).toFixed(2),
             mean(ranked.map((order) => order[0].cash - order[order.length - 1].cash)).toFixed(1),
             `${Math.round((100 * margins.filter((margin) => margin <= 2).length) / games.length)}%`,
-            tollByPlace.map((amount) => amount.toFixed(1)).join(' / '),
+            bonusByPlace.map((amount) => amount.toFixed(1)).join(' / '),
             challenger
         ].join(' | ')
     )
