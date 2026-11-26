@@ -61,10 +61,9 @@
         {#if gameSession.canPassBid}
             <div class="buttons">
                 <button type="button" class="choice" onclick={() => gameSession.passBid()}
-                    >Pass</button
+                    >Pass for the round</button
                 >
             </div>
-            <p class="detail">You can't bid again this round</p>
         {/if}
     {:else if gameSession.isOffered && gameSession.offer}
         {@const offer = gameSession.offer}
