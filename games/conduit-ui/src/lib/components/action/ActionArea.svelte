@@ -17,6 +17,10 @@
         return action ? describeAction(action, name) : undefined
     })
     const myBids = $derived(gameSession.myPlayer ? state.bidsBy(gameSession.myPlayer.id) : 0)
+    const bidsBeforePass = $derived.by(() => {
+        const left = MinimumBids - myBids
+        return `${left}${myBids > 0 ? ' more' : ''} bid${left === 1 ? '' : 's'} before you can pass`
+    })
 
     function bonusLabel(bonuses: string[]): string {
         if (bonuses.length === 0) return 'No bonus'
@@ -55,7 +59,7 @@
     {:else if gameSession.isBidding}
         <p class="prompt">{gameSession.canPassBid ? 'Bid on a tile or pass' : 'Bid on a tile'}</p>
         <p class="detail">
-            {#if myBids < MinimumBids}Bids {myBids} of {MinimumBids} ·{' '}{/if}{gameSession.mySupply}
+            {#if myBids < MinimumBids}{bidsBeforePass} ·{' '}{/if}{gameSession.mySupply}
             in supply
         </p>
         {#if gameSession.canPassBid}
