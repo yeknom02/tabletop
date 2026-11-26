@@ -2,8 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushSync } from 'svelte'
 import { GameSession } from '@tabletop/frontend-components'
 import { MachineState } from '@tabletop/conduit'
-import placingAStation from '../../scenarios/placing-a-station.json'
-import { disposeSessions, openSessionOn } from '$lib/testing/sessionHarness.js'
+import { disposeSessions, firstPlacementTable, openSessionOn } from '$lib/testing/sessionHarness.js'
 
 afterEach(() => {
     disposeSessions()
@@ -11,10 +10,10 @@ afterEach(() => {
 })
 
 async function openPlacement() {
-    const session = await openSessionOn(placingAStation)
+    const session = await openSessionOn(firstPlacementTable())
     expect(session.gameState.machineState).toBe(MachineState.Placing)
     const option = session.placementOptions.find((candidate) => candidate.rotations.length > 1)
-    if (!option) throw Error('The scenario offers a cell with more than one turn')
+    if (!option) throw Error('Some cell offers more than one turn')
     return { session, option }
 }
 
