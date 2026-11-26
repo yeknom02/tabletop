@@ -2,6 +2,7 @@
     import type { OffsetCoordinates } from '@tabletop/common'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { CellSize, cellOrigin, type BoardBounds } from '$lib/utils/boardLayout.js'
+    import { RingStroke } from '$lib/utils/emblem.js'
     import { centredTextShift } from '$lib/utils/tableLayout.js'
     import type { RouteShow } from '$lib/animators/routeAnimator.svelte.js'
     import RouteFlow from './RouteFlow.svelte'
@@ -132,14 +133,14 @@ every frame. -->
         {/if}
         <g transform="translate({home.x} {home.y}) rotate({show.emblem.rotation})">
             <g data-show-ring={id} opacity="0">
-                <path class="station-ring" d={show.emblem.path}></path>
+                <path class="station-ring" d={show.emblem.path} stroke-width={RingStroke}></path>
             </g>
         </g>
         {#each show.ends as end (`${end.cell.col},${end.cell.row}`)}
             {@const point = centre(end.cell)}
             <g transform="translate({point.x} {point.y}) rotate({end.emblem.rotation})">
                 <g data-show-end={id} opacity="0">
-                    <path class="end" d={end.emblem.path}></path>
+                    <path class="end" d={end.emblem.path} stroke-width={RingStroke}></path>
                 </g>
             </g>
         {/each}
@@ -219,7 +220,6 @@ every frame. -->
     .station-ring,
     .end {
         fill: none;
-        stroke-width: 4.5;
         stroke-linejoin: round;
     }
 

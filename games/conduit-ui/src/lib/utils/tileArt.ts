@@ -1,7 +1,6 @@
 import type { Point } from '@tabletop/common'
 import { Side, StationLetter, Terminal } from '@tabletop/conduit'
 
-// The designer's tile art, drawn in its own square of TileArtSize units.
 export const TileArtSize = 531.496
 export const TileArtCentre = TileArtSize / 2
 export const TileBoardColor = 'rgb(20,50,96)'
@@ -11,6 +10,13 @@ export const TraceOutlineHalfWidth = 19
 export const TraceOutlineColor = 'rgb(35,31,32)'
 export const CopperEdgeColor = 'rgb(150,104,55)'
 export const CopperCentreColor = 'rgb(219,116,13)'
+
+export const TraceRunStart = TileArtCentre - TraceHalfWidth
+export const TraceRunEnd = TileArtCentre + TraceHalfWidth
+export const TraceOutlineStart = TileArtCentre - TraceOutlineHalfWidth
+// The north and south runs end in mitred points over the east-west run, as the art draws them.
+export const NorthTraceRun = `M${TraceRunStart} 0L${TraceRunEnd} 0L${TraceRunEnd} ${TraceRunStart}L${TileArtCentre} ${TileArtCentre}L${TraceRunStart} ${TraceRunStart}Z`
+export const SouthTraceRun = `M${TraceRunStart} ${TileArtSize}L${TraceRunEnd} ${TileArtSize}L${TraceRunEnd} ${TraceRunEnd}L${TileArtCentre} ${TileArtCentre}L${TraceRunStart} ${TraceRunEnd}Z`
 
 export const TerminalRadius = 59.172
 export const TerminalColors: Record<Terminal, string> = {
@@ -57,7 +63,6 @@ export const Emblems: Record<StationLetter, EmblemArt> = {
     }
 }
 
-// The emblem's shape centred on the origin, every edge pushed out by `grow`, then scaled.
 export function emblemPath(letter: StationLetter, grow = 0, scale = 1): string {
     const shape = Emblems[letter].shape
     switch (shape.kind) {
@@ -67,7 +72,7 @@ export function emblemPath(letter: StationLetter, grow = 0, scale = 1): string {
             return polygonPath(
                 [0, 1, 2, 3, 4, 5].map((corner) => {
                     const angle = ((corner * 60 - 90) * Math.PI) / 180
-                    return [radius * Math.cos(angle), radius * Math.sin(angle)]
+                    return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) }
                 }),
                 scale
             )
@@ -76,10 +81,10 @@ export function emblemPath(letter: StationLetter, grow = 0, scale = 1): string {
             const half = shape.halfSide + grow
             return polygonPath(
                 [
-                    [-half, -half],
-                    [half, -half],
-                    [half, half],
-                    [-half, half]
+                    { x: -half, y: -half },
+                    { x: half, y: -half },
+                    { x: half, y: half },
+                    { x: -half, y: half }
                 ],
                 scale
             )
@@ -92,10 +97,10 @@ export function emblemPath(letter: StationLetter, grow = 0, scale = 1): string {
             const half = shape.halfDiagonal + grow * Math.SQRT2
             return polygonPath(
                 [
-                    [0, -half],
-                    [half, 0],
-                    [0, half],
-                    [-half, 0]
+                    { x: 0, y: -half },
+                    { x: half, y: 0 },
+                    { x: 0, y: half },
+                    { x: -half, y: 0 }
                 ],
                 scale
             )
@@ -103,12 +108,12 @@ export function emblemPath(letter: StationLetter, grow = 0, scale = 1): string {
     }
 }
 
-function polygonPath(points: [number, number][], scale: number): string {
+function polygonPath(points: Point[], scale: number): string {
     return (
         points
             .map(
-                ([x, y], index) =>
-                    `${index === 0 ? 'M' : 'L'}${round(x * scale)} ${round(y * scale)}`
+                (point, index) =>
+                    `${index === 0 ? 'M' : 'L'}${round(point.x * scale)} ${round(point.y * scale)}`
             )
             .join('') + 'Z'
     )

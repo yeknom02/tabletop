@@ -10,7 +10,6 @@
         terminalCentre
     } from '$lib/utils/tileArt.js'
 
-    // A tile's face, or its back when no tile is given, from the parts in TileArtDefs.
     let {
         tileId,
         x = 0,

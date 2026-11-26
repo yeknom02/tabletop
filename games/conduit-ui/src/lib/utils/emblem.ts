@@ -1,11 +1,12 @@
 import type { StationLetter } from '@tabletop/conduit'
 import { CellSize } from './boardLayout.js'
-import { TileArtSize, emblemPath } from './tileArt.js'
+import { EmblemStroke, TileArtSize, emblemPath } from './tileArt.js'
 
-// The ring's 4.5-unit stroke sits this far outside the emblem, leaving an even 3-unit gap.
-const RingOffset = 5.25
+export const RingStroke = 4.5
+const RingGap = 3
 
 export function emblemRing(letter: StationLetter): string {
     const scale = CellSize / TileArtSize
-    return emblemPath(letter, RingOffset / scale, scale)
+    const outsideOutline = EmblemStroke / 2 + (RingGap + RingStroke / 2) / scale
+    return emblemPath(letter, outsideOutline, scale)
 }
