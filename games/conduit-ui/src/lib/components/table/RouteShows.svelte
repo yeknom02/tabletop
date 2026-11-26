@@ -158,21 +158,21 @@ every frame. -->
                 </g>
             </g>
         {/if}
-        {#each show.tolls as toll (`${toll.cell.col},${toll.cell.row}`)}
-            {@const point = centre(toll.cell)}
+        {#each show.bonuses as bonus (`${bonus.cell.col},${bonus.cell.row}`)}
+            {@const point = centre(bonus.cell)}
             <g transform="translate({point.x} {point.y})">
                 <g data-show-pay={id} opacity="0">
                     <rect
-                        class="toll"
+                        class="bonus"
                         x="-24"
                         y="-14"
                         width="48"
                         height="28"
                         rx="14"
-                        style:fill={toll.color}
+                        style:fill={bonus.color}
                     ></rect>
-                    <text class="toll-text" text-anchor="middle" dy={centredTextShift(16)}
-                        >+${toll.amount}</text
+                    <text class="bonus-text" text-anchor="middle" dy={centredTextShift(16)}
+                        >+${bonus.amount}</text
                     >
                 </g>
             </g>
@@ -255,12 +255,12 @@ every frame. -->
         fill: #1b1505;
     }
 
-    .toll {
+    .bonus {
         stroke: #1b1505;
         stroke-width: 1.5;
     }
 
-    .toll-text {
+    .bonus-text {
         font-size: 16px;
         font-weight: 800;
         fill: #fff;

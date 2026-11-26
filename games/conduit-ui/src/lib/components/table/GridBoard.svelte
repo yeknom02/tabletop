@@ -39,7 +39,7 @@
     )
 
     const choice = $derived(gameSession.isViewingHistory ? undefined : gameSession.shownRouteChoice)
-    const focusedTolls = $derived.by(() => {
+    const focusedBonuses = $derived.by(() => {
         const option =
             choice && gameSession.focusedOption !== undefined
                 ? choice.options[gameSession.focusedOption]
@@ -182,10 +182,10 @@
     />
 {/each}
 
-{#each focusedTolls as toll (cellKey(toll.cell))}
-    {@const point = centreOf(toll.cell)}
-    <g class="toll-chip" transform="translate({point.x} {point.y - 30})">
-        <rect x="-24" y="-14" width="48" height="28" rx="14" style:fill={toll.color}></rect>
+{#each focusedBonuses as bonus (cellKey(bonus.cell))}
+    {@const point = centreOf(bonus.cell)}
+    <g class="bonus-chip" transform="translate({point.x} {point.y - 30})">
+        <rect x="-24" y="-14" width="48" height="28" rx="14" style:fill={bonus.color}></rect>
         <text text-anchor="middle" dy={centredTextShift(16)}>+$1</text>
     </g>
 {/each}
@@ -287,16 +287,16 @@
         pointer-events: none;
     }
 
-    .toll-chip {
+    .bonus-chip {
         pointer-events: none;
     }
 
-    .toll-chip rect {
+    .bonus-chip rect {
         stroke: #1b1505;
         stroke-width: 1.5;
     }
 
-    .toll-chip text {
+    .bonus-chip text {
         font-size: 16px;
         font-weight: 800;
         fill: #fff;
