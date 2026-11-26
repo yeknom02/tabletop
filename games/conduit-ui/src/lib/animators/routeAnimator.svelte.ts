@@ -12,7 +12,7 @@ import {
     type StationRevenue
 } from '@tabletop/conduit'
 import type { Pace } from '$lib/model/routePace.svelte.js'
-import { emblemOutline } from '$lib/utils/emblem.js'
+import { emblemRing } from '$lib/utils/emblem.js'
 
 type Timeline = AnimationContext['actionTimeline']
 
@@ -355,7 +355,7 @@ export class RouteAnimator {
 
     private emblemOf(station: PlacedStation): Emblem {
         return {
-            points: emblemOutline(stationTile(station.tileId).letter),
+            path: emblemRing(stationTile(station.tileId).letter),
             rotation: station.rotation * 90
         }
     }
@@ -383,4 +383,4 @@ export class RouteAnimator {
     }
 }
 
-export type Emblem = { points: string; rotation: number }
+export type Emblem = { path: string; rotation: number }

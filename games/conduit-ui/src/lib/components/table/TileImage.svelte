@@ -1,13 +1,16 @@
 <script lang="ts">
+    import { SidesClockwise, stationTile } from '@tabletop/conduit'
     import {
-        TileFrameSize,
-        TileSheetHeight,
-        TileSheetUrl,
-        TileSheetWidth,
-        tileFrame
+        TerminalColors,
+        TerminalRadius,
+        TileArtCentre,
+        TileArtSize,
+        TileBoardId,
+        emblemId,
+        terminalCentre
     } from '$lib/utils/tileArt.js'
 
-    // A tile's face, or its back when no tile is given, drawn from the shared sheet.
+    // A tile's face, or its back when no tile is given, from the parts in TileArtDefs.
     let {
         tileId,
         x = 0,
@@ -15,28 +18,21 @@
         size
     }: { tileId?: number; x?: number; y?: number; size: number } = $props()
 
-    // The image is the whole sheet, so without a clip WebKit sizes the tile's repaint area, and
-    // every fade of it, to the sheet.
-    const uid = $props.id()
-    const clipId = `conduit-tile-${uid}`
-    const frame = $derived(tileFrame(tileId))
+    const tile = $derived(tileId === undefined ? undefined : stationTile(tileId))
 </script>
 
-<svg
-    {x}
-    {y}
-    width={size}
-    height={size}
-    viewBox="{frame.x} {frame.y} {TileFrameSize} {TileFrameSize}"
-    preserveAspectRatio="none"
->
-    <clipPath id={clipId}>
-        <rect x={frame.x} y={frame.y} width={TileFrameSize} height={TileFrameSize}></rect>
-    </clipPath>
-    <image
-        href={TileSheetUrl}
-        width={TileSheetWidth}
-        height={TileSheetHeight}
-        clip-path="url(#{clipId})"
-    ></image>
+<svg {x} {y} width={size} height={size} viewBox="0 0 {TileArtSize} {TileArtSize}" overflow="hidden">
+    <use href="#{TileBoardId}"></use>
+    {#if tile}
+        {#each SidesClockwise as side (side)}
+            {@const centre = terminalCentre(side)}
+            <circle
+                cx={centre.x}
+                cy={centre.y}
+                r={TerminalRadius}
+                fill={TerminalColors[tile.terminals[side]]}
+            ></circle>
+        {/each}
+        <use href="#{emblemId(tile.letter)}" x={TileArtCentre} y={TileArtCentre}></use>
+    {/if}
 </svg>

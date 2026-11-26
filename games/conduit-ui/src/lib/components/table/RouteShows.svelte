@@ -132,14 +132,14 @@ every frame. -->
         {/if}
         <g transform="translate({home.x} {home.y}) rotate({show.emblem.rotation})">
             <g data-show-ring={id} opacity="0">
-                <polygon class="station-ring" points={show.emblem.points}></polygon>
+                <path class="station-ring" d={show.emblem.path}></path>
             </g>
         </g>
         {#each show.ends as end (`${end.cell.col},${end.cell.row}`)}
             {@const point = centre(end.cell)}
             <g transform="translate({point.x} {point.y}) rotate({end.emblem.rotation})">
                 <g data-show-end={id} opacity="0">
-                    <polygon class="end" points={end.emblem.points}></polygon>
+                    <path class="end" d={end.emblem.path}></path>
                 </g>
             </g>
         {/each}

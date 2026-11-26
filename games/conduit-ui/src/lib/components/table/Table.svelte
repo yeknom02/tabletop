@@ -6,6 +6,7 @@
     import AuctionBoard from './AuctionBoard.svelte'
     import Cube from './Cube.svelte'
     import GridBoard from './GridBoard.svelte'
+    import TileArtDefs from './TileArtDefs.svelte'
     import TileImage from './TileImage.svelte'
 
     const gameSession = getGameSession()
@@ -30,6 +31,7 @@
     {@attach gameSession.tableAnimator.attach}
     {@attach gameSession.routeAnimator.attach}
 >
+    <TileArtDefs />
     <g
         transform="translate({geometry.auction.x} {geometry.auction
             .y}) scale({geometry.auctionScale})"
