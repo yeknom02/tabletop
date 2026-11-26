@@ -10,11 +10,11 @@
         cellOrigin
     } from '$lib/utils/boardLayout.js'
     import { centredTextShift } from '$lib/utils/tableLayout.js'
-    import { TileBackUrl, tileFaceUrl } from '$lib/utils/tileArt.js'
     import CentralStation from './CentralStation.svelte'
     import CubePile from './CubePile.svelte'
     import RouteFlow from './RouteFlow.svelte'
     import RouteShows from './RouteShows.svelte'
+    import TileImage from './TileImage.svelte'
 
     const gameSession = getGameSession()
     const bounds = $derived(gameSession.bounds)
@@ -107,14 +107,11 @@
     <g class="station" class:owned transform="translate({origin.x} {origin.y})">
         <g data-station-tile={key}>
             {#if faceUp}
-                <image
-                    href={tileFaceUrl(station.tileId)}
-                    width={CellSize}
-                    height={CellSize}
-                    transform="rotate({station.rotation * 90} {half} {half})"
-                ></image>
+                <g transform="rotate({station.rotation * 90} {half} {half})">
+                    <TileImage tileId={station.tileId} size={CellSize} />
+                </g>
             {:else}
-                <image href={TileBackUrl} width={CellSize} height={CellSize}></image>
+                <TileImage size={CellSize} />
             {/if}
             <rect class="edge" x="0.5" y="0.5" width={CellSize - 1} height={CellSize - 1}></rect>
         </g>
@@ -214,13 +211,12 @@
         {#if chosen && gameSession.placement}
             <g transform="translate({half} {half})">
                 <g class="preview" style:transform="rotate({gameSession.previewTurns * 90}deg)">
-                    <image
-                        href={tileFaceUrl(gameSession.placement.tileId)}
+                    <TileImage
+                        tileId={gameSession.placement.tileId}
                         x={-half}
                         y={-half}
-                        width={CellSize}
-                        height={CellSize}
-                    ></image>
+                        size={CellSize}
+                    />
                 </g>
             </g>
         {/if}

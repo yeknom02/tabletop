@@ -2,11 +2,11 @@
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { CellSize } from '$lib/utils/boardLayout.js'
     import { tableGeometry } from '$lib/utils/tableLayout.js'
-    import { TileBackUrl, tileFaceUrl } from '$lib/utils/tileArt.js'
     import { cubeShape, pileOffsets, PileCubeSize } from '$lib/utils/cubeShape.js'
     import AuctionBoard from './AuctionBoard.svelte'
     import Cube from './Cube.svelte'
     import GridBoard from './GridBoard.svelte'
+    import TileImage from './TileImage.svelte'
 
     const gameSession = getGameSession()
     const geometry = $derived(
@@ -42,11 +42,7 @@
     {#if flying}
         <g data-flying-tile>
             <g data-flying-turn>
-                <image
-                    href={flying.faceUp ? tileFaceUrl(flying.tileId) : TileBackUrl}
-                    width={CellSize}
-                    height={CellSize}
-                ></image>
+                <TileImage tileId={flying.faceUp ? flying.tileId : undefined} size={CellSize} />
             </g>
             {#if flying.ownerId}
                 {@const color = gameSession.colors.getPlayerBgColorValue(flying.ownerId)}
