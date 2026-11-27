@@ -51,13 +51,15 @@ export type GameRecord = {
     roundMarkets: { round: number; startSeat: number; tileIds: number[]; values: number[] }[]
     passes: number[]
     bidNotes: NotedDecision[]
-    offers: (NotedDecision & { price: number; bought: boolean; canPay: boolean })[]
+    // cash: the deciding player's cash at the decision (for a placement, after paying for the tile).
+    offers: (NotedDecision & { price: number; bought: boolean; canPay: boolean; cash?: number })[]
     // allowed: the most extra cubes the player could have placed (supply, and the cap if any).
     placements: (NotedDecision & {
         faceUp: boolean
         extraCubes: number
         supply: number
         allowed?: number
+        cash?: number
     })[]
     revenues: { round: number; seat: number; letter: string; amount: number; stations: number }[]
     // Bonus income per seat, and how many bonuses each route paid out.
@@ -248,7 +250,8 @@ export function playGame({ seed, bots }: { seed: number; bots: Bot[] }): GameRec
                 seat,
                 price: offer?.price ?? 0,
                 bought: decision.type === 'buyTile',
-                canPay: (hydrated.getPlayerState(playerId).cash ?? 0) >= (offer?.price ?? 0)
+                canPay: (hydrated.getPlayerState(playerId).cash ?? 0) >= (offer?.price ?? 0),
+                cash: hydrated.getPlayerState(playerId).cash
             })
         }
         if (hydrated.machineState === MachineState.Placing && decision.type === 'placeTile') {
@@ -259,7 +262,8 @@ export function playGame({ seed, bots }: { seed: number; bots: Bot[] }): GameRec
                 faceUp: hydrated.pendingPlacement()?.faceUp ?? false,
                 extraCubes: decision.extraCubes,
                 supply: hydrated.getPlayerState(playerId).supply,
-                allowed: Math.min(hydrated.getPlayerState(playerId).supply, MaxExtraCubes)
+                allowed: Math.min(hydrated.getPlayerState(playerId).supply, MaxExtraCubes),
+                cash: hydrated.getPlayerState(playerId).cash
             })
             if (hydrated.pendingPlacement()?.faceUp) {
                 const grid = hydrated.grid()
