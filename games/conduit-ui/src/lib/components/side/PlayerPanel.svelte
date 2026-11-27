@@ -106,11 +106,13 @@
         box-shadow: inset 0 0 0 1px #ffd36b;
     }
 
+    /* The readout is all Share Tech Mono, thickened: it reads best here. */
     .readout {
         display: flex;
         gap: 12px;
         align-items: center;
         padding: 8px 10px 10px;
+        font-family: var(--conduit-readout);
     }
 
     /* Cash reads out on a green display. */
@@ -126,15 +128,14 @@
 
     .label,
     dt {
-        font-size: 10px;
+        font-size: 11px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--conduit-muted);
+        -webkit-text-stroke: 0.3px currentColor;
     }
 
-    /* The one readout kept in Share Tech Mono: at this size it reads best. */
     .value {
-        font-family: var(--conduit-readout);
         font-size: 28px;
         line-height: 1.1;
         color: var(--conduit-lcd-ink);
@@ -148,7 +149,7 @@
     }
 
     dd {
-        font-size: 16px;
-        font-weight: 700;
+        font-size: 18px;
+        -webkit-text-stroke: 0.5px currentColor;
     }
 </style>
