@@ -193,9 +193,12 @@
         margin: 0;
     }
 
+    /* The mono, thickened: OCR-A crowds three tabs into the sidebar. */
     .conduit-table :global(.conduit-tab) {
         flex: 1;
         padding: 5px 8px;
+        font-family: var(--conduit-readout);
+        -webkit-text-stroke: 0.4px currentColor;
         font-size: 13px;
         font-weight: 600;
         letter-spacing: 0.08em;
