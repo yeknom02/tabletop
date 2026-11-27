@@ -21,6 +21,7 @@
     import History from './side/History.svelte'
     import AudiowideFont from '$lib/fonts/Audiowide-400.woff2'
     import ShareTechMonoFont from '$lib/fonts/ShareTechMono-400.woff2'
+    import OcrAFont from '$lib/fonts/OCRA.otf'
     import CircuitBoard from '$lib/images/circuit-board.webp'
 
     let {
@@ -42,6 +43,7 @@
 
 <CustomFont fontFamily="Conduit Display" url={AudiowideFont} format="woff2" />
 <CustomFont fontFamily="Conduit Mono" url={ShareTechMonoFont} format="woff2" />
+<CustomFont fontFamily="Conduit OCR" url={OcrAFont} format="opentype" />
 
 <div
     class="conduit-table"

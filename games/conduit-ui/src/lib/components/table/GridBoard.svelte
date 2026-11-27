@@ -16,6 +16,7 @@
         cellOrigin
     } from '$lib/utils/boardLayout.js'
     import { emblemRing, RingStroke } from '$lib/utils/emblem.js'
+    import { ocrCentredShift, ocrTextWidth } from '$lib/utils/ocrFont.js'
     import { centredTextShift } from '$lib/utils/tableLayout.js'
     import { BoardGroundId, CautionStripesId } from '$lib/utils/tileArt.js'
     import CentralStation from './CentralStation.svelte'
@@ -87,6 +88,7 @@
     const branches = $derived(gameSession.shownRoutes.filter((route) => route.branch))
     // Moving dashes cost phone memory, so only a few alternatives flow; they are short and close.
     const MaxFlowingBranches = 3
+    const BadgeFont = 15
     const BranchStartGap = 34
 
     function routeLine(cells: OffsetCoordinates[], branch: boolean) {
@@ -178,14 +180,23 @@
             />
         {/if}
         {#if badge !== undefined}
-            <rect class="badge" x={CellSize - 38} y={CellSize - 26} width="34" height="22" rx="11"
+            {@const label = `$${badge}`}
+            {@const width = ocrTextWidth(label, BadgeFont) + 12}
+            <rect
+                class="badge"
+                x={CellSize - 4 - width}
+                y={CellSize - 26}
+                {width}
+                height="22"
+                rx="11"
             ></rect>
             <text
                 class="badge-text"
-                x={CellSize - 21}
+                x={CellSize - 4 - width / 2}
                 y={CellSize - 15}
-                dy={centredTextShift(14)}
-                text-anchor="middle">${badge}</text
+                dy={ocrCentredShift(BadgeFont)}
+                font-size={BadgeFont}
+                text-anchor="middle">{label}</text
             >
         {/if}
         {#if owned}
@@ -353,12 +364,14 @@
         stroke-width: 1.5;
     }
 
-    /* A bold sans: the theme's mono has one thin weight, too faint at this size. */
+    /* OCR-A, the emblem letters' face: electronic, and its even strokes stay clear this small. */
     .badge-text {
-        font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-        font-size: 15px;
-        font-weight: 800;
+        font-family: 'Conduit OCR', ui-monospace, monospace;
         fill: #10161f;
+        /* OCR-A has one weight; a hairline of the same ink thickens its strokes. */
+        stroke: #10161f;
+        stroke-width: 0.6;
+        stroke-linejoin: round;
     }
 
     .other-option {
