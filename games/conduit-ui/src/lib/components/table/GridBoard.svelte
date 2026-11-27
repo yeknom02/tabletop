@@ -353,8 +353,10 @@
         stroke-width: 1.5;
     }
 
+    /* A bold sans: the theme's mono has one thin weight, too faint at this size. */
     .badge-text {
-        font-size: 14px;
+        font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        font-size: 15px;
         font-weight: 800;
         fill: #10161f;
     }
