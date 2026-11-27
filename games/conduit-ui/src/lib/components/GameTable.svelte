@@ -123,7 +123,8 @@
 
 <style>
     /* The circuit-board theme: a dim board behind everything, cyan for what is live, Conduit Display
-       (Audiowide) for names and prompts, Conduit Mono (Share Tech Mono) for the rest. */
+       (Audiowide) for names and prompts, Conduit OCR (OCR-A, the emblem letters' face) for the rest,
+       and Conduit Mono (Share Tech Mono) for the large cash readouts. */
     .conduit-table {
         --conduit-bg: #050c18;
         --conduit-panel: rgb(5 13 28 / 0.9);
@@ -142,7 +143,8 @@
         --conduit-paper: #f4f1e8;
         --conduit-paper-ink: #1d2430;
         --conduit-display: 'Conduit Display', 'Segoe UI', sans-serif;
-        --conduit-mono: 'Conduit Mono', ui-monospace, monospace;
+        --conduit-text: 'Conduit OCR', ui-monospace, monospace;
+        --conduit-readout: 'Conduit Mono', ui-monospace, monospace;
         /* Panels lose two corners, like a cut circuit board. */
         --conduit-cut: polygon(
             10px 0,
@@ -158,7 +160,7 @@
         background:
             var(--conduit-circuit-board) center / 1600px auto,
             var(--conduit-bg);
-        font-family: var(--conduit-mono);
+        font-family: var(--conduit-text);
     }
 
     .controls {

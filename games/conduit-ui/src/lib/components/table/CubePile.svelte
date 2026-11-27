@@ -1,6 +1,6 @@
 <script lang="ts">
     import { cubeShape, pileOffsets, PileCubeSize } from '$lib/utils/cubeShape.js'
-    import { centredTextShift } from '$lib/utils/tableLayout.js'
+    import { ocrCentredShift } from '$lib/utils/ocrFont.js'
     import Cube from './Cube.svelte'
 
     // Each cube has its own wrapper for the table animator to lift or drop.
@@ -20,7 +20,7 @@
         </g>
     {/each}
     {#if count > 4}
-        <text class="more" x={2 * shape.across.x + 6} y={shape.height / 2} dy={centredTextShift(13)}
+        <text class="more" x={2 * shape.across.x + 6} y={shape.height / 2} dy={ocrCentredShift(13)}
             >×{count}</text
         >
     {/if}

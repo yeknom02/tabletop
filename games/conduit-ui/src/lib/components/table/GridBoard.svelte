@@ -17,7 +17,6 @@
     } from '$lib/utils/boardLayout.js'
     import { emblemRing, RingStroke } from '$lib/utils/emblem.js'
     import { ocrCentredShift, ocrTextWidth } from '$lib/utils/ocrFont.js'
-    import { centredTextShift } from '$lib/utils/tableLayout.js'
     import { BoardGroundId, CautionStripesId } from '$lib/utils/tileArt.js'
     import CentralStation from './CentralStation.svelte'
     import CubePile from './CubePile.svelte'
@@ -274,7 +273,7 @@
     {@const point = centreOf(bonus.cell)}
     <g class="bonus-chip" transform="translate({point.x} {point.y - 30})">
         <rect x="-24" y="-14" width="48" height="28" rx="14" style:fill={bonus.color}></rect>
-        <text text-anchor="middle" dy={centredTextShift(16)}>+$1</text>
+        <text text-anchor="middle" dy={ocrCentredShift(16)}>+$1</text>
     </g>
 {/each}
 

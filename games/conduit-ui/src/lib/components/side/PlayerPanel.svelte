@@ -98,7 +98,7 @@
     .start {
         padding: 1px 8px;
         border-radius: 2px;
-        font-family: var(--conduit-mono);
+        font-family: var(--conduit-text);
         font-size: 11px;
         letter-spacing: 0.06em;
         text-transform: uppercase;
@@ -132,7 +132,9 @@
         color: var(--conduit-muted);
     }
 
+    /* The one readout kept in Share Tech Mono: at this size it reads best. */
     .value {
+        font-family: var(--conduit-readout);
         font-size: 28px;
         line-height: 1.1;
         color: var(--conduit-lcd-ink);

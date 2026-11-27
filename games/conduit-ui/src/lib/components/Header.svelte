@@ -134,10 +134,13 @@
             margin-right: 2px;
         }
 
+        /* OCR-A is too wide for three buttons here: the narrower mono, thickened to match. */
         .button {
             padding: 2px 7px;
+            font-family: var(--conduit-readout);
             font-size: 12px;
             letter-spacing: 0.02em;
+            -webkit-text-stroke: 0.4px currentColor;
         }
 
         .long {

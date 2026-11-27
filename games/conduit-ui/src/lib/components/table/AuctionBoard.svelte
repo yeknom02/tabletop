@@ -7,8 +7,7 @@
         TrackCell,
         TileInSpot,
         TileOrigin,
-        trackCellOrigin,
-        centredTextShift
+        trackCellOrigin
     } from '$lib/utils/tableLayout.js'
     import { cubeShape, TrackCubeSize } from '$lib/utils/cubeShape.js'
     import { ocrCentredShift } from '$lib/utils/ocrFont.js'
@@ -130,12 +129,12 @@
                     class="price"
                     x={tileCentre.x}
                     y={TileOrigin.y - 24}
-                    dy={centredTextShift(20)}
+                    dy={ocrCentredShift(20)}
                     text-anchor="middle">${offerPrice}</text
                 >
             {/if}
         </g>
-        <text class="number" x={SpotWidth - 10} y="18" dy={centredTextShift(14)} text-anchor="end"
+        <text class="number" x={SpotWidth - 10} y="18" dy={ocrCentredShift(14)} text-anchor="end"
             >{spot}</text
         >
         {#if biddable}

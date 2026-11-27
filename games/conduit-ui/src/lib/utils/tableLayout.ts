@@ -23,10 +23,6 @@ export function trackCellOrigin(index: number): Point {
     return { x: (index % 2) * TrackCell, y: ((BidTrackSpaces - 1 - index) * TrackCell) / 2 }
 }
 
-export function centredTextShift(fontSize: number): number {
-    return fontSize * 0.35
-}
-
 // On a wide screen the grid gets room for its full reach, so the table keeps its size and the
 // auction never moves.
 export interface TableGeometry {
