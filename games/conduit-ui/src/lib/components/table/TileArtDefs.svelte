@@ -5,8 +5,8 @@
         CautionStripeWidth,
         CautionStripesId,
         CautionYellow,
-        CopperCentreColor,
-        CopperEdgeColor,
+        TraceCentreColor,
+        TraceEdgeColor,
         EmblemStroke,
         Emblems,
         LetterGlowWidths,
@@ -39,24 +39,24 @@
         <rect width={CautionStripeWidth} height={CautionStripeWidth * 2} fill={CautionBlack}></rect>
     </pattern>
     <linearGradient
-        id="conduit-copper-across-x"
+        id="conduit-trace-across-x"
         x1={TraceRunStart}
         y1="0"
         x2={TraceRunEnd}
         y2="0"
         gradientUnits="userSpaceOnUse"
     >
-        {@render copper()}
+        {@render traceStops()}
     </linearGradient>
     <linearGradient
-        id="conduit-copper-across-y"
+        id="conduit-trace-across-y"
         x1="0"
         y1={TraceRunStart}
         x2="0"
         y2={TraceRunEnd}
         gradientUnits="userSpaceOnUse"
     >
-        {@render copper()}
+        {@render traceStops()}
     </linearGradient>
     <g id={TileBoardId}>
         <rect width={TileArtSize} height={TileArtSize} fill={TileBoardColor}></rect>
@@ -76,10 +76,10 @@
             y={TraceRunStart}
             width={TileArtSize}
             height={2 * TraceHalfWidth}
-            fill="url(#conduit-copper-across-y)"
+            fill="url(#conduit-trace-across-y)"
         ></rect>
-        <path d={NorthTraceRun} fill="url(#conduit-copper-across-x)"></path>
-        <path d={SouthTraceRun} fill="url(#conduit-copper-across-x)"></path>
+        <path d={NorthTraceRun} fill="url(#conduit-trace-across-x)"></path>
+        <path d={SouthTraceRun} fill="url(#conduit-trace-across-x)"></path>
     </g>
     {#each BaseLetters as letter (letter)}
         {@const art = Emblems[letter]}
@@ -106,8 +106,8 @@
     {/each}
 </defs>
 
-{#snippet copper()}
-    <stop offset="0" stop-color={CopperEdgeColor}></stop>
-    <stop offset="0.5" stop-color={CopperCentreColor}></stop>
-    <stop offset="1" stop-color={CopperEdgeColor}></stop>
+{#snippet traceStops()}
+    <stop offset="0" stop-color={TraceEdgeColor}></stop>
+    <stop offset="0.5" stop-color={TraceCentreColor}></stop>
+    <stop offset="1" stop-color={TraceEdgeColor}></stop>
 {/snippet}

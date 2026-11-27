@@ -8,8 +8,8 @@ export const TileBoardColor = 'rgb(20,50,96)'
 export const TraceHalfWidth = 16.5
 export const TraceOutlineHalfWidth = 19
 export const TraceOutlineColor = 'rgb(35,31,32)'
-export const CopperEdgeColor = 'rgb(150,104,55)'
-export const CopperCentreColor = 'rgb(219,116,13)'
+export const TraceEdgeColor = 'rgb(98,106,117)'
+export const TraceCentreColor = 'rgb(176,184,194)'
 
 export const TraceRunStart = TileArtCentre - TraceHalfWidth
 export const TraceRunEnd = TileArtCentre + TraceHalfWidth
