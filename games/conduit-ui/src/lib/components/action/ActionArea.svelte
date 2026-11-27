@@ -210,9 +210,12 @@
         margin-top: 10px;
     }
 
+    /* The mono, thickened: OCR-A's wide letters crowd these buttons. */
     .choice {
         padding: 6px 16px;
         border-radius: 2px;
+        font-family: var(--conduit-readout);
+        -webkit-text-stroke: 0.4px currentColor;
         font-size: 15px;
         letter-spacing: 0.1em;
         text-transform: uppercase;

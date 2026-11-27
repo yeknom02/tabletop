@@ -10,7 +10,7 @@
         trackCellOrigin
     } from '$lib/utils/tableLayout.js'
     import { cubeShape, TrackCubeSize } from '$lib/utils/cubeShape.js'
-    import { ocrCentredShift } from '$lib/utils/ocrFont.js'
+    import { centredShift, OcrFace } from '$lib/utils/textMetrics.js'
     import { AuctionSpots, BasePrice, BidTrackSpaces } from '@tabletop/conduit'
     import Cube from './Cube.svelte'
     import TileImage from './TileImage.svelte'
@@ -90,7 +90,7 @@
                         class="space-price"
                         x={origin.x + TrackCell / 2}
                         y={origin.y + TrackCell / 2}
-                        dy={ocrCentredShift(SpacePriceFont)}
+                        dy={centredShift(OcrFace, SpacePriceFont)}
                         font-size={SpacePriceFont}
                         text-anchor="middle">${BasePrice + index + 1}</text
                     >
@@ -129,13 +129,17 @@
                     class="price"
                     x={tileCentre.x}
                     y={TileOrigin.y - 24}
-                    dy={ocrCentredShift(20)}
+                    dy={centredShift(OcrFace, 20)}
                     text-anchor="middle">${offerPrice}</text
                 >
             {/if}
         </g>
-        <text class="number" x={SpotWidth - 10} y="18" dy={ocrCentredShift(14)} text-anchor="end"
-            >{spot}</text
+        <text
+            class="number"
+            x={SpotWidth - 10}
+            y="18"
+            dy={centredShift(OcrFace, 14)}
+            text-anchor="end">{spot}</text
         >
         {#if biddable}
             <rect

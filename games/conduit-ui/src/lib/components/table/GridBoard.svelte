@@ -16,7 +16,7 @@
         cellOrigin
     } from '$lib/utils/boardLayout.js'
     import { emblemRing, RingStroke } from '$lib/utils/emblem.js'
-    import { ocrCentredShift, ocrTextWidth } from '$lib/utils/ocrFont.js'
+    import { centredShift, OcrFace, textWidth } from '$lib/utils/textMetrics.js'
     import { BoardGroundId, CautionStripesId } from '$lib/utils/tileArt.js'
     import CentralStation from './CentralStation.svelte'
     import CubePile from './CubePile.svelte'
@@ -180,7 +180,7 @@
         {/if}
         {#if badge !== undefined}
             {@const label = `$${badge}`}
-            {@const width = ocrTextWidth(label, BadgeFont) + 12}
+            {@const width = textWidth(OcrFace, label, BadgeFont) + 12}
             <rect
                 class="badge"
                 x={CellSize - 4 - width}
@@ -193,7 +193,7 @@
                 class="badge-text"
                 x={CellSize - 4 - width / 2}
                 y={CellSize - 15}
-                dy={ocrCentredShift(BadgeFont)}
+                dy={centredShift(OcrFace, BadgeFont)}
                 font-size={BadgeFont}
                 text-anchor="middle">{label}</text
             >
@@ -273,7 +273,7 @@
     {@const point = centreOf(bonus.cell)}
     <g class="bonus-chip" transform="translate({point.x} {point.y - 30})">
         <rect x="-24" y="-14" width="48" height="28" rx="14" style:fill={bonus.color}></rect>
-        <text text-anchor="middle" dy={ocrCentredShift(16)}>+$1</text>
+        <text text-anchor="middle" dy={centredShift(OcrFace, 16)}>+$1</text>
     </g>
 {/each}
 

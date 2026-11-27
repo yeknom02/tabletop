@@ -3,7 +3,7 @@
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import { CellSize, cellOrigin, type BoardBounds } from '$lib/utils/boardLayout.js'
     import { RingStroke } from '$lib/utils/emblem.js'
-    import { ocrCentredShift, ocrTextWidth } from '$lib/utils/ocrFont.js'
+    import { centredShift, MonoFace, OcrFace, textWidth } from '$lib/utils/textMetrics.js'
     import type { RouteShow } from '$lib/animators/routeAnimator.svelte.js'
     import RouteFlow from './RouteFlow.svelte'
 
@@ -15,8 +15,8 @@
     const mounted = $derived(gameSession.routeAnimator.mounted)
     const detailed = $derived(gameSession.routeAnimator.detailed)
     const half = CellSize / 2
-    // OCR-A is wide, so captions are set a little smaller than the payouts.
-    const CaptionFont = 16
+    // Captions are sentences, too long for OCR-A's wide letters: they use the narrower mono.
+    const CaptionFont = 18
     const PayFont = 19
     const BonusFont = 16
 
@@ -35,7 +35,7 @@
     }
 
     function pillWidth(text: string): number {
-        return Math.round(ocrTextWidth(text, CaptionFont) + 22)
+        return Math.round(textWidth(MonoFace, text, CaptionFont) + 22)
     }
 </script>
 
@@ -53,7 +53,7 @@
             <text
                 class="caption-text"
                 text-anchor="middle"
-                dy={ocrCentredShift(CaptionFont)}
+                dy={centredShift(MonoFace, CaptionFont)}
                 font-size={CaptionFont}>{text}</text
             >
         </g>
@@ -157,7 +157,7 @@ every frame. -->
         {@render pill(show.verdict, 'data-show-verdict', id, above)}
         {#if show.amount > 0}
             {@const pay = `+$${show.amount}`}
-            {@const payWidth = ocrTextWidth(pay, PayFont) + 16}
+            {@const payWidth = textWidth(OcrFace, pay, PayFont) + 16}
             <g transform="translate({home.x} {home.y})">
                 <g data-show-pay={id} opacity="0">
                     <rect class="pay" x={-payWidth / 2} y="-16" width={payWidth} height="32" rx="16"
@@ -165,7 +165,7 @@ every frame. -->
                     <text
                         class="pay-text"
                         text-anchor="middle"
-                        dy={ocrCentredShift(PayFont)}
+                        dy={centredShift(OcrFace, PayFont)}
                         font-size={PayFont}>{pay}</text
                     >
                 </g>
@@ -174,7 +174,7 @@ every frame. -->
         {#each show.bonuses as bonus (`${bonus.cell.col},${bonus.cell.row}`)}
             {@const point = centre(bonus.cell)}
             {@const paid = `+$${bonus.amount}`}
-            {@const paidWidth = ocrTextWidth(paid, BonusFont) + 14}
+            {@const paidWidth = textWidth(OcrFace, paid, BonusFont) + 14}
             <g transform="translate({point.x} {point.y})">
                 <g data-show-pay={id} opacity="0">
                     <rect
@@ -189,7 +189,7 @@ every frame. -->
                     <text
                         class="bonus-text"
                         text-anchor="middle"
-                        dy={ocrCentredShift(BonusFont)}
+                        dy={centredShift(OcrFace, BonusFont)}
                         font-size={BonusFont}>{paid}</text
                     >
                 </g>
@@ -254,8 +254,13 @@ every frame. -->
         stroke-width: 2;
     }
 
+    /* The mono, thickened like the OCR-A labels. */
     .caption-text {
+        font-family: var(--conduit-readout);
         fill: #e8eef6;
+        stroke: #e8eef6;
+        stroke-width: 0.5;
+        stroke-linejoin: round;
     }
 
     .pay {
