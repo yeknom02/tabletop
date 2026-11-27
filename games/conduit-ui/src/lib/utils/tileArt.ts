@@ -18,11 +18,13 @@ export const TraceOutlineStart = TileArtCentre - TraceOutlineHalfWidth
 export const NorthTraceRun = `M${TraceRunStart} 0L${TraceRunEnd} 0L${TraceRunEnd} ${TraceRunStart}L${TileArtCentre} ${TileArtCentre}L${TraceRunStart} ${TraceRunStart}Z`
 export const SouthTraceRun = `M${TraceRunStart} ${TileArtSize}L${TraceRunEnd} ${TileArtSize}L${TraceRunEnd} ${TraceRunEnd}L${TileArtCentre} ${TileArtCentre}L${TraceRunStart} ${TraceRunEnd}Z`
 
-export const TerminalRadius = 59.172
-export const TerminalColors: Record<Terminal, string> = {
-    [Terminal.Positive]: 'rgb(242,13,13)',
-    [Terminal.Negative]: '#000'
+export const TerminalRadius = 75
+// Black terminals wear a thin grey outline so they stand out against the blue board.
+export const TerminalStyles: Record<Terminal, { fill: string; outline?: string }> = {
+    [Terminal.Positive]: { fill: 'rgb(242,13,13)' },
+    [Terminal.Negative]: { fill: '#000', outline: 'rgb(150,150,150)' }
 }
+export const TerminalOutlineWidth = 6
 
 export const EmblemStroke = 4.17
 export const LetterGlowWidths = [12, 8, 4]
@@ -124,6 +126,12 @@ function round(value: number): number {
 }
 
 export const TileBoardId = 'conduit-tile-board'
+
+// Blocking markers wear caution tape: yellow and black diagonal stripes, in board units.
+export const CautionStripesId = 'conduit-caution-stripes'
+export const CautionStripeWidth = 4
+export const CautionYellow = '#ffd21f'
+export const CautionBlack = '#141414'
 
 export function emblemId(letter: StationLetter): string {
     return `conduit-emblem-${letter}`

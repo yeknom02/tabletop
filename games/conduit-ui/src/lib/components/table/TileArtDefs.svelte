@@ -1,6 +1,10 @@
 <script lang="ts">
     import { BaseLetters } from '@tabletop/conduit'
     import {
+        CautionBlack,
+        CautionStripeWidth,
+        CautionStripesId,
+        CautionYellow,
         CopperCentreColor,
         CopperEdgeColor,
         EmblemStroke,
@@ -23,6 +27,17 @@
 </script>
 
 <defs>
+    <pattern
+        id={CautionStripesId}
+        width={CautionStripeWidth * 2}
+        height={CautionStripeWidth * 2}
+        patternUnits="userSpaceOnUse"
+        patternTransform="rotate(45)"
+    >
+        <rect width={CautionStripeWidth * 2} height={CautionStripeWidth * 2} fill={CautionYellow}
+        ></rect>
+        <rect width={CautionStripeWidth} height={CautionStripeWidth * 2} fill={CautionBlack}></rect>
+    </pattern>
     <linearGradient
         id="conduit-copper-across-x"
         x1={TraceRunStart}

@@ -10,6 +10,7 @@
         cellOrigin
     } from '$lib/utils/boardLayout.js'
     import { centredTextShift } from '$lib/utils/tableLayout.js'
+    import { CautionStripesId } from '$lib/utils/tileArt.js'
     import CentralStation from './CentralStation.svelte'
     import CubePile from './CubePile.svelte'
     import RouteFlow from './RouteFlow.svelte'
@@ -189,7 +190,14 @@
 
 {#each sticks as closed (`${cellKey(closed.cell)}-${closed.side}`)}
     {@const stick = stickOf(closed.cell, closed.side)}
-    <rect class="stick" x={stick.x} y={stick.y} width={stick.width} height={stick.height} rx="3"
+    <rect
+        class="stick"
+        x={stick.x}
+        y={stick.y}
+        width={stick.width}
+        height={stick.height}
+        rx="3"
+        fill="url(#{CautionStripesId})"
     ></rect>
 {/each}
 
@@ -307,8 +315,7 @@
     }
 
     .stick {
-        fill: #e3342f;
-        stroke: #5c0f0c;
+        stroke: #141414;
         stroke-width: 1.5;
         pointer-events: none;
     }
