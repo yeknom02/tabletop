@@ -268,16 +268,17 @@
         stroke-width: 3;
     }
 
+    /* Cream, so a station's earnings never read as a player's colour. */
     .badge {
-        fill: #10161f;
-        stroke: #f5c542;
+        fill: #f3ead2;
+        stroke: #10161f;
         stroke-width: 1.5;
     }
 
     .badge-text {
         font-size: 14px;
         font-weight: 800;
-        fill: #f5c542;
+        fill: #10161f;
     }
 
     .other-option {
