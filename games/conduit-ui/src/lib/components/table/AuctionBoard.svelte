@@ -11,11 +11,13 @@
         centredTextShift
     } from '$lib/utils/tableLayout.js'
     import { cubeShape, TrackCubeSize } from '$lib/utils/cubeShape.js'
+    import { ocrCentredShift } from '$lib/utils/ocrFont.js'
     import { AuctionSpots, BasePrice, BidTrackSpaces } from '@tabletop/conduit'
     import Cube from './Cube.svelte'
     import TileImage from './TileImage.svelte'
 
     const gameSession = getGameSession()
+    const SpacePriceFont = 12
     const market = $derived(gameSession.tableState.market)
     const offerSpot = $derived(gameSession.shownOffer?.spot)
     const placingSpot = $derived(gameSession.shownPlacement?.spot)
@@ -89,7 +91,8 @@
                         class="space-price"
                         x={origin.x + TrackCell / 2}
                         y={origin.y + TrackCell / 2}
-                        dy={centredTextShift(11)}
+                        dy={ocrCentredShift(SpacePriceFont)}
+                        font-size={SpacePriceFont}
                         text-anchor="middle">${BasePrice + index + 1}</text
                     >
                     {#if biddable && index === entry.bids.length && myColor}
@@ -179,9 +182,13 @@
         stroke-width: 1;
     }
 
+    /* OCR-A, thickened like the income badges, as large as "$11" fits in a space. */
     .space-price {
-        font-size: 11px;
+        font-family: 'Conduit OCR', ui-monospace, monospace;
         fill: #6fd49a;
+        stroke: #6fd49a;
+        stroke-width: 0.45;
+        stroke-linejoin: round;
         pointer-events: none;
     }
 
