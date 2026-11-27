@@ -1,6 +1,12 @@
 <script lang="ts">
     import { sameCoordinates, type OffsetCoordinates } from '@tabletop/common'
-    import { CentralCell, neighborCell, Side, type PlacedStation } from '@tabletop/conduit'
+    import {
+        CentralCell,
+        neighborCell,
+        Side,
+        stationTile,
+        type PlacedStation
+    } from '@tabletop/conduit'
     import { getGameSession } from '$lib/model/sessionContext.svelte.js'
     import {
         boardSize,
@@ -9,6 +15,7 @@
         cellKey,
         cellOrigin
     } from '$lib/utils/boardLayout.js'
+    import { emblemRing, RingStroke } from '$lib/utils/emblem.js'
     import { centredTextShift } from '$lib/utils/tableLayout.js'
     import { CautionStripesId } from '$lib/utils/tileArt.js'
     import CentralStation from './CentralStation.svelte'
@@ -57,16 +64,55 @@
         })
     })
 
-    const focusRoute = $derived(
-        gameSession.shownRoutes.length === 1 ? gameSession.shownRoutes[0] : undefined
+    // One route, or the equally good routes from one station: everything else dims.
+    const focusRoutes = $derived(
+        gameSession.shownRoutes.length === 1 ||
+            gameSession.shownRoutes.every((route) => route.branch)
+            ? gameSession.shownRoutes
+            : []
     )
     const offRoute = $derived(
-        focusRoute
+        focusRoutes.length > 0
             ? stations.filter(
-                  (station) => !focusRoute.cells.some((cell) => sameCoordinates(cell, station.cell))
+                  (station) =>
+                      !focusRoutes.some((route) =>
+                          route.cells.some((cell) => sameCoordinates(cell, station.cell))
+                      )
               )
             : []
     )
+
+    // Equally good routes are drawn as alternatives: each starts clear of the station, so two never
+    // read as one route passing through it, and each ends at its own ringed destination.
+    const branches = $derived(gameSession.shownRoutes.filter((route) => route.branch))
+    // Moving dashes cost phone memory, so only a few alternatives flow; they are short and close.
+    const MaxFlowingBranches = 3
+    const BranchStartGap = 34
+
+    function routeLine(cells: OffsetCoordinates[], branch: boolean) {
+        const line = cells.map(centreOf)
+        if (!branch) return line
+        const [start, next] = line
+        const length = Math.hypot(next.x - start.x, next.y - start.y)
+        const gap = Math.min(BranchStartGap, length / 2)
+        return [
+            {
+                x: start.x + ((next.x - start.x) * gap) / length,
+                y: start.y + ((next.y - start.y) * gap) / length
+            },
+            ...line.slice(1)
+        ]
+    }
+
+    function ringAt(cell: OffsetCoordinates) {
+        const station = gameSession.grid.stationAt(cell)
+        if (!station) return undefined
+        return {
+            centre: centreOf(cell),
+            path: emblemRing(stationTile(station.tileId).letter),
+            rotation: station.rotation * 90
+        }
+    }
 
     function stickOf(cell: OffsetCoordinates, side: Side) {
         const origin = cellOrigin(cell, bounds)
@@ -174,11 +220,36 @@
 {#each gameSession.shownRoutes as route (route.key)}
     <RouteFlow
         id="conduit-route-glow-{route.key}"
-        line={route.cells.map(centreOf)}
+        line={routeLine(route.cells, route.branch ?? false)}
         color={route.color}
-        flowing={gameSession.shownRoutes.length === 1}
+        flowing={gameSession.shownRoutes.length === 1 ||
+            (route.branch === true && branches.length <= MaxFlowingBranches)}
     />
 {/each}
+
+{#if branches.length > 0}
+    {@const home = ringAt(branches[0].cells[0])}
+    {#if home}
+        <path
+            class="branch-ring"
+            d={home.path}
+            transform="translate({home.centre.x} {home.centre.y}) rotate({home.rotation})"
+            stroke-width={RingStroke}
+            style:--route={branches[0].color}
+        ></path>
+    {/if}
+    {#each branches as route (route.key)}
+        {@const end = ringAt(route.cells[route.cells.length - 1])}
+        {#if end}
+            <path
+                class="branch-end"
+                d={end.path}
+                transform="translate({end.centre.x} {end.centre.y}) rotate({end.rotation})"
+                stroke-width={RingStroke}
+            ></path>
+        {/if}
+    {/each}
+{/if}
 
 {#each focusedBonuses as bonus (cellKey(bonus.cell))}
     {@const point = centreOf(bonus.cell)}
@@ -313,6 +384,21 @@
     .dim {
         fill: rgb(8 12 18 / 0.55);
         pointer-events: none;
+    }
+
+    .branch-ring,
+    .branch-end {
+        fill: none;
+        stroke-linejoin: round;
+        pointer-events: none;
+    }
+
+    .branch-ring {
+        stroke: var(--route);
+    }
+
+    .branch-end {
+        stroke: #f5c542;
     }
 
     .stick {
