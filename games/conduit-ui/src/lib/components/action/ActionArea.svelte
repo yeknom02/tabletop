@@ -149,9 +149,40 @@
     }
 
     /* Beside the auction, the table fits the height left below this card; one height for every
-       prompt keeps the table, and so the auction board, from rescaling at each turn. */
+       prompt keeps the table, and so the auction board, from rescaling at each turn. Buttons sit to
+       the right of the text, so that height stays low. */
     .steady {
-        min-height: 140px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        /* Up to three lines of text between two spacers, so the text centres beside the buttons. */
+        grid-template-rows: 1fr auto auto auto 1fr;
+        align-items: center;
+        column-gap: 16px;
+        min-height: 72px;
+    }
+
+    .steady > p,
+    .steady > ol {
+        grid-column: 1;
+    }
+
+    .steady > p:nth-of-type(1) {
+        grid-row: 2;
+    }
+
+    .steady > p:nth-of-type(2),
+    .steady > ol {
+        grid-row: 3;
+    }
+
+    .steady > p:nth-of-type(3) {
+        grid-row: 4;
+    }
+
+    .steady > .buttons {
+        grid-column: 2;
+        grid-row: 1 / -1;
+        margin-top: 0;
     }
 
     .settling {
