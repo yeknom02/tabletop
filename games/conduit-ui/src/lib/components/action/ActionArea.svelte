@@ -143,7 +143,7 @@
     .card {
         margin: 0 8px 8px;
         padding: 12px 16px;
-        border-radius: 10px;
+        clip-path: var(--conduit-cut);
         background: var(--conduit-panel);
         box-shadow: inset 0 0 0 1px var(--conduit-line);
     }
@@ -190,14 +190,16 @@
     }
 
     .prompt {
+        font-family: var(--conduit-display);
         font-size: 18px;
-        font-weight: 600;
+        letter-spacing: 0.03em;
         line-height: 1.3;
     }
 
     .detail {
         margin-top: 2px;
         font-size: 14px;
+        letter-spacing: 0.08em;
         color: var(--conduit-muted);
     }
 
@@ -210,22 +212,29 @@
 
     .choice {
         padding: 6px 16px;
-        border-radius: 6px;
+        border-radius: 2px;
         font-size: 15px;
-        font-weight: 700;
-        color: var(--conduit-ink);
-        background: var(--conduit-panel-raised);
-        box-shadow: inset 0 0 0 1px var(--conduit-line);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #cfefff;
+        background: #081a33;
+        box-shadow: inset 0 0 0 1px var(--conduit-accent);
+    }
+
+    .choice:hover {
+        background: #0b2a4f;
     }
 
     .choice.focused {
-        box-shadow: inset 0 0 0 2px var(--conduit-live);
+        box-shadow:
+            inset 0 0 0 2px var(--conduit-live),
+            0 0 10px var(--conduit-glow);
     }
 
     .choice.buy {
         color: var(--conduit-accent-ink);
         background: var(--conduit-accent);
-        box-shadow: none;
+        box-shadow: 0 0 10px var(--conduit-glow);
     }
 
     .choice:disabled {

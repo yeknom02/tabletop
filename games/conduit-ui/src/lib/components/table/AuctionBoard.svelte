@@ -153,8 +153,8 @@
 
 <style>
     .frame {
-        fill: #18212d;
-        stroke: #33445a;
+        fill: rgb(5 13 28 / 0.92);
+        stroke: #2a5aa0;
         stroke-width: 1.5;
     }
 
@@ -164,7 +164,7 @@
     }
 
     .frame.placing {
-        stroke: #57d3ff;
+        stroke: #49d6ff;
         stroke-width: 3;
     }
 
@@ -172,16 +172,16 @@
         opacity: 0.35;
     }
 
+    /* The bid tracks read out on the green display the cash uses. */
     .track {
-        fill: #222e3d;
-        stroke: #4a5d75;
+        fill: #020806;
+        stroke: #1d4a2a;
         stroke-width: 1;
     }
 
     .space-price {
         font-size: 11px;
-        font-weight: 700;
-        fill: #5d6f86;
+        fill: #6fd49a;
         pointer-events: none;
     }
 
@@ -200,7 +200,7 @@
     }
 
     .biddable .frame {
-        stroke: #57d3ff;
+        stroke: #49d6ff;
         stroke-width: 2.5;
     }
 
@@ -215,7 +215,7 @@
     }
 
     .biddable:hover .frame {
-        fill: #222e3d;
+        fill: #0b1d38;
     }
 
     .biddable:has(.hit:focus-visible) .frame {
@@ -230,7 +230,6 @@
 
     .number {
         font-size: 14px;
-        font-weight: 700;
-        fill: #93a4b8;
+        fill: #6fd49a;
     }
 </style>

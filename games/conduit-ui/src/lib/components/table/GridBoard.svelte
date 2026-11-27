@@ -17,7 +17,7 @@
     } from '$lib/utils/boardLayout.js'
     import { emblemRing, RingStroke } from '$lib/utils/emblem.js'
     import { centredTextShift } from '$lib/utils/tableLayout.js'
-    import { CautionStripesId } from '$lib/utils/tileArt.js'
+    import { BoardGroundId, CautionStripesId } from '$lib/utils/tileArt.js'
     import CentralStation from './CentralStation.svelte'
     import CubePile from './CubePile.svelte'
     import RouteFlow from './RouteFlow.svelte'
@@ -141,7 +141,15 @@
     }
 </script>
 
-<rect class="ground" x="0" y="0" width={size.width} height={size.height} rx="12"></rect>
+<rect
+    class="ground"
+    x="0"
+    y="0"
+    width={size.width}
+    height={size.height}
+    rx="12"
+    fill="url(#{BoardGroundId})"
+></rect>
 
 <CentralStation x={centre.x} y={centre.y} />
 
@@ -314,14 +322,13 @@
 
 <style>
     .ground {
-        fill: #141c26;
-        stroke: #263243;
+        stroke: #1d3d6e;
         stroke-width: 1;
     }
 
     .edge {
         fill: none;
-        stroke: rgb(0 0 0 / 0.35);
+        stroke: rgb(0 0 0 / 0.5);
         stroke-width: 1;
     }
 

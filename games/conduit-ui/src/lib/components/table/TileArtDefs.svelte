@@ -1,6 +1,10 @@
 <script lang="ts">
     import { BaseLetters } from '@tabletop/conduit'
+    import { CellSize } from '$lib/utils/boardLayout.js'
     import {
+        BoardGroundColor,
+        BoardGroundId,
+        BoardGroundMarkColor,
         CautionBlack,
         CautionStripeWidth,
         CautionStripesId,
@@ -27,6 +31,16 @@
 </script>
 
 <defs>
+    <pattern id={BoardGroundId} width={CellSize} height={CellSize} patternUnits="userSpaceOnUse">
+        <rect width={CellSize} height={CellSize} fill={BoardGroundColor}></rect>
+        <path
+            d="M0 6V0H6M{CellSize - 6} 0H{CellSize}V6M{CellSize} {CellSize -
+                6}V{CellSize}H{CellSize - 6}M6 {CellSize}H0V{CellSize - 6}"
+            fill="none"
+            stroke={BoardGroundMarkColor}
+            stroke-width="1.5"
+        ></path>
+    </pattern>
     <pattern
         id={CautionStripesId}
         width={CautionStripeWidth * 2}

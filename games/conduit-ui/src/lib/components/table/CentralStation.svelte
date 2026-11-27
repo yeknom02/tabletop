@@ -32,8 +32,8 @@
 
 <style>
     .body {
-        fill: #2a313c;
-        stroke: #5b6b80;
+        fill: #0b1d38;
+        stroke: #49d6ff;
         stroke-width: 2;
     }
 

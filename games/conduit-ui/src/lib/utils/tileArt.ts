@@ -127,6 +127,11 @@ function round(value: number): number {
 
 export const TileBoardId = 'conduit-tile-board'
 
+// The board's ground: a faint mark at every cell corner, in board units.
+export const BoardGroundId = 'conduit-board-ground'
+export const BoardGroundColor = '#081730'
+export const BoardGroundMarkColor = 'rgb(59 106 168 / 0.45)'
+
 // Blocking markers wear caution tape: yellow and black diagonal stripes, in board units.
 export const CautionStripesId = 'conduit-caution-stripes'
 export const CautionStripeWidth = 4
