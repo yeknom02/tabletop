@@ -198,6 +198,8 @@
 
     .detail {
         margin-top: 2px;
+        font-family: var(--conduit-readout);
+        -webkit-text-stroke: 0.4px currentColor;
         font-size: 14px;
         letter-spacing: 0.08em;
         color: var(--conduit-muted);
