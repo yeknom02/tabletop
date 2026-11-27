@@ -158,7 +158,7 @@
         grid-template-rows: 1fr auto auto auto 1fr;
         align-items: center;
         column-gap: 16px;
-        min-height: 72px;
+        min-height: 76px;
     }
 
     .steady > p,
@@ -200,7 +200,7 @@
         margin-top: 2px;
         font-family: var(--conduit-readout);
         -webkit-text-stroke: 0.4px currentColor;
-        font-size: 14px;
+        font-size: 16px;
         letter-spacing: 0.08em;
         color: var(--conduit-muted);
     }
